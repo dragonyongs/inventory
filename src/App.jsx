@@ -13,6 +13,7 @@ import CategoryView from './pages/CategoryView'
 import CategoryManage from './pages/CategoryManage'
 import PublicCategories from './pages/PublicCategories'
 import SharedView from './pages/SharedView'
+import UserProfile from './pages/UserProfile'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminUsers from './pages/admin/AdminUsers'
 import AdminCategories from './pages/admin/AdminCategories'
@@ -60,6 +61,7 @@ function App() {
             <Route path="public" element={<PublicCategories />} />
             <Route path="category/:categoryId" element={<CategoryView />} />
             <Route path="category/:categoryId/manage" element={<CategoryManage />} />
+            <Route path="profile" element={<UserProfile />} />
 
             {/* 관리자 전용 라우트 */}
             <Route path="admin" element={user?.is_admin ? <AdminDashboard /> : <Navigate to="/dashboard" />} />

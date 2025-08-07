@@ -54,4 +54,26 @@ CREATE TABLE category_permissions (
     created_at TIMESTAMP DEFAULT NOW(),
     UNIQUE(category_id, user_id)
     );
+
+-- 이메일 변경 요청 및 OTP 저장 테이블
+CREATE TABLE inventory_email_change_requests (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES inventory_users(id) ON DELETE CASCADE NOT NULL,
+    current_email VARCHAR(255) NOT NULL,
+    new_email VARCHAR(255) NOT NULL,
+    otp_code VARCHAR(6) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    verified BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+- OTP 인덱스 추가
+CREATE INDEX idx_email_change_otp ON inventory_email_change_requests(otp_code, user_id);
+CREATE INDEX idx_email_change_expires ON inventory_email_change_requests(expires_at);
+
+-- inventory_users 테이블에 프로필 수정 관련 필드 추가 (필요시)
+ALTER TABLE inventory_users ADD COLUMN profile_updated_at TIMESTAMP DEFAULT NOW();
+
+-- RLS 비활성화
+ALTER TABLE inventory_email_change_requests DISABLE ROW LEVEL SECURITY;
 */

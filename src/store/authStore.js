@@ -295,5 +295,9 @@ export const useAuthStore = create((set, get) => ({
   getAuthHeader: () => {
     const { accessToken } = get()
     return accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
+  },
+
+  updateUserProfile: (updatedUser) => {
+    set({ user: updatedUser })
   }
 }))
