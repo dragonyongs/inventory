@@ -50,7 +50,8 @@ export const useAuthStore = create((set, get) => ({
       localStorage.setItem('user', JSON.stringify({
         id: user.id,
         username: user.username,
-        name: user.name
+        name: user.name,
+        email: user.email
       }))
 
       set({ 
@@ -58,6 +59,7 @@ export const useAuthStore = create((set, get) => ({
           id: user.id,
           username: user.username,
           name: user.name,
+          email: user.email,
           is_admin: user.is_admin || false
         },
         accessToken,
@@ -230,6 +232,7 @@ export const useAuthStore = create((set, get) => ({
             id: latestUserData.id,
             username: latestUserData.username,
             name: latestUserData.name,
+            email: user.email,
             is_admin: latestUserData.is_admin
           }
 
