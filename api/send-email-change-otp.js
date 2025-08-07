@@ -77,7 +77,7 @@ export default async function handler(req, res) {
 
     // Gmail 설정이 있는 경우에만 이메일 발송
     if (process.env.GMAIL_USER && process.env.GMAIL_PASS) {
-      const transporter = nodemailer.createTransporter({
+      const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
           user: process.env.GMAIL_USER,
