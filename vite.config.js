@@ -14,7 +14,7 @@ export default defineConfig({
       manifest: {
         name: '재고 관리 PWA',
         short_name: '재고관리',
-        description: '회사 및 개인용 재고 관리 시스템',
+        description: '재고 관리 시스템',
         theme_color: '#2563eb',
         background_color: '#ffffff',
         display: 'standalone',
