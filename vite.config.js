@@ -85,6 +85,6 @@ export default defineConfig({
   ],
   server: {
     host: true, // 네트워크에서 접근 가능하도록 설정
-    port: 5173
+    port: 5200
   }
 })

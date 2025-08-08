@@ -8,61 +8,61 @@ export const useInventoryStore = create((set, get) => ({
   loading: false,
 
   fetchCategories: async (userId) => {
-  set({ loading: true })
-  try {
-    // 1. 소유한 카테고리 조회
-    const { data: ownedCategories, error: ownedError } = await supabase
-      .from('inventory_categories')
-      .select(`
-        *,
-        manager:inventory_users!manager_id(name),
-        items:inventory_items(count),
-        owner:inventory_users!owner_id(name)
-      `)
-      .eq('owner_id', userId)
-      .order('name')
-
-    if (ownedError) throw ownedError
-
-    // 2. 공유받은 카테고리 조회 (permissions를 통해)
-    const { data: sharedCategories, error: sharedError } = await supabase
-      .from('inventory_category_permissions')
-      .select(`
-        permission_level,
-        category:inventory_categories!category_id(
+    set({ loading: true })
+    try {
+      // 1. 소유한 카테고리 조회
+      const { data: ownedCategories, error: ownedError } = await supabase
+        .from('inventory_categories')
+        .select(`
           *,
           manager:inventory_users!manager_id(name),
           items:inventory_items(count),
           owner:inventory_users!owner_id(name)
-        )
-      `)
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
+        `)
+        .eq('owner_id', userId)
+        .order('name')
 
-    if (sharedError) throw sharedError
+      if (ownedError) throw ownedError
 
-    // 3. 공유받은 카테고리 데이터 가공 (permission_level 추가)
-    const processedSharedCategories = sharedCategories.map(item => ({
-      ...item.category,
-      permission_level: item.permission_level,
-      is_shared: true // 공유받은 카테고리임을 표시
-    }))
+      // 2. 공유받은 카테고리 조회 (permissions를 통해)
+      const { data: sharedCategories, error: sharedError } = await supabase
+        .from('inventory_category_permissions')
+        .select(`
+          permission_level,
+          category:inventory_categories!category_id(
+            *,
+            manager:inventory_users!manager_id(name),
+            items:inventory_items(count),
+            owner:inventory_users!owner_id(name)
+          )
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
 
-    // 4. 소유 카테고리에 is_shared: false 표시 추가
-    const processedOwnedCategories = ownedCategories.map(category => ({
-      ...category,
-      is_shared: false,
-      permission_level: 'admin' // 소유자는 관리자 권한
-    }))
+      if (sharedError) throw sharedError
 
-    // 5. 두 배열 합치기
-    const allCategories = [...processedOwnedCategories, ...processedSharedCategories]
-    
-    set({ categories: allCategories, loading: false })
-  } catch (error) {
-    console.error('Error fetching categories:', error)
-    set({ loading: false })
-  }
+      // 3. 공유받은 카테고리 데이터 가공 (permission_level 추가)
+      const processedSharedCategories = sharedCategories.map(item => ({
+        ...item.category,
+        permission_level: item.permission_level,
+        is_shared: true // 공유받은 카테고리임을 표시
+      }))
+
+      // 4. 소유 카테고리에 is_shared: false 표시 추가
+      const processedOwnedCategories = ownedCategories.map(category => ({
+        ...category,
+        is_shared: false,
+        permission_level: 'admin' // 소유자는 관리자 권한
+      }))
+
+      // 5. 두 배열 합치기
+      const allCategories = [...processedOwnedCategories, ...processedSharedCategories]
+      
+      set({ categories: allCategories, loading: false })
+    } catch (error) {
+      console.error('Error fetching categories:', error)
+      set({ loading: false })
+    }
 },
 
   createCategory: async (categoryData) => {
@@ -103,24 +103,24 @@ export const useInventoryStore = create((set, get) => ({
     } catch (error) {
         return { success: false, error: error.message }
     }
-    },
+  },
 
-    deleteCategory: async (categoryId) => {
-        try {
-            const { error } = await supabase
-                .from('inventory_categories')
-                .delete()
-                .eq('id', categoryId)
+  deleteCategory: async (categoryId) => {
+      try {
+          const { error } = await supabase
+              .from('inventory_categories')
+              .delete()
+              .eq('id', categoryId)
 
-            if (error) throw error
+          if (error) throw error
 
-            const { categories } = get()
-            set({ categories: categories.filter(category => category.id !== categoryId) })
-            return { success: true }
-        } catch (error) {
-            return { success: false, error: error.message }
-        }
-    },
+          const { categories } = get()
+          set({ categories: categories.filter(category => category.id !== categoryId) })
+          return { success: true }
+      } catch (error) {
+          return { success: false, error: error.message }
+      }
+  },
 
   fetchItems: async (categoryId) => {
     set({ loading: true })
