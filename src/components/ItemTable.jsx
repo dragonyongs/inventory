@@ -11,6 +11,7 @@ export default function ItemTable({
     onDelete,
     emptyMessage = '아이템이 없습니다',
     onAdd,
+    onUse,
 }) {
     if (!items.length) {
         return (
@@ -89,6 +90,11 @@ export default function ItemTable({
                                         )}
                                         {userPermission === 'view' && (
                                             <span className="text-gray-400 text-xs">조회 전용</span>
+                                        )}
+                                        {onUse && (
+                                            <button onClick={() => onUse(item)} className="btn btn-warning btn-xs">
+                                                차감
+                                            </button>
                                         )}
                                     </div>
                                 </td>

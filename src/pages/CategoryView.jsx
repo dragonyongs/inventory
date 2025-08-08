@@ -8,6 +8,7 @@ import CategoryStats from '../components/CategoryStats'
 import ItemModal from '../components/ItemModal'
 import ItemTable from '../components/ItemTable'
 import PageHeader from '../components/PageHeader'
+import ItemUseModal from '../components/ItemUseModal'
 import { supabase } from '../lib/supabase'
 
 export default function CategoryView() {
@@ -27,6 +28,8 @@ export default function CategoryView() {
     const [isItemModalOpen, setIsItemModalOpen] = useState(false)
     const [editingItem, setEditingItem] = useState(null)
     const [userPermission, setUserPermission] = useState('view') // 기본: 공개 조회only
+    const [useModalOpen, setUseModalOpen] = useState(false)
+    const [useTargetItem, setUseTargetItem] = useState(null)
 
     // 권한/상태 유틸
     const myUserId = user?.id
@@ -38,9 +41,11 @@ export default function CategoryView() {
     const canManage = isOwner || userPermission === 'admin'
     const canEdit = isOwner || userPermission === 'admin' || userPermission === 'edit'
     const canAddItem = canEdit
-    const canDeleteItem = canEdit
-    const canUseItem = canEdit // 또는 별도 차감권한 추가 가능
-    // (이외에도 필요하면 use(차감전용) 등 세분화 가능)
+    const canDeleteItem = canManage
+    const canUseItem = isOwner ||
+        userPermission === 'admin' ||
+        userPermission === 'edit' ||
+        (selectedCategory?.is_public && selectedCategory?.is_public_usable)
 
     // 권한 level 결정
     useEffect(() => {
@@ -92,6 +97,12 @@ export default function CategoryView() {
     }
     const handleEditItem = (item) => { if (canEdit) { setEditingItem(item); setIsItemModalOpen(true) } }
     const handleAddItem = () => { if (canAddItem) { setEditingItem(null); setIsItemModalOpen(true) } }
+
+    // 아이템 차감 버튼 클릭 시
+    const handleUseItemClick = (item) => {
+        setUseTargetItem(item)
+        setUseModalOpen(true)
+    }
 
     if (loading) {
         return (
@@ -155,6 +166,7 @@ export default function CategoryView() {
                     onEdit={canEdit ? handleEditItem : undefined}
                     onDelete={canDeleteItem ? handleDeleteItem : undefined}
                     onAdd={canAddItem ? handleAddItem : undefined}
+                    onUse={canUseItem ? handleUseItemClick : undefined}
                 />
             </div>
             <ItemModal
@@ -165,6 +177,14 @@ export default function CategoryView() {
                 }}
                 categoryId={categoryId}
                 editingItem={editingItem}
+            />
+
+            {/* 차감 모달 연결 */}
+            <ItemUseModal
+                isOpen={useModalOpen}
+                onClose={() => setUseModalOpen(false)}
+                item={useTargetItem}
+                categoryId={categoryId}
             />
         </div>
     )

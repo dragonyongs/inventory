@@ -1,8 +1,5 @@
-const supabaseUrl = process.env.VITE_SUPABASE_URL
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY
-
-import { createClient } from '@supabase/supabase-js'
-const supabase = createClient(supabaseUrl, supabaseKey)
+// api/verify-email-change-otp.js
+import { supabase } from '../lib/supabase'
 
 export default async function handler(req, res) {
   // CORS 설정

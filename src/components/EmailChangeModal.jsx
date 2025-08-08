@@ -3,27 +3,32 @@ import { useForm } from 'react-hook-form'
 import { X, Mail, Send, Check } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { useAuthStore } from '../store/authStore'
+import { createClient } from '@supabase/supabase-js'
+import { sendEmailChangeOtp, verifyEmailChangeOtp } from '../api/email'
+
+// (환경변수 import는 필요시 별도 util로 빼도 OK)
+const supabase = createClient(
+    import.meta.env.VITE_SUPABASE_URL,
+    import.meta.env.VITE_SUPABASE_ANON_KEY
+)
 
 export default function EmailChangeModal({ isOpen, onClose, currentEmail }) {
-    const { user } = useAuthStore()
+    const { user, setUser } = useAuthStore()
     const [step, setStep] = useState(1) // 1: 새 이메일 입력, 2: OTP 인증
     const [newEmail, setNewEmail] = useState('')
     const [otpSent, setOtpSent] = useState(false)
-    const [timeLeft, setTimeLeft] = useState(300) // 5분
+    const [timeLeft, setTimeLeft] = useState(300)
     const [loading, setLoading] = useState(false)
 
     // 새 이메일 입력 폼
     const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm()
-
     // OTP 입력 폼
     const { register: registerOtp, handleSubmit: handleOtpSubmit, formState: { errors: otpErrors, isSubmitting: otpSubmitting } } = useForm()
 
     React.useEffect(() => {
         let interval = null
         if (otpSent && timeLeft > 0) {
-            interval = setInterval(() => {
-                setTimeLeft(timeLeft - 1)
-            }, 1000)
+            interval = setInterval(() => setTimeLeft((sec) => sec - 1), 1000)
         } else if (timeLeft === 0) {
             setOtpSent(false)
             clearInterval(interval)
@@ -31,24 +36,15 @@ export default function EmailChangeModal({ isOpen, onClose, currentEmail }) {
         return () => clearInterval(interval)
     }, [otpSent, timeLeft])
 
-    // 새 이메일로 OTP 발송
+    // [1] 새 이메일로 OTP 전송
     const sendOTP = async (data) => {
         try {
             setLoading(true)
-
-            const response = await fetch('/api/send-email-change-otp', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    userId: user.id,
-                    currentEmail: currentEmail,
-                    newEmail: data.newEmail
-                })
+            const result = await sendEmailChangeOtp({
+                userId: user.id,
+                currentEmail: user.email,
+                newEmail: data.newEmail,
             })
-
-            const result = await response.json()
 
             if (result.success) {
                 setNewEmail(data.newEmail)
@@ -67,32 +63,30 @@ export default function EmailChangeModal({ isOpen, onClose, currentEmail }) {
         }
     }
 
-    // OTP 인증 및 이메일 변경
+    // [2] OTP 인증 및 이메일 바꾸기(성공 시 store도 API로 fetch → setUser)
     const verifyOTP = async (data) => {
         try {
-            const response = await fetch('/api/verify-email-change-otp', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    userId: user.id,
-                    newEmail: newEmail,
-                    otpCode: data.otpCode
-                })
+            const result = await verifyEmailChangeOtp({
+                userId: user.id,
+                newEmail,
+                otpCode: data.otpCode,
             })
-
-            const result = await response.json()
 
             if (result.success) {
                 toast.success('이메일이 성공적으로 변경되었습니다!')
-
-                // 사용자 정보 업데이트
-                const updatedUser = { ...user, email: newEmail }
-                localStorage.setItem('user', JSON.stringify(updatedUser))
-                window.location.reload() // 새로고침하여 업데이트된 정보 반영
-
-                onClose()
+                // 서버에서 최신 유저 정보 다시 가져오기
+                const { data: updatedUser, error } = await supabase
+                    .from('inventory_users')
+                    .select('*')
+                    .eq('id', user.id)
+                    .single()
+                if (!error && updatedUser) {
+                    setUser(updatedUser)
+                    onClose()
+                } else {
+                    toast.error('이메일은 변경됐지만, 사용자 정보를 다시 불러올 수 없습니다.')
+                    onClose()
+                }
             } else {
                 toast.error(result.error || '인증 코드가 올바르지 않습니다.')
             }
@@ -133,6 +127,7 @@ export default function EmailChangeModal({ isOpen, onClose, currentEmail }) {
                     </button>
                 </div>
 
+                {/* Step 1: 새 이메일 입력 */}
                 {step === 1 && (
                     <form onSubmit={handleSubmit(sendOTP)} className="space-y-4">
                         <div>
@@ -146,7 +141,6 @@ export default function EmailChangeModal({ isOpen, onClose, currentEmail }) {
                                 className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-gray-500"
                             />
                         </div>
-
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 새 이메일 주소
@@ -167,14 +161,12 @@ export default function EmailChangeModal({ isOpen, onClose, currentEmail }) {
                                 <p className="mt-1 text-sm text-red-600">{errors.newEmail.message}</p>
                             )}
                         </div>
-
                         <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
                             <div className="text-sm text-blue-700">
                                 <Mail className="h-4 w-4 inline mr-2" />
                                 새 이메일 주소로 6자리 인증 코드가 발송됩니다.
                             </div>
                         </div>
-
                         <div className="flex justify-end space-x-3">
                             <button
                                 type="button"
@@ -188,19 +180,13 @@ export default function EmailChangeModal({ isOpen, onClose, currentEmail }) {
                                 disabled={isSubmitting || loading}
                                 className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
                             >
-                                {isSubmitting || loading ? (
-                                    '발송 중...'
-                                ) : (
-                                    <>
-                                        <Send className="h-4 w-4 mr-2 inline" />
-                                        인증 코드 발송
-                                    </>
-                                )}
+                                {isSubmitting || loading ? '발송 중...' : (<><Send className="h-4 w-4 mr-2 inline" />인증 코드 발송</>)}
                             </button>
                         </div>
                     </form>
                 )}
 
+                {/* Step 2: OTP 인증 */}
                 {step === 2 && (
                     <form onSubmit={handleOtpSubmit(verifyOTP)} className="space-y-4">
                         <div>
@@ -214,7 +200,6 @@ export default function EmailChangeModal({ isOpen, onClose, currentEmail }) {
                                 className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-gray-500"
                             />
                         </div>
-
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 인증 코드
@@ -236,7 +221,6 @@ export default function EmailChangeModal({ isOpen, onClose, currentEmail }) {
                                 <p className="mt-1 text-sm text-red-600">{otpErrors.otpCode.message}</p>
                             )}
                         </div>
-
                         <div className="bg-green-50 border border-green-200 rounded-md p-4">
                             <div className="text-sm text-green-700">
                                 <Check className="h-4 w-4 inline mr-2" />
@@ -248,7 +232,6 @@ export default function EmailChangeModal({ isOpen, onClose, currentEmail }) {
                                 )}
                             </div>
                         </div>
-
                         <div className="flex justify-end space-x-3">
                             <button
                                 type="button"
@@ -262,17 +245,9 @@ export default function EmailChangeModal({ isOpen, onClose, currentEmail }) {
                                 disabled={otpSubmitting || timeLeft === 0}
                                 className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
                             >
-                                {otpSubmitting ? (
-                                    '인증 중...'
-                                ) : (
-                                    <>
-                                        <Check className="h-4 w-4 mr-2 inline" />
-                                        이메일 변경
-                                    </>
-                                )}
+                                {otpSubmitting ? '인증 중...' : (<><Check className="h-4 w-4 mr-2 inline" />이메일 변경</>)}
                             </button>
                         </div>
-
                         {timeLeft === 0 && (
                             <div className="text-center">
                                 <button

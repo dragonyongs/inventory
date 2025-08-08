@@ -7,6 +7,51 @@ export const useInventoryStore = create((set, get) => ({
   selectedCategory: null,
   loading: false,
 
+  inventoryUseItem: async ({ category_id, item_id, user_id, used_quantity, note }) => {
+    try {
+      // 1. 사용 기록 생성
+      const { data: usage, error: usageError } = await supabase
+        .from('inventory_item_usages')
+        .insert([{
+          category_id, item_id, user_id, used_quantity, note, used_at: new Date().toISOString()
+        }])
+        .select()
+        .single()
+      if (usageError) throw usageError
+
+      // 2. 현재 수량 조회
+      const { data: itemData, error: getError } = await supabase
+        .from('inventory_items')
+        .select('quantity')
+        .eq('id', item_id)
+        .single()
+      if (getError) throw getError
+
+      const newQty = (itemData.quantity || 0) - used_quantity
+      if (newQty < 0) throw new Error('현재 재고보다 많이 차감할 수 없습니다.')
+
+      // 3. 새 수량 업데이트
+      const { data: updated, error: updateError } = await supabase
+        .from('inventory_items')
+        .update({ quantity: newQty })
+        .eq('id', item_id)
+        .select()
+        .single()
+      if (updateError) throw updateError
+
+      // 4. 프론트 상태 반영
+      const { items } = get()
+      set({
+        items: items.map(i =>
+          i.id === item_id ? { ...i, quantity: updated.quantity } : i
+        )
+      })
+      return { success: true }
+    } catch (error) {
+      return { success: false, error: error.message }
+    }
+  },
+
   fetchCategories: async (userId) => {
     set({ loading: true })
     try {
@@ -63,21 +108,38 @@ export const useInventoryStore = create((set, get) => ({
       console.error('Error fetching categories:', error)
       set({ loading: false })
     }
-},
+  },
 
-  createCategory: async (categoryData) => {
+  createItem: async (itemData) => {
     try {
-      const { data, error } = await supabase
-        .from('inventory_categories') // 새 테이블명
-        .insert([categoryData])
+      // 1. 아이템 row 생성
+      const { data: newItem, error } = await supabase
+        .from('inventory_items')
+        .insert([itemData])
         .select()
         .single()
-
       if (error) throw error
 
-      const { categories } = get()
-      set({ categories: [...categories, data] })
-      return { success: true, data }
+      // 2. 입고 내역(item_usages)에 기록
+      // itemData.quantity가 0이 아닐 때만 기록(입고 없는 초기 등록 예외 처리 가능)
+      if (newItem.quantity && newItem.quantity > 0) {
+        await supabase
+          .from('inventory_item_usages')
+          .insert([{
+            category_id: newItem.category_id,
+            item_id: newItem.id,
+            user_id: itemData.added_by || itemData.user_id, // 만든 사람 id
+            used_quantity: newItem.quantity,
+            type: 'in',
+            note: '초기 입고',  // 또는 itemData.note 등
+            used_at: new Date().toISOString()
+          }])
+      }
+
+      // 3. 프론트 상태 reflect 등
+      const { items } = get()
+      set({ items: [...items, newItem] })
+      return { success: true, data: newItem }
     } catch (error) {
       return { success: false, error: error.message }
     }
@@ -225,4 +287,5 @@ export const useInventoryStore = create((set, get) => ({
   setSelectedCategory: (category) => {
     set({ selectedCategory: category })
   }
+
 }))
