@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowLeft, Users, Search, Edit, Trash2, Shield, ShieldOff, Plus, Eye } from 'lucide-react'
+import PageHeader from '../../components/PageHeader'
+import StatCard from '../../components/StatCard'
+import SearchInput from '../../components/SearchInput'
+
+import { Users, Search, Trash2, Shield, ShieldOff, Eye } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { toast } from 'react-hot-toast'
 
@@ -8,8 +11,6 @@ export default function AdminUsers() {
     const [users, setUsers] = useState([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
-    const [selectedUser, setSelectedUser] = useState(null)
-    const [showUserModal, setShowUserModal] = useState(false)
 
     useEffect(() => {
         fetchUsers()
@@ -22,8 +23,8 @@ export default function AdminUsers() {
                 .from('inventory_users')
                 .select(`
           *,
-          owned_categories:inventory_categories!owner_id(count),
-          shared_categories:inventory_category_permissions(count)
+            owned_categories:inventory_categories!owner_id(count),
+            shared_categories:inventory_category_permissions(count)
         `)
                 .order('created_at', { ascending: false })
 
@@ -89,92 +90,49 @@ export default function AdminUsers() {
     return (
         <div className="space-y-6">
             {/* 헤더 */}
-            <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                    <Link
-                        to="/admin"
-                        className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+            <PageHeader
+                title="사용자 관리"
+                description={`전체 ${filteredUsers.length}명의 사용자`}
+                // icon={<PieChart className="h-6 w-6 text-blue-500" />}
+                rightSection={(
+                    <button
+                        onClick={fetchUsers}
+                        className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                     >
-                        <ArrowLeft className="h-5 w-5" />
-                    </Link>
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">사용자 관리</h1>
-                        <p className="mt-1 text-sm text-gray-500">
-                            전체 {filteredUsers.length}명의 사용자
-                        </p>
-                    </div>
-                </div>
-
-                <button
-                    onClick={fetchUsers}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
-                >
-                    새로고침
-                </button>
-            </div>
+                        새로고침
+                    </button>
+                )}
+            />
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-10">
                 {/* 검색 */}
-                <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Search className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <input
-                        type="text"
-                        className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-red-500 focus:border-red-500"
-                        placeholder="사용자 이름이나 아이디로 검색..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
+                <SearchInput
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    placeholder="사용자 이름이나 아이디로 검색..."
+                    variant="red"
+                />
 
                 {/* 통계 카드 */}
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-                    <div className="bg-white overflow-hidden shadow rounded-lg">
-                        <div className="p-5">
-                            <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                    <Users className="h-8 w-8 text-blue-500" />
-                                </div>
-                                <div className="ml-5">
-                                    <p className="text-sm font-medium text-gray-500">총 사용자</p>
-                                    <p className="text-2xl font-bold text-gray-900">{users.length}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white overflow-hidden shadow rounded-lg">
-                        <div className="p-5">
-                            <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                    <Shield className="h-8 w-8 text-red-500" />
-                                </div>
-                                <div className="ml-5">
-                                    <p className="text-sm font-medium text-gray-500">관리자</p>
-                                    <p className="text-2xl font-bold text-gray-900">
-                                        {users.filter(user => user.is_admin).length}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white overflow-hidden shadow rounded-lg">
-                        <div className="p-5">
-                            <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                    <Eye className="h-8 w-8 text-green-500" />
-                                </div>
-                                <div className="ml-5">
-                                    <p className="text-sm font-medium text-gray-500">일반 사용자</p>
-                                    <p className="text-2xl font-bold text-gray-900">
-                                        {users.filter(user => !user.is_admin).length}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <StatCard
+                        icon={<Users className="h-8 w-8 text-blue-600" />}
+                        label="총 사용자"
+                        value={users.length}
+                        valueClassName="text-2xl font-bold text-gray-900"
+                    />
+                    <StatCard
+                        icon={<Shield className="h-8 w-8 text-red-600" />}
+                        label="관리자"
+                        value={users.filter(user => user.is_admin).length}
+                        valueClassName="text-2xl font-bold text-gray-900"
+                    />
+                    <StatCard
+                        icon={<Eye className="h-8 w-8 text-green-600" />}
+                        label="일반 사용자"
+                        value={users.filter(user => !user.is_admin).length}
+                        valueClassName="text-2xl font-bold text-gray-900"
+                    />
                 </div>
 
                 {/* 사용자 테이블 */}

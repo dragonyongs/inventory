@@ -1,9 +1,14 @@
 import React, { useEffect, useState } from 'react'
+import PageHeader from '../../components/PageHeader'
+import StatCard from '../../components/StatCard'
+
 import { Link } from 'react-router-dom'
 import { Users, Package, Shield, TrendingUp, AlertTriangle, Calendar, BarChart3, Activity } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { useAuthStore } from '../../store/authStore'
 
 export default function AdminDashboard() {
+    const { user } = useAuthStore()
     const [stats, setStats] = useState({
         totalUsers: 0,
         totalCategories: 0,
@@ -97,120 +102,55 @@ export default function AdminDashboard() {
     return (
         <div className="space-y-6">
             {/* 헤더 */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between py-6">
-
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900">관리자 대시보드</h1>
-                        <p className="mt-2 text-gray-600">시스템 전체 현황을 관리하세요</p>
-                    </div>
-                    <div className="flex space-x-3">
-                        <button
-                            onClick={fetchAdminStats}
-                            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                        >
-                            <Activity className="h-4 w-4 mr-2" />
-                            새로고침
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <PageHeader
+                title="관리자 대시보드"
+                description={`${user?.name}님의 재고 관리 현황입니다`}
+                // icon={<PieChart className="h-6 w-6 text-blue-500" />}
+                rightSection={(
+                    <button
+                        onClick={fetchAdminStats}
+                        className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                        <Activity className="h-4 w-4 mr-2" />
+                        새로고침
+                    </button>
+                )}
+            />
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-10">
 
                 {/* 통계 카드들 */}
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="bg-white overflow-hidden shadow rounded-lg">
-                        <div className="p-5">
-                            <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                    <Users className="h-8 w-8 text-blue-600" />
-                                </div>
-                                <div className="ml-5 w-0 flex-1">
-                                    <dl>
-                                        <dt className="text-sm font-medium text-gray-500 truncate">총 사용자</dt>
-                                        <dd className="text-2xl font-bold text-gray-900">{stats.totalUsers}</dd>
-                                    </dl>
-                                </div>
-                            </div>
-                            <div className="mt-4">
-                                <Link
-                                    to="/admin/users"
-                                    className="text-sm text-blue-600 hover:text-blue-500 font-medium"
-                                >
-                                    사용자 관리 →
-                                </Link>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white overflow-hidden shadow rounded-lg">
-                        <div className="p-5">
-                            <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                    <Package className="h-8 w-8 text-green-600" />
-                                </div>
-                                <div className="ml-5 w-0 flex-1">
-                                    <dl>
-                                        <dt className="text-sm font-medium text-gray-500 truncate">총 카테고리</dt>
-                                        <dd className="text-2xl font-bold text-gray-900">{stats.totalCategories}</dd>
-                                    </dl>
-                                </div>
-                            </div>
-                            <div className="mt-4">
-                                <Link
-                                    to="/admin/categories"
-                                    className="text-sm text-green-600 hover:text-green-500 font-medium"
-                                >
-                                    카테고리 관리 →
-                                </Link>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white overflow-hidden shadow rounded-lg">
-                        <div className="p-5">
-                            <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                    <Shield className="h-8 w-8 text-purple-600" />
-                                </div>
-                                <div className="ml-5 w-0 flex-1">
-                                    <dl>
-                                        <dt className="text-sm font-medium text-gray-500 truncate">총 아이템</dt>
-                                        <dd className="text-2xl font-bold text-gray-900">{stats.totalItems}</dd>
-                                    </dl>
-                                </div>
-                            </div>
-                            <div className="mt-4">
-                                <Link
-                                    to="/admin/items"
-                                    className="text-sm text-purple-600 hover:text-purple-500 font-medium"
-                                >
-                                    아이템 관리 →
-                                </Link>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white overflow-hidden shadow rounded-lg">
-                        <div className="p-5">
-                            <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                    <AlertTriangle className="h-8 w-8 text-red-600" />
-                                </div>
-                                <div className="ml-5 w-0 flex-1">
-                                    <dl>
-                                        <dt className="text-sm font-medium text-gray-500 truncate">만료된 아이템</dt>
-                                        <dd className="text-2xl font-bold text-red-600">{stats.expiredItems}</dd>
-                                    </dl>
-                                </div>
-                            </div>
-                            <div className="mt-4">
-                                <span className="text-sm text-red-600 font-medium">
-                                    즉시 처리 필요
-                                </span>
-                            </div>
-                        </div>
-                    </div>
+                    <StatCard
+                        icon={<Users className="h-8 w-8 text-blue-600" />}
+                        label="총 사용자"
+                        value={stats.totalUsers}
+                        valueClassName="text-2xl font-bold text-gray-900"
+                        link="/admin/users"
+                        linkText="사용자 관리 →"
+                    />
+                    <StatCard
+                        icon={<Package className="h-8 w-8 text-green-600" />}
+                        label="총 카테고리"
+                        value={stats.totalCategories}
+                        valueClassName="text-2xl font-bold text-gray-900"
+                        link="/admin/categories"
+                        linkText="카테고리 관리 →"
+                    />
+                    <StatCard
+                        icon={<Shield className="h-8 w-8 text-purple-600" />}
+                        label="총 아이템"
+                        value={stats.totalItems}
+                        valueClassName="text-2xl font-bold text-gray-900"
+                        link="/admin/items"
+                        linkText="아이템 관리 →"
+                    />
+                    <StatCard
+                        icon={<AlertTriangle className="h-8 w-8 text-red-600" />}
+                        label="만료된 아이템"
+                        value={stats.expiredItems}
+                        valueClassName="text-2xl font-bold text-red-600"
+                        alertText="즉시 처리 필요"
+                    />
                 </div>
 
                 {/* 추가 통계 */}

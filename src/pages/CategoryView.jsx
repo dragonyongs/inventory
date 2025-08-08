@@ -50,11 +50,12 @@ export default function CategoryView() {
     // 권한 level 결정
     useEffect(() => {
         if (!selectedCategory) return
-        if (selectedCategory.owner_id === myUserId) setUserPermission('admin')
+        if (user?.is_admin) setUserPermission('admin')
+        else if (selectedCategory.owner_id === myUserId) setUserPermission('admin')
         else if (selectedCategory.is_shared) setUserPermission(selectedCategory.permission_level)
         else if (selectedCategory.is_public) setUserPermission('view')
         else setUserPermission('view')
-    }, [selectedCategory, myUserId])
+    }, [selectedCategory, myUserId, user])
 
     // fetch data
     useEffect(() => {

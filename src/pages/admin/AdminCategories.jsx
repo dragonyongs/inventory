@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Package, Search, Edit, Trash2, Eye, EyeOff, Share2, User, Filter } from 'lucide-react'
+import PageHeader from '../../components/PageHeader'
+import StatCard from '../../components/StatCard'
+import SearchInput from '../../components/SearchInput'
+import ItemTable from '../../components/ItemTable'
+
+import { ArrowLeft, Activity, Package, Trash2, Eye, EyeOff, Share2, Filter } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { toast } from 'react-hot-toast'
 
@@ -9,8 +14,6 @@ export default function AdminCategories() {
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
     const [filterType, setFilterType] = useState('all') // all, public, private, shared
-    const [selectedCategory, setSelectedCategory] = useState(null)
-    const [showDetails, setShowDetails] = useState(false)
 
     useEffect(() => {
         fetchCategories()
@@ -23,10 +26,10 @@ export default function AdminCategories() {
                 .from('inventory_categories')
                 .select(`
           *,
-          owner:inventory_users!owner_id(id, name, username),
-          manager:inventory_users!manager_id(name),
-          items:inventory_items(count),
-          permissions:inventory_category_permissions(count)
+            owner:inventory_users!owner_id(id, name, username),
+            manager:inventory_users!manager_id(name),
+            items:inventory_items(count),
+            permissions:inventory_category_permissions(count)
         `)
                 .order('created_at', { ascending: false })
 
@@ -137,6 +140,18 @@ export default function AdminCategories() {
         totalItems: categories.reduce((sum, c) => sum + (c.items?.[0]?.count || 0), 0)
     }
 
+    const mappedCategories = filteredCategories.map(category => ({
+        id: category.id,
+        name: category.name,
+        owner: category.owner,
+        is_public: category.is_public,
+        itemCount: Array.isArray(category.items) ? (category.items[0]?.count || 0) : 0,
+        permissionCount: Array.isArray(category.permissions) ? (category.permissions?.count || 0) : 0,
+        created_at: category.created_at,
+        manager: category.manager,
+        shared_token: category.shared_token,
+    }));
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -148,132 +163,80 @@ export default function AdminCategories() {
     return (
         <div className="space-y-6">
             {/* 헤더 */}
-            <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex items-center justify-between">
-
-                <div className="flex items-center space-x-4">
-                    <Link
-                        to="/admin"
-                        className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
-                    >
+            <PageHeader
+                title="카테고리 관리"
+                description={`전체 ${filteredCategories.length}개의 카테고리`}
+                icon={
+                    <Link to="/dashboard" className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100">
                         <ArrowLeft className="h-5 w-5" />
                     </Link>
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">카테고리 관리</h1>
-                        <p className="mt-1 text-sm text-gray-500">
-                            전체 {filteredCategories.length}개의 카테고리
-                        </p>
-                    </div>
-                </div>
-
-                <button
-                    onClick={fetchCategories}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
-                >
-                    새로고침
-                </button>
-            </div>
+                }
+                rightSection={(
+                    <button
+                        onClick={fetchCategories}
+                        className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                        <Activity className="h-4 w-4 mr-2" />
+                        새로고침
+                    </button>
+                )}
+            />
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-10">
                 {/* 검색 및 필터 */}
-                <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="flex-1 relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Search className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <input
-                            type="text"
-                            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-red-500 focus:border-red-500"
-                            placeholder="카테고리명이나 소유자로 검색..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                        <Filter className="h-5 w-5 text-gray-400" />
-                        <select
-                            value={filterType}
-                            onChange={(e) => setFilterType(e.target.value)}
-                            className="block px-3 py-2 text-base border border-gray-300 focus:outline-none focus:ring-red-500 focus:border-red-500 rounded-md"
-                        >
-                            <option value="all">전체</option>
-                            <option value="public">공개</option>
-                            <option value="private">비공개</option>
-                            <option value="shared">공유됨</option>
-                        </select>
-                    </div>
-                </div>
+                <SearchInput
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    placeholder="카테고리명이나 소유자로 검색..."
+                    variant="red"
+                    filterComponent={
+                        <>
+                            <Filter className="h-5 w-5 text-gray-400" />
+                            <select
+                                value={filterType}
+                                onChange={e => setFilterType(e.target.value)}
+                                className="block px-3 py-2 text-base border border-gray-300 focus:outline-none focus:ring-red-500 focus:border-red-500 rounded-md"
+                            >
+                                <option value="all">전체</option>
+                                <option value="public">공개</option>
+                                <option value="private">비공개</option>
+                                <option value="shared">공유됨</option>
+                            </select>
+                        </>
+                    }
+                />
 
                 {/* 통계 카드 */}
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-5">
-                    <div className="bg-white overflow-hidden shadow rounded-lg">
-                        <div className="p-5">
-                            <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                    <Package className="h-6 w-6 text-blue-500" />
-                                </div>
-                                <div className="ml-5">
-                                    <p className="text-sm font-medium text-gray-500">총 카테고리</p>
-                                    <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white overflow-hidden shadow rounded-lg">
-                        <div className="p-5">
-                            <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                    <Eye className="h-6 w-6 text-green-500" />
-                                </div>
-                                <div className="ml-5">
-                                    <p className="text-sm font-medium text-gray-500">공개</p>
-                                    <p className="text-2xl font-bold text-gray-900">{stats.public}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white overflow-hidden shadow rounded-lg">
-                        <div className="p-5">
-                            <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                    <EyeOff className="h-6 w-6 text-gray-500" />
-                                </div>
-                                <div className="ml-5">
-                                    <p className="text-sm font-medium text-gray-500">비공개</p>
-                                    <p className="text-2xl font-bold text-gray-900">{stats.private}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white overflow-hidden shadow rounded-lg">
-                        <div className="p-5">
-                            <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                    <Share2 className="h-6 w-6 text-purple-500" />
-                                </div>
-                                <div className="ml-5">
-                                    <p className="text-sm font-medium text-gray-500">공유됨</p>
-                                    <p className="text-2xl font-bold text-gray-900">{stats.shared}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white overflow-hidden shadow rounded-lg">
-                        <div className="p-5">
-                            <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                    <Package className="h-6 w-6 text-orange-500" />
-                                </div>
-                                <div className="ml-5">
-                                    <p className="text-sm font-medium text-gray-500">총 아이템</p>
-                                    <p className="text-2xl font-bold text-gray-900">{stats.totalItems}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <StatCard
+                        icon={<Package className="h-6 w-6 text-blue-500" />}
+                        label="총 카테고리"
+                        value={stats.total}
+                        valueClassName="text-2xl font-bold text-gray-900"
+                    />
+                    <StatCard
+                        icon={<Eye className="h-6 w-6 text-green-500" />}
+                        label="공개"
+                        value={stats.public}
+                        valueClassName="text-2xl font-bold text-gray-900"
+                    />
+                    <StatCard
+                        icon={<EyeOff className="h-6 w-6 text-gray-500" />}
+                        label="비공개"
+                        value={stats.private}
+                        valueClassName="text-2xl font-bold text-gray-900"
+                    />
+                    <StatCard
+                        icon={<Share2 className="h-6 w-6 text-purple-500" />}
+                        label="공유됨"
+                        value={stats.shared}
+                        valueClassName="text-2xl font-bold text-gray-900"
+                    />
+                    <StatCard
+                        icon={<Package className="h-6 w-6 text-orange-500" />}
+                        label="총 아이템"
+                        value={stats.totalItems}
+                        valueClassName="text-2xl font-bold text-gray-900"
+                    />
                 </div>
 
                 {/* 카테고리 테이블 */}

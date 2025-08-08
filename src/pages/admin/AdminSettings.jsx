@@ -129,15 +129,17 @@ export default function AdminSettings() {
     const performSystemBackup = async () => {
         try {
             setSaving(true)
-            toast.info('시스템 백업을 시작합니다...')
+            toast('시스템 백업을 시작합니다...')
 
             // 모든 테이블의 데이터 백업
             const tables = [
                 'inventory_users',
                 'inventory_categories',
                 'inventory_items',
+                'inventory_item_usages',
                 'inventory_category_permissions',
-                'inventory_system_settings'
+                'inventory_system_settings',
+                'inventory_email_change_requests'
             ]
             const backupData = {
                 timestamp: new Date().toISOString(),
@@ -236,7 +238,7 @@ export default function AdminSettings() {
                     autoNotificationEnabled: true
                 }
             })
-            toast.info('설정이 기본값으로 되돌려졌습니다.')
+            toast('설정이 기본값으로 되돌려졌습니다.')
         }
     }
 

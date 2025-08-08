@@ -108,7 +108,7 @@ export const useInventoryStore = create((set, get) => ({
       console.error('Error fetching categories:', error)
       set({ loading: false })
     }
-  },
+},
 
   createItem: async (itemData) => {
     try {
