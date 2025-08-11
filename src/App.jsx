@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { useAuthStore } from './store/authStore'
@@ -29,7 +29,7 @@ import './index.css'
 function App() {
   const { user, loading: authLoading, checkAuth } = useAuthStore()
   const { isMaintenanceMode, loadSettings } = useSystemStore()
-  const { initialize, loading: wsLoading, currentWorkspace, workspaces, setCurrentWorkspace } = useWorkspaceStore()
+  const { initialize, loading: wsLoading, currentWorkspace, workspaces } = useWorkspaceStore()
   const [booted, setBooted] = useState(false)
 
   useAutoNotifications()
@@ -41,11 +41,8 @@ function App() {
         await loadSettings()
         const userId = useAuthStore.getState().user?.id
         if (userId) {
+          // initialize 내부에서 currentWorkspace까지 세팅하도록 맡기고, 외부에서 중복 set 하지 않음
           await initialize(userId)
-          const { currentWorkspace: cur, workspaces: list } = useWorkspaceStore.getState()
-          if (!cur && list.length > 0) {
-            useWorkspaceStore.getState().setCurrentWorkspace(list[0])
-          }
         }
       } finally {
         setBooted(true)
@@ -53,7 +50,24 @@ function App() {
     })()
   }, [])
 
-  if (authLoading || wsLoading || !booted) {
+  // initialize가 currentWorkspace를 정하지 못했고, workspaces는 로드가 끝났다면 첫 것을 할당
+  useEffect(() => {
+    if (!user) return
+    if (!wsLoading && workspaces?.length && !currentWorkspace?.id) {
+      useWorkspaceStore.getState().setCurrentWorkspace(workspaces[0])
+    }
+  }, [user, wsLoading, workspaces, currentWorkspace?.id])
+
+  // 준비 여부를 엄격히 판정
+  const ready = useMemo(() => {
+    if (!booted) return false
+    if (authLoading || wsLoading) return false
+    // 로그인 사용자면 최소 1회 워크스페이스 판정 끝난 이후에만 진행
+    if (user && !currentWorkspace?.id && (workspaces?.length ?? 0) > 0) return false
+    return true
+  }, [booted, authLoading, wsLoading, user, currentWorkspace?.id, workspaces?.length])
+
+  if (!ready) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
@@ -100,5 +114,4 @@ function App() {
     </Router>
   )
 }
-
 export default App

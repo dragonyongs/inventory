@@ -9,6 +9,7 @@ import ItemModal from '../components/ItemModal'
 import ItemTable from '../components/ItemTable'
 import PageHeader from '../components/PageHeader'
 import ItemUseModal from '../components/ItemUseModal'
+import { useWorkspaceStore } from '../store/workspaceStore'
 import { supabase } from '../lib/supabase'
 
 export default function CategoryView() {
@@ -24,7 +25,7 @@ export default function CategoryView() {
         deleteItem,
         setSelectedCategory
     } = useInventoryStore()
-
+    const { currentWorkspace } = useWorkspaceStore()
     const [isItemModalOpen, setIsItemModalOpen] = useState(false)
     const [editingItem, setEditingItem] = useState(null)
     const [userPermission, setUserPermission] = useState('view') // 기본: 공개 조회only
@@ -127,36 +128,43 @@ export default function CategoryView() {
         <div className="space-y-6">
             <PageHeader
                 icon={
-                    <Link to="/" className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100">
+                    <Link to={`/workspace/${currentWorkspace?.id}/dashboard`} className="p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100">
                         <ArrowLeft className="h-5 w-5" />
                     </Link>
                 }
                 title={selectedCategory.name}
                 description={
-                    <>
-                        총 {items.length}개 아이템
-                        {selectedCategory.is_shared && <> • 소유자: {selectedCategory.owner?.name}</>}
-                        {selectedCategory.manager && !selectedCategory.is_shared && <> • 담당자: {selectedCategory.manager.name}</>}
-                        {isPublicOnly && <span className="ml-2">• 공개 조회 전용</span>}
-                    </>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span>총 {items.length}개 아이템</span>
+                        {selectedCategory.is_shared && <span>• 소유자: {selectedCategory.owner?.name}</span>}
+                        {selectedCategory.manager && !selectedCategory.is_shared && <span>• 담당자: {selectedCategory.manager.name}</span>}
+                        {isPublicOnly && <span>• 공개 조회 전용</span>}
+                    </div>
                 }
-                rightSection={
-                    canAddItem && (
-                        <button
-                            onClick={handleAddItem}
-                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
-                        >
-                            <Plus className="h-4 w-4 mr-2" />
-                            아이템 추가
-                        </button>
-                    )
-                }
-            >
-                {selectedCategory.is_shared && (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        공유받음 ({userPermission === 'view' ? '조회' : userPermission === 'edit' ? '편집' : '관리자'})
-                    </span>
+                rightSection={canAddItem && (
+                    <button onClick={handleAddItem} className="inline-flex items-center px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700">
+                        <Plus className="h-4 w-4 mr-2" /> 아이템 추가
+                    </button>
                 )}
+            >
+                {/* 권한 배지 */}
+                <div className="flex flex-wrap items-center gap-2">
+                    {selectedCategory.is_shared && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            공유받음 ({userPermission === 'view' ? '조회' : userPermission === 'edit' ? '편집' : '관리자'})
+                        </span>
+                    )}
+                    {isOwner && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            소유
+                        </span>
+                    )}
+                    {selectedCategory.is_public && !isOwner && !selectedCategory.is_shared && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            공개
+                        </span>
+                    )}
+                </div>
             </PageHeader>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-6">

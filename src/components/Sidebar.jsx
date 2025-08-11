@@ -96,11 +96,8 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
                     } transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 bg-white shadow-lg flex flex-col`}
             >
                 {/* 헤더 */}
-                <div className="flex items-center justify-between h-16 px-4 bg-blue-600">
-                    {/* <h1 className="text-xl font-bold text-white truncate">{systemName}</h1> */}
-                    <div className="hidden lg:block">
-                        <WorkspaceSwitcher />
-                    </div>
+                <div className="flex items-center justify-center h-16 px-4 bg-blue-600">
+                    <h1 className="text-xl font-bold text-white truncate">{systemName}</h1>
                     <button
                         onClick={() => setSidebarOpen(false)}
                         className="p-2 rounded-md text-blue-200 hover:text-white hover:bg-blue-700 lg:hidden"
