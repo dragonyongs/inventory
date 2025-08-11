@@ -167,7 +167,7 @@ export default function AdminCategories() {
                 title="카테고리 관리"
                 description={`전체 ${filteredCategories.length}개의 카테고리`}
                 icon={
-                    <Link to="/dashboard" className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100">
+                    <Link to="/" className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100">
                         <ArrowLeft className="h-5 w-5" />
                     </Link>
                 }

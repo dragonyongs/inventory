@@ -117,7 +117,7 @@ export default function UserProfile() {
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center space-x-4">
                         <Link
-                            to="/dashboard"
+                            to="/"
                             className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
                         >
                             <ArrowLeft className="h-5 w-5" />
@@ -136,8 +136,8 @@ export default function UserProfile() {
                             <button
                                 onClick={() => setActiveTab('profile')}
                                 className={`py-4 text-sm font-medium border-b-2 ${activeTab === 'profile'
-                                        ? 'border-blue-500 text-blue-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
                             >
                                 <User className="h-4 w-4 inline mr-2" />
@@ -146,8 +146,8 @@ export default function UserProfile() {
                             <button
                                 onClick={() => setActiveTab('password')}
                                 className={`py-4 text-sm font-medium border-b-2 ${activeTab === 'password'
-                                        ? 'border-blue-500 text-blue-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
                             >
                                 <Lock className="h-4 w-4 inline mr-2" />

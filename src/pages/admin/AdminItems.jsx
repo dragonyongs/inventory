@@ -114,7 +114,7 @@ export default function AdminItems() {
                 title="아이템 관리"
                 description={`전체 ${filteredItems.length}개의 아이템`}
                 icon={
-                    <Link to="/dashboard" className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100">
+                    <Link to="/wrokspace" className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100">
                         <ArrowLeft className="h-5 w-5" />
                     </Link>
                 }

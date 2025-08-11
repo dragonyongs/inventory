@@ -116,7 +116,7 @@ export default function CategoryView() {
         return (
             <div className="text-center py-12">
                 <p className="text-gray-500">카테고리를 찾을 수 없습니다.</p>
-                <Link to="/dashboard" className="text-blue-600 hover:text-blue-500">
+                <Link to="/" className="text-blue-600 hover:text-blue-500">
                     대시보드로 돌아가기
                 </Link>
             </div>
@@ -127,7 +127,7 @@ export default function CategoryView() {
         <div className="space-y-6">
             <PageHeader
                 icon={
-                    <Link to="/dashboard" className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100">
+                    <Link to="/" className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100">
                         <ArrowLeft className="h-5 w-5" />
                     </Link>
                 }

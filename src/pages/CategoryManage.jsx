@@ -100,7 +100,7 @@ export default function CategoryManage() {
                 if (error) throw error
 
                 toast.success('카테고리가 삭제되었습니다.')
-                navigate('/dashboard')
+                navigate('/')
             } catch (error) {
                 toast.error('삭제 중 오류가 발생했습니다.')
                 console.error('Error deleting category:', error)
@@ -222,7 +222,7 @@ export default function CategoryManage() {
         return (
             <div className="text-center py-12">
                 <p className="text-gray-500">카테고리를 찾을 수 없습니다.</p>
-                <Link to="/dashboard" className="text-blue-600 hover:text-blue-500">
+                <Link to="/" className="text-blue-600 hover:text-blue-500">
                     대시보드로 돌아가기
                 </Link>
             </div>

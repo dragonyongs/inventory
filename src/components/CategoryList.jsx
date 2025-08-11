@@ -2,6 +2,8 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { Folder, Share2, User } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
+import { useWorkspaceStore } from '../store/workspaceStore'
+
 /**
  * CategoryList
  * @param {Array} categories         // 카테고리 배열
@@ -21,6 +23,9 @@ export default function CategoryList({
 }) {
     const { user } = useAuthStore()
     const myUserId = user?.id
+
+    const { currentWorkspace } = useWorkspaceStore()
+    const wsId = currentWorkspace?.id
 
     // 유틸: 라벨 결정
     function getOwnershipLabel(category) {
@@ -107,7 +112,7 @@ export default function CategoryList({
                             </div>
                             <div className="mt-6 flex space-x-2">
                                 <Link
-                                    to={`/category/${category.id}`}
+                                    to={`/workspace/${wsId}/category/${category.id}`}
                                     className={`flex-1 border border-transparent rounded-md py-2 px-4 inline-flex justify-center text-sm font-medium 
                                         ${category.is_shared ? 'bg-green-50 text-green-700 hover:bg-green-100' :
                                             isPublicOnly ? 'bg-yellow-50 text-yellow-800 hover:bg-yellow-100' :
@@ -122,7 +127,7 @@ export default function CategoryList({
                                         sharedRights
                                     ) && (
                                         <Link
-                                            to={`/category/${category.id}/manage`}
+                                            to={`/workspace/${wsId}/category/${category.id}/manage`}
                                             className="flex-1 bg-gray-50 border border-transparent rounded-md py-2 px-4 inline-flex justify-center text-sm font-medium text-gray-700 hover:bg-gray-100"
                                         >
                                             {(category.is_shared && category.permission_level !== 'admin') ? "편집" : "설정"}
