@@ -41,14 +41,33 @@ function App() {
         await loadSettings()
         const userId = useAuthStore.getState().user?.id
         if (userId) {
-          // initialize 내부에서 currentWorkspace까지 세팅하도록 맡기고, 외부에서 중복 set 하지 않음
+          // 초기 마운트 시 초기화 시도 (로그인 후 새로 로그인하면 아래 user-effect로 보완됨)
           await initialize(userId)
         }
       } finally {
         setBooted(true)
       }
     })()
-  }, [])
+  }, [checkAuth, loadSettings, initialize])
+
+  // "user"가 새로 설정될 때(예: 로그인 후) 워크스페이스 초기화 트리거
+  useEffect(() => {
+    if (!user) return
+    // 이미 로딩 중이면 기다리고, workspaces가 비어있을 때만 초기화 시도
+    if (wsLoading) return
+    if (Array.isArray(workspaces) && workspaces.length > 0) {
+      // 이미 워크스페이스가 있으면 currentWorkspace 설정은 다른 로직에서 처리 가능
+      return
+    }
+
+    (async () => {
+      try {
+        await initialize(user.id)
+      } catch (err) {
+        console.error('워크스페이스 초기화 실패:', err)
+      }
+    })()
+  }, [user, workspaces?.length, wsLoading, initialize])
 
   // initialize가 currentWorkspace를 정하지 못했고, workspaces는 로드가 끝났다면 첫 것을 할당
   useEffect(() => {
@@ -65,10 +84,13 @@ function App() {
       return null
     }
 
-    return currentWorkspace?.id
-      ? `/workspace/${currentWorkspace.id}/dashboard`
+    // 우선순위: currentWorkspace -> workspaces[0] (fallback) -> public-guest
+    const targetWorkspaceId = currentWorkspace?.id ?? (workspaces && workspaces.length ? workspaces[0].id : null)
+
+    return targetWorkspaceId
+      ? `/workspace/${targetWorkspaceId}/dashboard`
       : '/public-guest'
-  }, [user, currentWorkspace?.id, wsLoading])
+  }, [user, currentWorkspace?.id, wsLoading, workspaces])
 
   // 준비 여부를 엄격히 판정
   const ready = useMemo(() => {
