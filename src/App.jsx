@@ -58,6 +58,18 @@ function App() {
     }
   }, [user, wsLoading, workspaces, currentWorkspace?.id])
 
+  // safeHome을 useMemo로 래핑하여 의존성 변화시 재계산
+  const safeHome = useMemo(() => {
+    // 로그인 사용자인데 워크스페이스 로딩 중이면 null 반환 (리다이렉트 방지)
+    if (user && wsLoading) {
+      return null
+    }
+
+    return currentWorkspace?.id
+      ? `/workspace/${currentWorkspace.id}/dashboard`
+      : '/public-guest'
+  }, [user, currentWorkspace?.id, wsLoading])
+
   // 준비 여부를 엄격히 판정
   const ready = useMemo(() => {
     if (!booted) return false
@@ -79,16 +91,25 @@ function App() {
     return <MaintenanceMode />
   }
 
-  const safeHome = currentWorkspace?.id
-    ? `/workspace/${currentWorkspace.id}/dashboard`
-    : '/public-guest'
+  console.log("safeHome", safeHome);
 
   return (
     <Router>
       <div className="App">
         <Toaster position="top-right" />
         <Routes>
-          <Route path="/login" element={!user ? <Login /> : <Navigate to={safeHome} replace />} />
+          <Route
+            path="/login"
+            element={
+              !user ? <Login /> : (
+                safeHome ? <Navigate to={safeHome} replace /> : (
+                  <div className="min-h-screen flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+                  </div>
+                )
+              )
+            }
+          />
           <Route path="/shared/:token" element={<SharedView />} />
 
           <Route path="/" element={user ? <Layout /> : <Navigate to="/login" replace />}>
@@ -98,12 +119,21 @@ function App() {
             <Route path="/workspace/:wsId/category/:categoryId/manage" element={<CategoryManage />} />
             <Route path="public" element={<PublicCategories />} />
             <Route path="profile" element={<UserProfile />} />
-            <Route path="admin" element={user?.is_admin ? <AdminDashboard /> : <Navigate to={safeHome} replace />} />
-            <Route path="admin/users" element={user?.is_admin ? <AdminUsers /> : <Navigate to={safeHome} replace />} />
-            <Route path="admin/categories" element={user?.is_admin ? <AdminCategories /> : <Navigate to={safeHome} replace />} />
-            <Route path="admin/items" element={user?.is_admin ? <AdminItems /> : <Navigate to={safeHome} replace />} />
-            <Route path="admin/settings" element={user?.is_admin ? <AdminSettings /> : <Navigate to={safeHome} replace />} />
-            <Route index element={<Navigate to={safeHome} replace />} />
+            <Route path="admin" element={user?.is_admin ? <AdminDashboard /> : (safeHome ? <Navigate to={safeHome} replace /> : <div>Loading...</div>)} />
+            <Route path="admin/users" element={user?.is_admin ? <AdminUsers /> : (safeHome ? <Navigate to={safeHome} replace /> : <div>Loading...</div>)} />
+            <Route path="admin/categories" element={user?.is_admin ? <AdminCategories /> : (safeHome ? <Navigate to={safeHome} replace /> : <div>Loading...</div>)} />
+            <Route path="admin/items" element={user?.is_admin ? <AdminItems /> : (safeHome ? <Navigate to={safeHome} replace /> : <div>Loading...</div>)} />
+            <Route path="admin/settings" element={user?.is_admin ? <AdminSettings /> : (safeHome ? <Navigate to={safeHome} replace /> : <div>Loading...</div>)} />
+            <Route
+              index
+              element={
+                safeHome ? <Navigate to={safeHome} replace /> : (
+                  <div className="min-h-screen flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+                  </div>
+                )
+              }
+            />
           </Route>
 
           <Route path="/public-guest" element={<WorkspaceEmptyState />} />
@@ -114,4 +144,5 @@ function App() {
     </Router>
   )
 }
+
 export default App

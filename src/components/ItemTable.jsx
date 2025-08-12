@@ -4,6 +4,7 @@ import { Edit, Trash2, Package } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { getExpiryStatus } from '../lib/itemUtils'
+import { useWorkspaceStore } from '../store/workspaceStore'
 
 /**
  * items: 배열
@@ -30,7 +31,7 @@ export default function ItemTable({
     emptyMessage = '아이템이 없습니다',
     onAdd,
 }) {
-    console.log("items", items);
+    const { currentWorkspace } = useWorkspaceStore()
     if (!items.length) {
         return (
             <div className="text-center py-12">
@@ -97,7 +98,7 @@ export default function ItemTable({
                                             ) : (
                                                 <Link
                                                     className="text-blue-700 underline"
-                                                    to={`/category/${item.category_id}`}
+                                                    to={`/workspace/${currentWorkspace?.id}/category/${item.category_id}`}
                                                 >
                                                     {item.category?.name}
                                                 </Link>

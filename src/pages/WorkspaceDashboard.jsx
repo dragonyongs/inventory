@@ -16,7 +16,8 @@ import { useAuthStore } from '../store/authStore'
 import { useWorkspaceStore } from '../store/workspaceStore'
 import { useInventoryStore } from '../store/inventoryStore'
 import WorkspaceSwitcher from '../components/workspace/WorkspaceSwitcher'
-import CategoryList from '../components/CategoryList'
+// import CategoryList from '../components/CategoryList'
+import DashboardCategoryGrid from '../components/dashboard/DashboardCategoryGrid'
 import CategoryModal from '../components/CategoryModal'
 import { copyCategoryShareLink } from '../lib/categoryUtils'
 import { toast } from 'react-hot-toast'
@@ -104,7 +105,7 @@ export default function WorkspaceDashboard() {
                             <QrCode className="w-5 h-5" />
                         </button>
                         <button
-                            onClick={() => toast('설정은 관리자 메뉴에서 변경하세요')}
+                            onClick={() => toast('개발 예정')}
                             className="p-2 rounded-md text-gray-500 hover:bg-gray-100"
                             aria-label="설정"
                             title="설정"
@@ -193,11 +194,9 @@ export default function WorkspaceDashboard() {
                         </div>
                     </div>
                     <div className="p-4">
-                        <CategoryList
+                        <DashboardCategoryGrid
                             categories={filteredCategories}
-                            type="dashboard"
-                            onShare={(cat) => copyCategoryShareLink(cat, { toast })}
-                            showManage
+                        // onSelect={(cat) => { ...optional }}
                         />
                     </div>
                 </section>

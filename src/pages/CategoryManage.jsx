@@ -5,9 +5,11 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'react-hot-toast'
 import { useInventoryStore } from '../store/inventoryStore'
 import { useAuthStore } from '../store/authStore'
+import { useWorkspaceStore } from '../store/workspaceStore'
 import { supabase } from '../lib/supabase'
 
 export default function CategoryManage() {
+    const { currentWorkspace } = useWorkspaceStore()
     const { categoryId } = useParams()
     const navigate = useNavigate()
     const { user } = useAuthStore()
@@ -42,9 +44,9 @@ export default function CategoryManage() {
             const { data, error } = await supabase
                 .from('inventory_category_permissions')
                 .select(`
-          *,
-          user:inventory_users!user_id(id, name, username)
-        `)
+                    *,
+                    user:inventory_users!user_id(id, name, username)
+                `)
                 .eq('category_id', categoryId)
 
             if (!error && data) {
@@ -235,7 +237,7 @@ export default function CategoryManage() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
                 <div className="flex items-center space-x-4 py-6">
                     <Link
-                        to={`/category/${categoryId}`}
+                        to={`/workspace/${currentWorkspace?.id}/category/${categoryId}`}
                         className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
                     >
                         <ArrowLeft className="h-5 w-5" />
@@ -250,7 +252,7 @@ export default function CategoryManage() {
 
                 <div className="flex space-x-3">
                     <Link
-                        to={`/category/${categoryId}`}
+                        to={`/workspace/${currentWorkspace?.id}/category/${categoryId}`}
                         className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                     >
                         재고 보기

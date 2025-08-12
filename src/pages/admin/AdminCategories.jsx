@@ -3,13 +3,14 @@ import { Link } from 'react-router-dom'
 import PageHeader from '../../components/PageHeader'
 import StatCard from '../../components/StatCard'
 import SearchInput from '../../components/SearchInput'
-import ItemTable from '../../components/ItemTable'
+import { useWorkspaceStore } from '../../store/workspaceStore'
 
 import { ArrowLeft, Activity, Package, Trash2, Eye, EyeOff, Share2, Filter } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { toast } from 'react-hot-toast'
 
 export default function AdminCategories() {
+    const { currentWorkspace } = useWorkspaceStore()
     const [categories, setCategories] = useState([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
@@ -323,7 +324,7 @@ export default function AdminCategories() {
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 <div className="flex items-center justify-end space-x-2">
                                                     <Link
-                                                        to={`/category/${category.id}`}
+                                                        to={`/workspace/${currentWorkspace?.id}/category/${category.id}`}
                                                         className="p-2 rounded-md text-blue-600 hover:text-blue-900"
                                                         title="카테고리 보기"
                                                     >
