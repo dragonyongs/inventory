@@ -77,29 +77,38 @@ function App() {
     }
   }, [user, wsLoading, workspaces, currentWorkspace?.id])
 
-  // safeHome을 useMemo로 래핑하여 의존성 변화시 재계산
-  const safeHome = useMemo(() => {
-    // 로그인 사용자인데 워크스페이스 로딩 중이면 null 반환 (리다이렉트 방지)
-    if (user && wsLoading) {
-      return null
-    }
 
-    // 우선순위: currentWorkspace -> workspaces[0] (fallback) -> public-guest
-    const targetWorkspaceId = currentWorkspace?.id ?? (workspaces && workspaces.length ? workspaces[0].id : null)
-
-    return targetWorkspaceId
-      ? `/workspace/${targetWorkspaceId}/dashboard`
-      : '/public-guest'
-  }, [user, currentWorkspace?.id, wsLoading, workspaces])
 
   // 준비 여부를 엄격히 판정
   const ready = useMemo(() => {
     if (!booted) return false
-    if (authLoading || wsLoading) return false
-    // 로그인 사용자면 최소 1회 워크스페이스 판정 끝난 이후에만 진행
-    if (user && !currentWorkspace?.id && (workspaces?.length ?? 0) > 0) return false
+    if (authLoading) return false
+
+    // 로그인 사용자의 경우 워크스페이스 관련 로딩도 완료되어야 함
+    if (user) {
+      if (wsLoading) return false
+      // 로그인 사용자인데 워크스페이스가 하나도 없으면 아직 로딩 중으로 간주
+      if (!workspaces || workspaces.length === 0) return false
+      // currentWorkspace가 설정되지 않았으면 아직 준비되지 않음
+      if (!currentWorkspace?.id) return false
+    }
+
     return true
-  }, [booted, authLoading, wsLoading, user, currentWorkspace?.id, workspaces?.length])
+  }, [booted, authLoading, wsLoading, user, workspaces, currentWorkspace?.id])
+
+  // safeHome 로직 개선
+  const safeHome = useMemo(() => {
+    // 로그인 사용자인데 워크스페이스 준비가 안되었으면 null
+    if (user && (!workspaces?.length || !currentWorkspace?.id)) {
+      return null
+    }
+
+    const targetWorkspaceId = currentWorkspace?.id ?? workspaces?.[0]?.id
+
+    return targetWorkspaceId
+      ? `/workspace/${targetWorkspaceId}/dashboard`
+      : '/public-guest'
+  }, [user, currentWorkspace?.id, workspaces])
 
   if (!ready) {
     return (
@@ -113,7 +122,6 @@ function App() {
     return <MaintenanceMode />
   }
 
-  console.log("safeHome", safeHome);
 
   return (
     <Router>
