@@ -81,6 +81,9 @@ export default defineConfig({
         enabled: true,
         type: "module",
       },
+      resolve: {
+        extensions: [".js", ".jsx", ".ts", ".tsx"],
+      },
       build: {
         chunkSizeWarningLimit: 1000,
         rollupOptions: {

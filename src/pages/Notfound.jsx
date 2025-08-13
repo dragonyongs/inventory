@@ -10,7 +10,7 @@ export default function NotFound() {
         <div className="min-h-[60vh] flex items-center justify-center px-6">
             <div className="text-center max-w-lg">
                 <h1 className="text-6xl font-extrabold text-gray-900">404</h1>
-                <p className="mt-4 text-xl font-semibold text-gray-800">페이지를 찾을 수 없습니다</p>
+                <p className="mt-4 text-xl font-semibold text-gray-800">페이지를 찾을 수 없습니다.</p>
                 <p className="mt-2 text-gray-600 break-all">
                     요청하신 경로가 존재하지 않거나 이동되었어요.
                     <br />
