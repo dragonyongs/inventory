@@ -23,7 +23,7 @@ import AdminSettings from './pages/admin/AdminSettings'
 import PWAInstallPrompt from './components/PWAInstallPrompt'
 import WorkspaceDashboard from './pages/WorkspaceDashboard'
 import WorkspaceEmptyState from './pages/WorkspaceEmptyState'
-import NotFound from './pages/NotFound'
+import NotFound from './pages/NotFound.jsx'
 import './index.css'
 
 function App() {
