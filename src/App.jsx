@@ -23,7 +23,7 @@ import AdminSettings from './pages/admin/AdminSettings'
 import PWAInstallPrompt from './components/PWAInstallPrompt'
 import WorkspaceDashboard from './pages/WorkspaceDashboard'
 import WorkspaceEmptyState from './pages/WorkspaceEmptyState'
-// import NotFound from './pages/NotFound'
+import NotFound from './pages/NotFound'
 import './index.css'
 
 function App() {
@@ -167,7 +167,7 @@ function App() {
           </Route>
 
           <Route path="/public-guest" element={<WorkspaceEmptyState />} />
-          {/* <Route path="*" element={<NotFound />} /> */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
         <PWAInstallPrompt />
       </div>
