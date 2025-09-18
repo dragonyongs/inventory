@@ -23,7 +23,7 @@ export interface Movement {
   type: MovementType;
   itemId: string;
   lotId?: string;
-  qty: number; // +/-
+  qty: number;
   reason?: string;
   actor?: string;
   createdAt: string; // ISO
