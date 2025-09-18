@@ -23,5 +23,12 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": [
+    "src",
+    "tests/smoke.test.ts",
+    "tests/fefo.spec.ts",
+    "tests/fefo.test.ts",
+    "tests/movements.smoke.test.ts",
+    "tests/permission.spec.ts"
+  ]
 }

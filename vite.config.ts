@@ -10,6 +10,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
+      includeAssets: ["/icon-192x192.png", "robots.txt"],
       devOptions: {
         enabled: true,
         navigateFallbackAllowlist: [/^\/$/],
@@ -19,15 +20,46 @@ export default defineConfig({
         short_name: "Inventory",
         start_url: "/",
         display: "standalone",
-        background_color: "#ffffff",
         theme_color: "#2563eb",
+        background_color: "#0b1120",
         icons: [
           { src: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
           { src: "/icon-512x512.png", sizes: "512x512", type: "image/png" },
+          //  { src: 'pwa-512x512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest}"],
+        skipWaiting: true,
+        clientsClaim: true,
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith("/api/"),
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "api-cache",
+              networkTimeoutSeconds: 3,
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            urlPattern: ({ request }) => request.destination === "image",
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "image-cache",
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 7 },
+            },
+          },
+          {
+            urlPattern: ({ request }) =>
+              ["style", "script", "font"].includes(request.destination),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "static-assets",
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+        ],
       },
     }),
   ],
