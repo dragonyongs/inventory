@@ -19,6 +19,8 @@ export default defineConfig({
         short_name: "Inventory",
         start_url: "/",
         display: "standalone",
+        background_color: "#ffffff",
+        theme_color: "#0ea5e9",
         icons: [],
       },
       workbox: {
