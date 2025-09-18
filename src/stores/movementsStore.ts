@@ -1,19 +1,15 @@
 // src/stores/movementsStore.ts
 import { create } from "zustand";
-import { nanoid } from "nanoid";
-import type { Movement, MovementType } from "../types/domain";
+import type { Movement } from "../types/domain";
 
 type State = { movements: Movement[] };
 type Actions = {
-  createMovement: (m: Omit<Movement, "id" | "createdAt">) => void;
+  createMovement: (m: Movement) => void;
+  list: () => Movement[];
 };
-export const useMovementsStore = create<State & Actions>((set) => ({
+
+export const useMovementsStore = create<State & Actions>((set, get) => ({
   movements: [],
-  createMovement: (m) =>
-    set((s) => ({
-      movements: [
-        ...s.movements,
-        { ...m, id: nanoid(), createdAt: new Date().toISOString() },
-      ],
-    })),
+  createMovement: (m) => set((s) => ({ movements: [...s.movements, m] })),
+  list: () => get().movements,
 }));
