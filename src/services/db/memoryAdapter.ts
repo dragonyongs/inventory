@@ -1,11 +1,12 @@
 // src/services/db/memoryAdapter.ts
-import { InventoryService } from "./InventoryService";
+import type { InventoryService } from "./InventoryService";
 import type { Item, Lot, Movement } from "../../types/domain";
 
 export function createMemoryAdapter(): InventoryService {
   const items = new Map<string, Item>();
   const lots = new Map<string, Lot>();
   const movements: Movement[] = [];
+
   return {
     async listItems() {
       return [...items.values()];
@@ -14,7 +15,7 @@ export function createMemoryAdapter(): InventoryService {
       return [...lots.values()];
     },
     async listMovements() {
-      return movements;
+      return [...movements];
     },
     async upsertItem(item) {
       items.set(item.id, item);
