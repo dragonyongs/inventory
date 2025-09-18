@@ -7,6 +7,8 @@ import { useMovementsStore } from "./movementsStore";
 export const useItemList = () =>
   useItemsStore(useShallow((s) => Object.values(s.items)));
 
+export const useItemsMap = () => useItemsStore(useShallow((s) => s.items));
+
 export const useStockByItem = (itemId: string) =>
   useLotsStore(
     useShallow((s) =>
