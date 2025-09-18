@@ -5,6 +5,7 @@ import {
   useExpiringSoonByItem,
 } from "../stores/selectors";
 import { useCreateMovement } from "../hooks/useCreateMovement";
+import { useSettingsStore } from "../stores/settingsStore";
 
 function Row({
   id,
@@ -15,8 +16,9 @@ function Row({
   name: string;
   minStock?: number;
 }) {
+  const expiringDays = useSettingsStore((s) => s.expiringDays); // 설정 연동
   const stock = useStockByItem(id);
-  const expSoon = useExpiringSoonByItem(id, 30);
+  const expSoon = useExpiringSoonByItem(id, expiringDays); // 기존 30 -> 설정값
   const create = useCreateMovement();
 
   return (

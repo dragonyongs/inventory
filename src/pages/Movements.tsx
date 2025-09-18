@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useMovementList, useItemsMap } from "../stores/selectors";
+import { useSettingsStore } from "../stores/settingsStore";
 
 type MovementType = "IN" | "OUT" | "ADJUST" | "TRANSFER";
 
@@ -27,7 +28,7 @@ export function Component() {
   const itemsMap = useItemsMap();
   const { type, setType, q, setQ } = useFilters();
   const [page, setPage] = useState(1);
-  const pageSize = 20;
+  const pageSize = useSettingsStore((s) => s.pageSize);
 
   const filtered = useMemo(() => {
     const key = q.trim().toLowerCase();
@@ -48,6 +49,10 @@ export function Component() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageRows = paginate(filtered, Math.min(page, totalPages), pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize]);
 
   return (
     <div className="space-y-3">
