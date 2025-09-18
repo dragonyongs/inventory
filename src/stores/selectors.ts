@@ -7,16 +7,24 @@ import { useMovementsStore } from "./movementsStore";
 export const useItemList = () =>
   useItemsStore(useShallow((s) => Object.values(s.items)));
 
-export const useLotsByItem = (itemId: string) =>
+export const useStockByItem = (itemId: string) =>
   useLotsStore(
     useShallow((s) =>
       Object.values(s.lots)
         .filter((l) => l.itemId === itemId)
-        .sort(
-          (a, b) =>
-            new Date(a.expiresAt ?? "9999").getTime() -
-            new Date(b.expiresAt ?? "9999").getTime()
-        )
+        .reduce((a, b) => a + b.qty, 0)
+    )
+  );
+
+export const useExpiringSoonByItem = (itemId: string, days = 30) =>
+  useLotsStore(
+    useShallow((s) =>
+      Object.values(s.lots).some(
+        (l) =>
+          l.itemId === itemId &&
+          l.expiresAt &&
+          (new Date(l.expiresAt).getTime() - Date.now()) / 86400000 <= days
+      )
     )
   );
 

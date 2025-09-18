@@ -1,7 +1,9 @@
 // src/components/RootLayout.tsx
 import { Outlet, NavLink } from "react-router-dom";
+import { useBootstrapInventory } from "../hooks/useBootstrapInventory";
 
 export function RootLayout() {
+  useBootstrapInventory();
   return (
     <div className="min-h-dvh grid grid-rows-[auto_1fr]">
       <header className="border-b px-4 py-2 flex gap-4">
