@@ -1,3 +1,5 @@
+// src/stores/tests/movements.smoke.test.ts
+
 import { describe, it, expect } from "vitest";
 import { create } from "zustand";
 

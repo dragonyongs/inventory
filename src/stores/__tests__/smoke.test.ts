@@ -6,4 +6,3 @@ describe("smoke", () => {
     expect(1 + 1).toBe(2);
   });
 });
-t;
