@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { BarcodeScanner } from "../components/BarcodeScanner";
 import {
   useItemList,
   useStockByItem,
@@ -6,11 +7,13 @@ import {
 } from "../stores/selectors";
 import { useCreateMovement } from "../hooks/useCreateMovement";
 import { useSettingsStore } from "../stores/settingsStore";
+import { useWorkspaceStore } from "../stores/workspaceStore";
 
 function Row({
   id,
   name,
   minStock,
+  barcode,
 }: {
   id: string;
   name: string;
@@ -20,6 +23,8 @@ function Row({
   const stock = useStockByItem(id);
   const expSoon = useExpiringSoonByItem(id, expiringDays); // 기존 30 -> 설정값
   const create = useCreateMovement();
+  const wsId = useWorkspaceStore((s) => s.currentId);
+  const canEdit = true; // 이후 useWorkspaceStore(s=>s.can(wsId!, 'edit'))로 치환
 
   return (
     <tr className="border-b">
@@ -34,29 +39,15 @@ function Row({
       <td className="px-2 py-1 text-right space-x-2">
         <button
           className="border px-2 py-1"
-          onClick={() =>
-            create({
-              id: crypto.randomUUID(),
-              type: "IN",
-              itemId: id,
-              qty: 1,
-              createdAt: new Date().toISOString(),
-            })
-          }
+          disabled={!canEdit}
+          onClick={() => create({ type: "IN", itemId: id, qty: 1 })}
         >
           IN
         </button>
         <button
           className="border px-2 py-1"
-          onClick={() =>
-            create({
-              id: crypto.randomUUID(),
-              type: "OUT",
-              itemId: id,
-              qty: 1,
-              createdAt: new Date().toISOString(),
-            })
-          }
+          disabled={!canEdit || stock <= 0}
+          onClick={() => create({ type: "OUT", itemId: id, qty: 1 })}
         >
           OUT
         </button>
@@ -68,12 +59,17 @@ function Row({
 export function Component() {
   const items = useItemList();
   const [q, setQ] = useState("");
+  const [scan, setScan] = useState(false);
+
   const filtered = useMemo(() => {
     const k = q.trim().toLowerCase();
     return k
       ? items.filter(
           (i) =>
-            i.name.toLowerCase().includes(k) || i.sku?.toLowerCase().includes(k)
+            i.name.toLowerCase().includes(k) ||
+            i.sku?.toLowerCase().includes(k) ||
+            i.barcode?.toLowerCase().includes(k) ||
+            i.id.toLowerCase().includes(k)
         )
       : items;
   }, [items, q]);
@@ -81,9 +77,16 @@ export function Component() {
   return (
     <div className="space-y-3">
       <div className="text-xl">Inventory</div>
+      <button
+        className="ml-auto border px-2 py-1"
+        onClick={() => setScan(true)}
+      >
+        Scan
+      </button>
+
       <input
         className="border px-2 py-1"
-        placeholder="Search name/SKU"
+        placeholder="Search name/SKU/Barcode"
         value={q}
         onChange={(e) => setQ(e.target.value)}
       />
@@ -98,10 +101,25 @@ export function Component() {
         </thead>
         <tbody>
           {filtered.map((i) => (
-            <Row key={i.id} id={i.id} name={i.name} minStock={i.minStock} />
+            <Row
+              key={i.id}
+              id={i.id}
+              name={i.name}
+              minStock={i.minStock}
+              barcode={i.barcode}
+            />
           ))}
         </tbody>
       </table>
+
+      {scan && (
+        <BarcodeScanner
+          onDetect={(code) => {
+            setQ(code);
+          }}
+          onClose={() => setScan(false)}
+        />
+      )}
     </div>
   );
 }
