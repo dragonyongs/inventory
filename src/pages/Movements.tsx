@@ -1,8 +1,10 @@
+// src/pages/Movements.tsx
 import { useMemo, useState, useEffect } from "react";
 import { useMovementList, useItemsMap } from "../stores/selectors";
 import { useSettingsStore } from "../stores/settingsStore";
+import { paginate } from "../utils/pagination";
 
-type MovementType = "IN" | "OUT" | "ADJUST" | "TRANSFER";
+type ViewType = "ALL" | "IN" | "OUT" | "TRANSFER" | "USE";
 
 function fmtDate(iso: string) {
   const d = new Date(iso);
@@ -12,138 +14,166 @@ function fmtDate(iso: string) {
   )}:${pad(d.getMinutes())}`;
 }
 
-function useFilters() {
-  const [type, setType] = useState<"ALL" | MovementType>("ALL");
-  const [q, setQ] = useState("");
-  return { type, setType, q, setQ };
-}
-
-function paginate<T>(rows: T[], page: number, size: number) {
-  const start = (page - 1) * size;
-  return rows.slice(start, start + size);
-}
-
-export function Component() {
-  const movements = useMovementList();
+export default function Movements() {
+  const movements = useMovementList(); // 정규화+캐시된 리스트
   const itemsMap = useItemsMap();
-  const { type, setType, q, setQ } = useFilters();
+
+  const [type, setType] = useState<ViewType>("ALL");
+  const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
-  const pageSize = useSettingsStore((s) => s.pageSize);
+  const pageSize = useSettingsStore((s: any) => s.pageSize ?? 20);
 
   const filtered = useMemo(() => {
-    const key = q.trim().toLowerCase();
-    return movements
-      .filter((m) => (type === "ALL" ? true : m.type === type))
-      .filter((m) => {
-        if (!key) return true;
-        const name = itemsMap[m.itemId]?.name?.toLowerCase() ?? "";
-        const sku = itemsMap[m.itemId]?.sku?.toLowerCase() ?? "";
+    const query = q.trim().toLowerCase();
+    let rows = movements;
+
+    // 유형 필터
+    rows =
+      type === "ALL"
+        ? rows
+        : type === "USE"
+        ? rows.filter(
+            (m) =>
+              m.type === "OUT" &&
+              (m.reason?.toUpperCase().startsWith("USE") ||
+                m.reason?.includes("사용"))
+          )
+        : rows.filter((m) => m.type === type);
+
+    // 검색 필터 (품목명/ID/사유)
+    if (query) {
+      rows = rows.filter((m) => {
+        const itemName = itemsMap[m.itemId]?.name?.toLowerCase() ?? "";
+        const itemId = m.itemId.toLowerCase();
+        const reason = m.reason?.toLowerCase() ?? "";
         return (
-          name.includes(key) ||
-          sku.includes(key) ||
-          m.itemId.toLowerCase().includes(key)
+          itemName.includes(query) ||
+          itemId.includes(query) ||
+          reason.includes(query)
         );
-      })
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      });
+    }
+
+    // 최신순 정렬
+    return rows.toSorted(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
   }, [movements, itemsMap, type, q]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const pageRows = paginate(filtered, Math.min(page, totalPages), pageSize);
+  const paged = useMemo(
+    () => paginate(filtered, page, pageSize),
+    [filtered, page, pageSize]
+  );
 
   useEffect(() => {
-    setPage(1);
-  }, [pageSize]);
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   return (
-    <div className="space-y-3">
-      <div className="text-xl">Movements</div>
+    <div className="p-6 space-y-4">
+      <h1 className="text-2xl font-semibold">이동 내역</h1>
 
-      <div className="flex gap-2 items-center">
+      {/* 필터/검색 */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <label className="text-sm">유형</label>
         <select
-          className="border px-2 py-1"
           value={type}
           onChange={(e) => {
-            setType(e.target.value as any);
+            setType(e.target.value as ViewType);
             setPage(1);
           }}
+          className="border rounded px-3 py-2"
         >
-          <option value="ALL">ALL</option>
-          <option value="IN">IN</option>
-          <option value="OUT">OUT</option>
-          <option value="ADJUST">ADJUST</option>
-          <option value="TRANSFER">TRANSFER</option>
+          <option value="ALL">전체</option>
+          <option value="IN">입고</option>
+          <option value="OUT">출고</option>
+          <option value="TRANSFER">이동</option>
+          <option value="USE">사용</option>
         </select>
+
         <input
-          className="border px-2 py-1"
-          placeholder="Search item name/SKU/ID"
           value={q}
           onChange={(e) => {
             setQ(e.target.value);
             setPage(1);
           }}
+          placeholder="품목/사유 검색..."
+          className="border rounded px-3 py-2 min-w-[260px] flex-1"
         />
-        <div className="ml-auto text-sm text-gray-600">
-          Total: {filtered.length} · Page {Math.min(page, totalPages)}/
-          {totalPages}
+        <div className="text-sm text-gray-600">
+          총 {filtered.length}건 중 {paged.length}건 표시
         </div>
       </div>
 
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b bg-gray-50">
-            <th className="text-left px-2 py-1">Date</th>
-            <th className="text-left px-2 py-1">Type</th>
-            <th className="text-left px-2 py-1">Item</th>
-            <th className="text-left px-2 py-1">Lot</th>
-            <th className="text-right px-2 py-1">Qty</th>
-            <th className="text-left px-2 py-1">Reason</th>
-          </tr>
-        </thead>
-        <tbody>
-          {pageRows.map((m) => (
-            <tr key={m.id} className="border-b">
-              <td className="px-2 py-1">{fmtDate(m.createdAt)}</td>
-              <td className="px-2 py-1">{m.type}</td>
-              <td className="px-2 py-1">
-                {itemsMap[m.itemId]?.name ?? m.itemId}
-                {itemsMap[m.itemId]?.sku ? ` (${itemsMap[m.itemId]?.sku})` : ""}
-              </td>
-              <td className="px-2 py-1">{m.lotId ?? "-"}</td>
-              <td className="px-2 py-1 text-right">{m.qty}</td>
-              <td className="px-2 py-1">{m.reason ?? "-"}</td>
-            </tr>
-          ))}
-          {pageRows.length === 0 && (
+      {/* 표 */}
+      <div className="border rounded overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50">
             <tr>
-              <td colSpan={6} className="px-2 py-6 text-center text-gray-500">
-                No movements
-              </td>
+              <th className="text-left px-3 py-2">일시</th>
+              <th className="text-left px-3 py-2">유형</th>
+              <th className="text-left px-3 py-2">품목</th>
+              <th className="text-right px-3 py-2">수량</th>
+              <th className="text-left px-3 py-2">사유</th>
             </tr>
-          )}
-        </tbody>
-      </table>
-
-      <div className="flex items-center justify-end gap-2">
-        <button
-          className="border px-2 py-1"
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page <= 1}
-        >
-          Prev
-        </button>
-        <button
-          className="border px-2 py-1"
-          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-          disabled={page >= totalPages}
-        >
-          Next
-        </button>
+          </thead>
+          <tbody>
+            {paged.map((m) => (
+              <tr key={m.id} className="border-t">
+                <td className="px-3 py-2 whitespace-nowrap">
+                  {fmtDate(m.createdAt)}
+                </td>
+                <td className="px-3 py-2">
+                  {m.type === "IN"
+                    ? "입고"
+                    : m.type === "OUT"
+                    ? "출고"
+                    : m.type === "TRANSFER"
+                    ? "이동"
+                    : m.type}
+                </td>
+                <td className="px-3 py-2">
+                  {itemsMap[m.itemId]?.name ?? m.itemId}
+                </td>
+                <td className="px-3 py-2 text-right">{m.qty}</td>
+                <td className="px-3 py-2">{m.reason ?? "-"}</td>
+              </tr>
+            ))}
+            {paged.length === 0 && (
+              <tr>
+                <td className="px-3 py-6 text-center text-gray-500" colSpan={5}>
+                  표시할 이동 내역이 없습니다
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
+
+      {/* 페이지네이션 */}
+      {totalPages > 1 && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="px-3 py-2 border rounded disabled:opacity-50"
+          >
+            이전
+          </button>
+          <div className="text-sm">
+            페이지 {page} / {totalPages}
+          </div>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="px-3 py-2 border rounded disabled:opacity-50"
+          >
+            다음
+          </button>
+        </div>
+      )}
     </div>
   );
-}
-
-export { Component as default };
-export function ErrorBoundary() {
-  return <div>Movements failed to load.</div>;
 }

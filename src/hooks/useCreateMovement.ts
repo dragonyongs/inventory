@@ -1,40 +1,58 @@
+// src/hooks/useCreateMovement.ts
+import { useCallback } from "react";
 import { MovementInputSchema } from "../types/schemas";
 import type { MovementInput } from "../types/schemas";
 import type { Movement } from "../types/domain";
 import { applyMovementToLots } from "../utils/applyMovement";
+
 import { useLotsStore } from "../stores/lotsStore";
 import { useMovementsStore } from "../stores/movementsStore";
 import { useAuthStore } from "../stores/authStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 
-export function useCreateMovement() {
-  const getLots = () => Object.values(useLotsStore.getState().lots);
-  const replaceMany = useLotsStore((s) => s.replaceMany);
-  const pushMovement = useMovementsStore((s) => s.push);
-  const userId = useAuthStore((s) => s.user?.id);
-  const wsId = useWorkspaceStore((s) => s.currentId);
-  const can = useWorkspaceStore(
-    (s) => (id: string, a: "edit" | "view" | "delete") => s.can(id, a)
+function makeId() {
+  return (
+    (globalThis.crypto as any)?.randomUUID?.() ??
+    `mov_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   );
+}
 
-  return (input: MovementInput) => {
-    if (!wsId || !can(wsId, "edit")) throw new Error("No permission");
+export function useCreateMovement() {
+  const { replaceMany } = useLotsStore.getState();
+  const { push: pushMovement } = useMovementsStore.getState();
+  const { user } = useAuthStore.getState();
+  const { currentId: wsId, can } = useWorkspaceStore.getState();
 
-    const parsed = MovementInputSchema.safeParse(input);
-    if (!parsed.success)
-      throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+  return useCallback(
+    (input: MovementInput) => {
+      if (!wsId || !can(wsId, "edit")) {
+        throw new Error("No permission");
+      }
 
-    const now = new Date().toISOString();
-    const m: Movement = {
-      id: crypto.randomUUID(),
-      createdAt: now,
-      actor: userId ?? "unknown",
-      ...parsed.data,
-    };
+      const parsed = MovementInputSchema.safeParse(input);
+      if (!parsed.success) {
+        throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+      }
 
-    const nextLots = applyMovementToLots(getLots(), m);
-    replaceMany(nextLots);
-    pushMovement(m);
-    return m;
-  };
+      const now = new Date().toISOString();
+      const movement: Movement = {
+        id: makeId(),
+        type: parsed.data.type,
+        itemId: parsed.data.itemId,
+        lotId: parsed.data.lotId,
+        qty: parsed.data.qty,
+        reason: parsed.data.reason,
+        actor: user?.id ?? "local-user",
+        createdAt: now,
+      };
+
+      const currentLots = Object.values(useLotsStore.getState().lots as any);
+      const nextLots = applyMovementToLots(currentLots, movement);
+      replaceMany(nextLots);
+      pushMovement(movement);
+
+      return movement;
+    },
+    [replaceMany, pushMovement, user, wsId, can]
+  );
 }

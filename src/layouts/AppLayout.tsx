@@ -1,14 +1,7 @@
-import { Outlet } from "react-router-dom";
+// src/layouts/AppLayout.tsx
+import RootLayout from "../components/RootLayout";
 
+// 프로젝트 내 일부 코드가 AppLayout을 참조할 수 있어 RootLayout을 래핑 제공
 export default function AppLayout() {
-  return (
-    <div className="min-h-dvh flex flex-col">
-      <header className="h-12 border-b px-4 flex items-center">
-        Inventory
-      </header>
-      <main className="flex-1">
-        <Outlet />
-      </main>
-    </div>
-  );
+  return <RootLayout />;
 }

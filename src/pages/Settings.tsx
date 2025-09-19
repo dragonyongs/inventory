@@ -1,7 +1,9 @@
+// src/pages/Settings.tsx
 import { useState, useEffect } from "react";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { useAuthStore } from "../stores/authStore";
+import { useOutboxStore } from "../stores/outboxStore";
 import {
   setPwaListeners,
   applyUpdate,
@@ -16,8 +18,17 @@ export function Component() {
   const setSize = useSettingsStore((s) => s.setPageSize);
   const setMode = useSettingsStore((s) => s.setUpdateMode);
 
+  // Outbox 상태 가시화
+  const outboxJobs = useOutboxStore((s) => s.jobs);
+  const isSyncing = useOutboxStore((s) => s.isSyncing);
+  const lastSyncAt = useOutboxStore((s) => s.lastSyncAt);
+
   const [needRefresh, setNeedRefresh] = useState(false);
   const [offlineReady, setOfflineReady] = useState(false);
+
+  const workspace = useWorkspaceStore((s) => s.current);
+  const members = useWorkspaceStore((s) => s.members);
+  const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
     setPwaListeners({
@@ -27,258 +38,183 @@ export function Component() {
   }, []);
 
   return (
-    <div className="space-y-4">
-      <div className="text-xl">Settings</div>
+    <div className="p-6 max-w-4xl mx-auto">
+      <h1 className="text-3xl font-bold mb-8">Settings</h1>
 
-      <section className="space-y-2">
-        <h3 className="font-medium">Inventory</h3>
-        <label className="flex items-center gap-2">
-          <span>Expiring days</span>
-          <input
-            className="border px-2 py-1 w-24"
-            type="number"
-            min={1}
-            value={exp}
-            onChange={(e) => setExp(parseInt(e.target.value || "1", 10))}
-          />
-        </label>
-        <label className="flex items-center gap-2">
-          <span>Page size</span>
-          <input
-            className="border px-2 py-1 w-24"
-            type="number"
-            min={5}
-            value={size}
-            onChange={(e) => setSize(parseInt(e.target.value || "5", 10))}
-          />
-        </label>
-      </section>
+      {/* App Settings */}
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4">App Settings</h2>
 
-      <section className="space-y-2">
-        <h3 className="font-medium">PWA</h3>
-        <label className="flex items-center gap-2">
-          <span>Update mode</span>
-          <select
-            className="border px-2 py-1"
-            value={mode}
-            onChange={(e) => setMode(e.target.value as any)}
-          >
-            <option value="auto">auto</option>
-            <option value="prompt">prompt</option>
-          </select>
-        </label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Expiring Days Warning
+            </label>
+            <input
+              type="number"
+              value={exp ?? 30}
+              onChange={(e) => setExp(parseInt(e.target.value) || 30)}
+              min="1"
+              max="365"
+              className="w-full px-3 py-2 border rounded-lg"
+            />
+            <p className="text-sm text-gray-500 mt-1">
+              Show warning for items expiring within this many days
+            </p>
+          </div>
 
-        <div className="flex gap-2">
-          <button
-            className="border px-2 py-1"
-            onClick={() => {
-              // 브라우저가 새로운 SW를 내려받아 대기 중이면 토글됨
-              setNeedRefresh(getNeedRefresh());
-            }}
-          >
-            Check Update
-          </button>
-          <button
-            className="border px-2 py-1"
-            disabled={!needRefresh}
-            onClick={() => applyUpdate()}
-          >
-            Apply Update
-          </button>
-          <button
-            className="border px-2 py-1"
-            onClick={async () => {
-              // 캐시 초기화
-              const keys = await caches.keys();
-              await Promise.all(keys.map((k) => caches.delete(k)));
-              location.reload();
-            }}
-          >
-            Clear Cache
-          </button>
+          <div>
+            <label className="block text-sm font-medium mb-2">Page Size</label>
+            <select
+              value={size ?? 20}
+              onChange={(e) => setSize(parseInt(e.target.value))}
+              className="w-full px-3 py-2 border rounded-lg"
+            >
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
         </div>
-
-        <div className="text-sm text-gray-600">
-          {needRefresh ? "New version ready" : "No updates"}
-          {offlineReady ? " · Offline ready" : ""}
-        </div>
-      </section>
-
-      <section className="space-y-2">
-        <h3 className="font-medium">Install</h3>
-        <p className="text-sm">
-          브라우저의 설치(홈 화면 추가) 메뉴를 사용해 설치하세요.
-        </p>
-      </section>
-
-      <WorkspaceSection />
-    </div>
-  );
-}
-
-export { Component as default };
-export function ErrorBoundary() {
-  return <div>Settings failed to load.</div>;
-}
-
-function WorkspaceSection() {
-  const { user } = useAuthStore();
-  const workspaces = useWorkspaceStore((s) => s.workspaces);
-  const currentId = useWorkspaceStore((s) => s.currentId);
-  const setCurrent = useWorkspaceStore((s) => s.setCurrent);
-  const createWs = useWorkspaceStore((s) => s.createWorkspace);
-  const renameWs = useWorkspaceStore((s) => s.renameWorkspace);
-  const invite = useWorkspaceStore((s) => s.inviteMember);
-  const can = useWorkspaceStore((s) => s.can);
-
-  const [name, setName] = useState("");
-  const [rename, setRename] = useState("");
-  const [inviteUserId, setInviteUserId] = useState("");
-  const [inviteRole, setInviteRole] = useState<"editor" | "viewer">("editor");
-
-  return (
-    <section className="space-y-3">
-      <h3 className="text-lg font-medium">Workspace</h3>
-
-      <div className="flex gap-2 items-center">
-        <select
-          className="border px-2 py-1"
-          value={currentId ?? ""}
-          onChange={(e) => setCurrent(e.target.value)}
-        >
-          {workspaces.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.name}
-            </option>
-          ))}
-        </select>
-        <input
-          className="border px-2 py-1"
-          placeholder="New workspace name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <button
-          className="border px-2 py-1"
-          onClick={() => {
-            if (!name.trim()) return;
-            createWs(name.trim());
-            setName("");
-          }}
-        >
-          Create
-        </button>
       </div>
 
-      {currentId && (
-        <div className="space-y-2 border rounded p-3">
-          <div className="font-medium">
-            Current: {workspaces.find((w) => w.id === currentId)?.name}
+      {/* Sync Status */}
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4">Sync Status</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="text-center p-4 bg-gray-50 rounded">
+            <div className="text-2xl font-bold text-blue-600">
+              {outboxJobs.length}
+            </div>
+            <div className="text-sm text-gray-600">Pending Jobs</div>
           </div>
 
-          <div className="flex gap-2 items-center">
-            <input
-              className="border px-2 py-1"
-              placeholder="Rename"
-              value={rename}
-              onChange={(e) => setRename(e.target.value)}
-            />
-            <button
-              className="border px-2 py-1"
-              disabled={!can(currentId, "edit")}
-              onClick={() => {
-                if (!rename.trim()) return;
-                renameWs(currentId, rename.trim());
-                setRename("");
-              }}
+          <div className="text-center p-4 bg-gray-50 rounded">
+            <div
+              className={`text-2xl font-bold ${
+                isSyncing ? "text-yellow-600" : "text-green-600"
+              }`}
             >
-              Rename
-            </button>
+              {isSyncing ? "Syncing..." : "Idle"}
+            </div>
+            <div className="text-sm text-gray-600">Sync Status</div>
           </div>
 
-          <div className="flex gap-2 items-center">
-            <input
-              className="border px-2 py-1"
-              placeholder="Invite userId"
-              value={inviteUserId}
-              onChange={(e) => setInviteUserId(e.target.value)}
-            />
+          <div className="text-center p-4 bg-gray-50 rounded">
+            <div className="text-sm font-medium text-gray-600">Last Sync</div>
+            <div className="text-sm text-gray-500">
+              {lastSyncAt ? new Date(lastSyncAt).toLocaleString() : "Never"}
+            </div>
+          </div>
+        </div>
+
+        {outboxJobs.length > 0 && (
+          <div className="mt-4">
+            <h3 className="font-medium mb-2">Pending Operations</h3>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {outboxJobs.map((job) => (
+                <div
+                  key={job.id}
+                  className="flex justify-between items-center p-2 bg-gray-50 rounded"
+                >
+                  <span className="text-sm">
+                    {job.payload.type} - {job.payload.itemId} (qty:{" "}
+                    {job.payload.qty})
+                  </span>
+                  {job.retries > 0 && (
+                    <span className="text-xs text-red-600">
+                      Retries: {job.retries}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* PWA Settings */}
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4">PWA Settings</h2>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Update Mode
+            </label>
             <select
-              className="border px-2 py-1"
-              value={inviteRole}
-              onChange={(e) => setInviteRole(e.target.value as any)}
+              value={mode ?? "prompt"}
+              onChange={(e) => setMode(e.target.value as "auto" | "prompt")}
+              className="w-full px-3 py-2 border rounded-lg"
             >
-              <option value="editor">editor</option>
-              <option value="viewer">viewer</option>
+              <option value="auto">Auto Update</option>
+              <option value="prompt">Prompt for Update</option>
             </select>
-            <button
-              className="border px-2 py-1"
-              disabled={!can(currentId, "edit")}
-              onClick={() => {
-                if (!inviteUserId.trim()) return;
-                invite(currentId, inviteUserId.trim(), inviteRole);
-                setInviteUserId("");
-              }}
-            >
-              Invite
-            </button>
           </div>
 
-          <MembersList workspaceId={currentId} />
+          {needRefresh && (
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded">
+              <p className="text-blue-800 mb-2">App update available!</p>
+              <button
+                onClick={() => applyUpdate()}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Update & Restart
+              </button>
+            </div>
+          )}
+
+          {offlineReady && (
+            <div className="p-4 bg-green-50 border border-green-200 rounded">
+              <p className="text-green-800">App is ready for offline use!</p>
+            </div>
+          )}
+
+          <div className="text-sm text-gray-600">
+            브라우저의 설치(홈 화면 추가) 메뉴를 사용해 설치하세요.
+          </div>
+        </div>
+      </div>
+
+      {/* Workspace Members */}
+      {workspace && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">Workspace Members</h2>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full table-auto">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-2">User</th>
+                  <th className="text-left p-2">Role</th>
+                  <th className="text-left p-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {members.map((m) => (
+                  <tr key={m.userId} className="border-b">
+                    <td className="p-2">{m.userId}</td>
+                    <td className="p-2">{m.role}</td>
+                    <td className="p-2">
+                      {user?.id === m.userId ? (
+                        <span className="text-gray-500">You</span>
+                      ) : (
+                        <button className="text-red-600 hover:underline">
+                          Remove
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
-
-      <div className="text-sm text-gray-600">
-        Only the creator can delete a workspace; others can use features by role
-        but cannot delete.
-      </div>
-    </section>
-  );
-}
-
-function MembersList({ workspaceId }: { workspaceId: string }) {
-  const ws = useWorkspaceStore(
-    (s) => s.workspaces.find((w) => w.id === workspaceId)!
-  );
-  const remove = useWorkspaceStore((s) => s.removeMember);
-  const can = useWorkspaceStore((s) => s.can);
-
-  return (
-    <div>
-      <div className="font-medium mb-1">Members</div>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b bg-gray-50">
-            <th className="text-left px-2 py-1">User</th>
-            <th className="text-left px-2 py-1">Role</th>
-            <th className="text-right px-2 py-1">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ws.members.map((m) => (
-            <tr key={m.userId} className="border-b">
-              <td className="px-2 py-1">{m.userId}</td>
-              <td className="px-2 py-1">{m.role}</td>
-              <td className="px-2 py-1 text-right">
-                <button
-                  className="border px-2 py-1"
-                  disabled={!can(workspaceId, "delete") || m.role === "owner"}
-                  onClick={() => remove(workspaceId, m.userId)}
-                >
-                  Remove
-                </button>
-              </td>
-            </tr>
-          ))}
-          {ws.members.length === 0 && (
-            <tr>
-              <td className="px-2 py-2" colSpan={3}>
-                No members
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
     </div>
   );
 }
+
+export default Component;

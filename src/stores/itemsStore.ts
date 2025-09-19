@@ -1,64 +1,182 @@
 // src/stores/itemsStore.ts
 import { create } from "zustand";
 import type { StateCreator } from "zustand";
-import type { Item } from "../types/domain";
+import type { Item as DomainItem } from "../types/domain";
 import { nsPersist, makeNsName } from "./persistNamespace";
 import { useWorkspaceStore } from "./workspaceStore";
 
+export type Item = DomainItem & {
+  id: string;
+  name: string;
+  sku?: string;
+  barcode?: string;
+  minStock?: number;
+  defaultPrice?: number; // 선택
+  createdAt: string;
+};
+
 type State = {
-  items: Record<string, Item>;
+  items: Record<string, Item>; // map
   query: string;
   lowStockThreshold: number;
   get visibleItems(): Item[];
 };
 
 type Actions = {
-  upsert: (item: Item) => void;
-  bulk: (items: Item[]) => void;
-  remove: (id: string) => void;
-  reset: () => void;
   setQuery: (q: string) => void;
   setLowStockThreshold: (n: number) => void;
+
+  bulk: (rows: DomainItem[]) => void;
+  upsert: (row: DomainItem) => void;
+
+  addItem: (
+    input: Omit<Item, "id" | "createdAt"> & { id?: string; createdAt?: string }
+  ) => Item;
+  updateItem: (id: string, patch: Partial<Item>) => void;
+  removeItem: (id: string) => Item | undefined;
+
+  hasSku: (sku: string, excludeId?: string) => boolean;
 };
 
 type Store = State & Actions;
 
-const base: StateCreator<Store, [], []> = (set, get) => ({
+const nowISO = () => new Date().toISOString();
+const genId = () =>
+  `itm_${Math.random().toString(36).slice(2, 8)}_${Date.now()}`;
+
+const slugify = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "")
+    .slice(0, 24);
+
+// Domain -> 내부 표준 정규화
+const normalize = (r: DomainItem): Item => {
+  const id = (r as any).id ?? genId();
+  return {
+    id,
+    name: (r as any).name?.trim() ?? "",
+    sku: (r as any).sku?.trim() || undefined,
+    barcode: (r as any).barcode?.trim() || undefined,
+    minStock: (r as any).minStock ?? 0,
+    defaultPrice: (r as any).defaultPrice,
+    createdAt: (r as any).createdAt
+      ? new Date((r as any).createdAt as any).toISOString()
+      : nowISO(),
+  };
+};
+
+const base: StateCreator<Store> = (set, get) => ({
   items: {},
   query: "",
   lowStockThreshold: 5,
+
   get visibleItems() {
     const { items, query } = get();
     const list = Object.values(items);
     const q = query.trim().toLowerCase();
     if (!q) return list;
-    return list.filter(
-      (it) =>
-        it.name.toLowerCase().includes(q) || it.sku.toLowerCase().includes(q)
-    );
+    return list.filter((it) => {
+      const name = it.name?.toLowerCase() ?? "";
+      const sku = it.sku?.toLowerCase() ?? "";
+      const barcode = it.barcode?.toLowerCase() ?? "";
+      return name.includes(q) || sku.includes(q) || barcode.includes(q);
+    });
   },
-  upsert: (item) => set((s) => ({ items: { ...s.items, [item.id]: item } })),
-  bulk: (items) =>
-    set(() => ({ items: Object.fromEntries(items.map((i) => [i.id, i])) })),
-  remove: (id) =>
+
+  setQuery: (q) => set({ query: q }),
+  setLowStockThreshold: (n) => set({ lowStockThreshold: n }),
+
+  bulk: (rows) =>
+    set(() => ({
+      items: rows.reduce<Record<string, Item>>((acc, r) => {
+        const it = normalize(r);
+        acc[it.id] = it;
+        return acc;
+      }, {}),
+    })),
+
+  upsert: (row) =>
+    set((s) => {
+      const it = normalize(row);
+      return { items: { ...s.items, [it.id]: it } };
+    }),
+
+  addItem: (input) => {
+    const id = input.id ?? genId();
+    const createdAt = input.createdAt ?? nowISO();
+    const name = input.name?.trim();
+    if (!name) throw new Error("Name is required");
+
+    // SKU 자동 생성(미입력 시): name-slug + 짧은 해시, 충돌 시 접미사 증가
+    let sku = input.sku?.trim() || `${slugify(name)}-${id.slice(4, 8)}`;
+    let suffix = 1;
+    while (get().hasSku(sku)) {
+      sku = `${slugify(name)}-${id.slice(4, 8)}-${suffix++}`;
+    }
+
+    const item: Item = {
+      id,
+      name,
+      sku,
+      barcode: input.barcode?.trim() || undefined,
+      minStock: input.minStock ?? 0,
+      defaultPrice: input.defaultPrice,
+      createdAt,
+    };
+    set((s) => ({ items: { ...s.items, [id]: item } }));
+    return item;
+  },
+
+  updateItem: (id, patch) =>
+    set((s) => {
+      const cur = s.items[id];
+      if (!cur) return {};
+      const next: Item = {
+        ...cur,
+        ...patch,
+        name: (patch.name ?? cur.name).trim(),
+        sku: patch.sku !== undefined ? patch.sku?.trim() || undefined : cur.sku,
+        barcode:
+          patch.barcode !== undefined
+            ? patch.barcode?.trim() || undefined
+            : cur.barcode,
+        minStock: patch.minStock ?? cur.minStock,
+        defaultPrice: (patch as any).defaultPrice ?? cur.defaultPrice,
+      };
+      return { items: { ...s.items, [id]: next } };
+    }),
+
+  removeItem: (id) => {
+    const cur = get().items[id];
+    if (!cur) return undefined;
     set((s) => {
       const next = { ...s.items };
       delete next[id];
       return { items: next };
-    }),
-  reset: () => set({ items: {} }),
-  setQuery: (q) => set({ query: q }),
-  setLowStockThreshold: (n) => set({ lowStockThreshold: n }),
+    });
+    return cur;
+  },
+
+  hasSku: (sku, excludeId) => {
+    if (!sku) return false;
+    const sk = sku.trim().toLowerCase();
+    const { items } = get();
+    return Object.values(items).some(
+      (it) => it.sku?.trim().toLowerCase() === sk && it.id !== excludeId
+    );
+  },
 });
 
+// 네임스페이스 기반 persist(파생 제외)
 export const useItemsStore = create<Store>()(
-  nsPersist<Store>("items", {
-    // 파생 셀렉터는 저장하지 않고 원본만 저장
-    partialize: (s) => ({ items: (s as Store).items } as Partial<Store>),
+  nsPersist("items", {
+    partialize: (s) => ({ items: (s as Store).items }),
   })(base)
 );
 
-// 워크스페이스 전환 시 네임스페이스 회전
+// 워크스페이스 전환 시 persist 키 회전
 useWorkspaceStore.subscribe(() => {
   (useItemsStore as any).persist?.setOptions({ name: makeNsName("items") });
 });
