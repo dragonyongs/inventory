@@ -1,6 +1,6 @@
+// src/stores/persistNamespace.ts
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { PersistOptions } from "zustand/middleware";
-import type { StateCreator } from "zustand";
+import type { PersistOptions, StateCreator } from "zustand/middleware";
 import { useAuthStore } from "./authStore";
 import { useWorkspaceStore } from "./workspaceStore";
 
@@ -10,16 +10,16 @@ export function makeNsName(base: string) {
   return `inv:${u}:${ws}:${base}`;
 }
 
-export function nsPersist<T extends object>(
+export function nsPersist<T>(
   base: string,
   opts?: Omit<PersistOptions<T>, "name" | "storage"> & { storage?: Storage }
 ) {
-  return (config: StateCreator<T, [], []>): StateCreator<T, [], []> =>
-    persist<T>(config, {
+  return (
+    config: StateCreator<T, [], [], T>
+  ): StateCreator<T, [], [["zustand/persist", T]], T> =>
+    persist(config, {
       name: makeNsName(base),
       storage: createJSONStorage(() => opts?.storage ?? localStorage),
-      ...(opts as any),
+      ...opts,
     } as PersistOptions<T>);
 }
-
-// 각 스토어에서 사용 시: create(nsPersist('items', { partialize: ... })(storeCreator))

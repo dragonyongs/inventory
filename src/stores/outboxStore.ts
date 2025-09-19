@@ -46,7 +46,7 @@ type Actions = {
 
 type Store = State & Actions;
 
-const base: StateCreator<Store> = (set, get) => ({
+const createOutboxStore: StateCreator<Store, [], [], Store> = (set, get) => ({
   jobs: [],
   isSyncing: false,
   lastSyncAt: undefined,
@@ -79,7 +79,7 @@ const base: StateCreator<Store> = (set, get) => ({
 
   dequeue: (id) =>
     set((s) => ({ ...s, jobs: s.jobs.filter((j) => j.id !== id) })),
-  clearAll: () => set({ jobs: [], lastSyncAt: undefined }),
+  clearAll: () => set({ jobs: [], isSyncing: false, lastSyncAt: undefined }),
 
   flush: async () => {
     const { jobs } = get();
@@ -105,7 +105,7 @@ export const useOutboxStore = create<Store>()(
       jobs: s.jobs,
       lastSyncAt: s.lastSyncAt,
     }),
-  })(base)
+  })(createOutboxStore)
 );
 
 // namespace rotation on workspace change

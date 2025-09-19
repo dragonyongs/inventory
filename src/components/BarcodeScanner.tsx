@@ -30,12 +30,13 @@ export function BarcodeScanner({ onDetect, onClose }: Props) {
 
     async function start() {
       try {
-        if (!("BarcodeDetector" in window)) {
+        // BarcodeDetector 지원 확인
+        if (!window.BarcodeDetector) {
           setError("BarcodeDetector를 지원하지 않는 환경입니다.");
           return;
         }
 
-        detectorRef.current = new (window as any).BarcodeDetector({
+        detectorRef.current = new window.BarcodeDetector({
           formats: ["ean_13", "code_128", "qr_code"],
         });
 
@@ -79,7 +80,7 @@ export function BarcodeScanner({ onDetect, onClose }: Props) {
       try {
         const codes = await detectorRef.current.detect(videoRef.current);
         if (codes?.length) {
-          const raw = codes[0].rawValue as string;
+          const raw = codes[0].rawValue;
           closedRef.current = true;
           await cleanup();
           onDetect(raw);

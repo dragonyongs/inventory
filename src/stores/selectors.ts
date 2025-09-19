@@ -1,6 +1,5 @@
 // src/stores/selectors.ts
-
-import { useMemo, useCallback } from "react";
+import { useMemo } from "react";
 import { shallow } from "zustand/shallow";
 import { useItemsStore } from "./itemsStore";
 import { useLotsStore } from "./lotsStore";
@@ -10,8 +9,7 @@ import type { Movement } from "../types/domain";
 const EMPTY_OBJ = {} as const;
 
 // 안정적인 셀렉터 상수 (모듈 스코프)
-const selectItemsMap = (s: ReturnType<typeof useItemsStore.getState>) =>
-  s.items || EMPTY_OBJ;
+const selectItemsMap = (s: any) => s.items || EMPTY_OBJ;
 const selectLotsMap = (s: any) => s.lots || EMPTY_OBJ;
 const selectMovementsById = (s: any) => s.byId || EMPTY_OBJ;
 
@@ -20,16 +18,16 @@ export type UIMovement = Movement;
 const normalizeMovement = (m: any): UIMovement => ({
   id: m.id,
   type: m.type,
-  itemId: m.itemId,
+  itemId: m.item_id || m.itemId,
   lotId: m.lotId,
   qty: m.qty,
   reason: m.reason,
-  actor: m.actor,
-  createdAt: new Date(m.createdAt ?? 0).toISOString(),
+  actor: m.actor || "system",
+  createdAt: new Date(m.created_at || m.createdAt || 0).toISOString(),
 });
 
 export const useItemsMap = () =>
-  useItemsStore(selectItemsMap as any, shallow) as Record<string, any>;
+  useItemsStore(selectItemsMap, shallow) as Record<string, any>;
 
 export const useItemList = () => {
   const map = useItemsMap();
@@ -42,9 +40,11 @@ export const useSetQuery = () => useItemsStore((s) => s.setQuery);
 export const useVisibleItems = () => {
   const items = useItemList();
   const q = useQuery();
+
   return useMemo(() => {
     const query = q?.trim().toLowerCase();
     if (!query) return items;
+
     return items.filter((it: any) =>
       [it.name, it.sku, it.barcode].some((v) =>
         v?.toLowerCase().includes(query)
