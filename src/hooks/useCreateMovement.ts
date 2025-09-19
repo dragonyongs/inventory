@@ -4,7 +4,6 @@ import { MovementInputSchema } from "../types/schemas";
 import type { MovementInput } from "../types/schemas";
 import type { Movement, Lot } from "../types/domain";
 import { applyMovementToLots } from "../utils/applyMovement";
-
 import { useLotsStore } from "../stores/lotsStore";
 import { useMovementsStore } from "../stores/movementsStore";
 import { useAuthStore } from "../stores/authStore";
@@ -19,7 +18,7 @@ function makeId() {
 
 export function useCreateMovement() {
   const { replaceMany } = useLotsStore.getState();
-  const { push: pushMovement } = useMovementsStore.getState();
+  const { add: addMovement } = useMovementsStore.getState();
   const { user } = useAuthStore.getState();
   const { currentId: wsId, can } = useWorkspaceStore.getState();
 
@@ -48,11 +47,24 @@ export function useCreateMovement() {
 
       const currentLots = Object.values(useLotsStore.getState().lots) as Lot[];
       const nextLots = applyMovementToLots(currentLots, movement);
+
       replaceMany(nextLots);
-      pushMovement(movement);
+
+      // Movement 타입을 movementsStore의 Movement 타입에 맞게 변환
+      const storeMovement = {
+        id: movement.id,
+        workspace_id: wsId,
+        item_id: movement.itemId,
+        type: movement.type as any,
+        qty: movement.qty,
+        reason: movement.reason,
+        created_at: movement.createdAt,
+      };
+
+      addMovement(storeMovement);
 
       return movement;
     },
-    [replaceMany, pushMovement, user, wsId, can]
+    [replaceMany, addMovement, user, wsId, can]
   );
 }

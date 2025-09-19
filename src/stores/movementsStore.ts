@@ -40,9 +40,10 @@ type Actions = {
 
 type Store = State & Actions;
 
-const base: StateCreator<Store, [], []> = (set, get) => ({
+const base: StateCreator<Store> = (set, get) => ({
   byId: {},
   query: "",
+
   get visible() {
     const q = get().query.trim().toLowerCase();
     const list = Object.values(get().byId).sort((a, b) =>
@@ -50,22 +51,28 @@ const base: StateCreator<Store, [], []> = (set, get) => ({
     );
     return q ? list.filter((m) => m.reason?.toLowerCase().includes(q)) : list;
   },
+
   add: (m) => set((s) => ({ byId: { ...s.byId, [m.id]: m } })),
+
   addMany: (ms) =>
     set((s) => ({
       byId: { ...s.byId, ...Object.fromEntries(ms.map((m) => [m.id, m])) },
     })),
+
   bulk: (ms) =>
     set(() => ({
       byId: Object.fromEntries(ms.map((m) => [m.id, m])),
     })),
+
   bulkMovs: (ms) =>
     set(() => ({
       byId: Object.fromEntries(ms.map((m) => [m.id, m])),
     })),
+
   create: ({ itemId, type, qty, reason }) => {
-    const wsId = useWorkspaceStore.getState().activeWsId;
+    const wsId = useWorkspaceStore.getState().currentId;
     if (!wsId) return;
+
     const movement: Movement = {
       id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
       workspace_id: wsId,
@@ -75,7 +82,9 @@ const base: StateCreator<Store, [], []> = (set, get) => ({
       reason,
       created_at: new Date().toISOString(),
     };
+
     set((s) => ({ byId: { ...s.byId, [movement.id]: movement } }));
+
     const item = useItemsStore.getState().items[itemId] as any;
     if (item && typeof item.stock === "number") {
       const delta = type === "IN" ? qty : type === "OUT" ? -qty : 0;
@@ -83,6 +92,7 @@ const base: StateCreator<Store, [], []> = (set, get) => ({
         .getState()
         .upsert({ ...item, stock: Math.max(0, item.stock + delta) });
     }
+
     useOutboxStore
       .getState()
       .enqueueMovement(
@@ -90,19 +100,21 @@ const base: StateCreator<Store, [], []> = (set, get) => ({
         { itemId, qty, type, reason }
       );
   },
+
   remove: (id) =>
     set((s) => {
       const next = { ...s.byId };
       delete next[id];
       return { byId: next };
     }),
+
   reset: () => set({ byId: {} }),
   setQuery: (q) => set({ query: q }),
 });
 
 export const useMovementsStore = create<Store>()(
-  nsPersist<Store>("movements", {
-    partialize: (s) => ({ byId: (s as Store).byId } as Partial<Store>),
+  nsPersist("movements", {
+    partialize: (s) => ({ byId: s.byId }),
   })(base)
 );
 

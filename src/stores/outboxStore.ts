@@ -1,3 +1,4 @@
+// src/stores/outboxStore.ts
 import { create } from "zustand";
 import type { StateCreator } from "zustand";
 import { nsPersist, makeNsName } from "./persistNamespace";
@@ -27,7 +28,12 @@ export type OutboxJob = {
   retries: number;
 };
 
-type State = { jobs: OutboxJob[]; isSyncing: boolean };
+type State = {
+  jobs: OutboxJob[];
+  isSyncing: boolean;
+  lastSyncAt?: string;
+};
+
 type Actions = {
   enqueueMovement: (
     ctx: { workspaceId: string; userId: string },
@@ -40,14 +46,17 @@ type Actions = {
 
 type Store = State & Actions;
 
-const base: StateCreator<Store, [], []> = (set, get) => ({
+const base: StateCreator<Store> = (set, get) => ({
   jobs: [],
   isSyncing: false,
+  lastSyncAt: undefined,
+
   enqueueMovement: (ctx, p) => {
     const movementId =
       p.movementId ??
       globalThis.crypto?.randomUUID?.() ??
       `${Date.now()}-${Math.random()}`;
+
     const job: OutboxJob = {
       id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
       workspaceId: ctx.workspaceId,
@@ -58,33 +67,44 @@ const base: StateCreator<Store, [], []> = (set, get) => ({
       createdAt: Date.now(),
       retries: 0,
     };
+
     set((s) =>
       s.jobs.some((j) => j.idempotencyKey === job.idempotencyKey)
         ? s
-        : ({ jobs: [...s.jobs, job] } as Store)
+        : { ...s, jobs: [...s.jobs, job] }
     );
+
     return job;
   },
-  dequeue: (id) => set((s) => ({ jobs: s.jobs.filter((j) => j.id !== id) })),
-  clearAll: () => set({ jobs: [] }),
+
+  dequeue: (id) =>
+    set((s) => ({ ...s, jobs: s.jobs.filter((j) => j.id !== id) })),
+  clearAll: () => set({ jobs: [], lastSyncAt: undefined }),
+
   flush: async () => {
     const { jobs } = get();
     if (!navigator.onLine || jobs.length === 0) return;
-    set({ isSyncing: true });
+
+    set((s) => ({ ...s, isSyncing: true }));
+
     try {
       for (const job of jobs) {
         await new Promise((r) => setTimeout(r, 40)); // TODO: replace with API call
         get().dequeue(job.id);
       }
+      set((s) => ({ ...s, lastSyncAt: new Date().toISOString() }));
     } finally {
-      set({ isSyncing: false });
+      set((s) => ({ ...s, isSyncing: false }));
     }
   },
 });
 
 export const useOutboxStore = create<Store>()(
-  nsPersist<Store>("outbox", {
-    partialize: (s) => ({ jobs: (s as Store).jobs } as Partial<Store>),
+  nsPersist("outbox", {
+    partialize: (s) => ({
+      jobs: s.jobs,
+      lastSyncAt: s.lastSyncAt,
+    }),
   })(base)
 );
 
