@@ -1,10 +1,9 @@
 // src/stores/selectors.ts
+
 import { useMemo } from "react";
 import { useItemsStore } from "./itemsStore";
 import { useLotsStore } from "./lotsStore";
-import { useMovementsStore } from "./movementsStore";
-import type { Movement } from "../types/domain";
-
+import { useMovementsStore, type Movement } from "./movementsStore";
 const EMPTY_OBJ = {} as const;
 
 // 안정적인 셀렉터 상수 (모듈 스코프)
@@ -13,17 +12,6 @@ const selectLotsMap = (s: any) => s.lots || EMPTY_OBJ;
 const selectMovementsById = (s: any) => s.byId || EMPTY_OBJ;
 
 export type UIMovement = Movement;
-
-const normalizeMovement = (m: any): UIMovement => ({
-  id: m.id,
-  type: m.type,
-  itemId: m.item_id || m.itemId,
-  lotId: m.lotId,
-  qty: m.qty,
-  reason: m.reason,
-  actor: m.actor || "system",
-  createdAt: new Date(m.created_at || m.createdAt || 0).toISOString(),
-});
 
 export const useItemsMap = () =>
   useItemsStore(selectItemsMap) as Record<string, any>;
@@ -39,11 +27,9 @@ export const useSetQuery = () => useItemsStore((s: any) => s.setQuery);
 export const useVisibleItems = () => {
   const items = useItemList();
   const q = useQuery();
-
   return useMemo(() => {
     const query = q?.trim().toLowerCase();
     if (!query) return items;
-
     return items.filter((it: any) =>
       [it.name, it.sku, it.barcode].some((v) =>
         v?.toLowerCase().includes(query)
@@ -52,38 +38,63 @@ export const useVisibleItems = () => {
   }, [items, q]);
 };
 
+// 재고량 계산 - Items store 기반
 export const useStockByItem = (itemId: string) => {
-  const lots = useLotsStore(selectLotsMap);
-  return useMemo(
-    () =>
-      Object.values(lots)
-        .filter((l: any) => l.itemId === itemId)
-        .reduce((sum: number, l: any) => sum + (l.qty || 0), 0),
-    [lots, itemId]
-  );
+  const items = useItemsMap();
+  return useMemo(() => {
+    return items[itemId]?.stock || 0;
+  }, [items, itemId]);
 };
 
+// 만료 임박 확인
 export const useExpiringSoonByItem = (itemId: string, days = 30) => {
   const lots = useLotsStore(selectLotsMap);
-  return useMemo(
-    () =>
-      Object.values(lots).some((l: any) => {
-        if (l.itemId !== itemId || !l.expiresAt) return false;
-        const diff = new Date(l.expiresAt).getTime() - Date.now();
-        return diff > 0 && diff < days * 86400000;
-      }),
-    [lots, itemId, days]
-  );
+  return useMemo(() => {
+    return Object.values(lots).some((l: any) => {
+      if (l.itemId !== itemId || !l.expiresAt) return false;
+      const diff = new Date(l.expiresAt).getTime() - Date.now();
+      return diff > 0 && diff < days * 86400000;
+    });
+  }, [lots, itemId, days]);
+};
+
+// 모든 아이템의 재고량
+export const useAllStockByItems = () => {
+  const items = useItemsMap();
+  return useMemo(() => {
+    const stockMap: Record<string, number> = {};
+    Object.values(items).forEach((item: any) => {
+      stockMap[item.id] = item.stock || 0;
+    });
+    return stockMap;
+  }, [items]);
+};
+
+// 모든 만료 임박 아이템
+export const useAllExpiringItems = (days = 30) => {
+  const lots = useLotsStore(selectLotsMap);
+  return useMemo(() => {
+    const expiringSet = new Set<string>();
+    const cutoffTime = Date.now() + days * 86400000;
+
+    Object.values(lots).forEach((l: any) => {
+      if (!l.itemId || !l.expiresAt) return;
+      const expiresTime = new Date(l.expiresAt).getTime();
+      if (expiresTime > Date.now() && expiresTime < cutoffTime) {
+        expiringSet.add(l.itemId);
+      }
+    });
+
+    return expiringSet;
+  }, [lots, days]);
 };
 
 export const useMovementList = () => {
   const byId = useMovementsStore(selectMovementsById);
   return useMemo(() => {
-    return Object.values(byId)
-      .map(normalizeMovement)
-      .sort(
-        (a: UIMovement, b: UIMovement) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
+    return Object.values(byId).sort(
+      (a: Movement, b: Movement) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
   }, [byId]);
 };

@@ -1,16 +1,35 @@
 // src/pages/Settings.tsx
 import { useState, useEffect } from "react";
+import {
+  Settings2,
+  Database,
+  Users,
+  Bell,
+  Calendar,
+  List,
+  Cloud,
+  Clock,
+  AlertCircle,
+  CheckCircle2,
+  Download,
+  Shield,
+  Trash2,
+  UserPlus,
+  Crown,
+  User,
+  Eye,
+} from "lucide-react";
+
 import { useSettingsStore } from "../stores/settingsStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { useAuthStore } from "../stores/authStore";
 import { useOutboxStore } from "../stores/outboxStore";
-import { setPwaListeners, applyUpdate } from "../utils/pwaClient"; // FIX: getNeedRefresh 제거
+import { setPwaListeners, applyUpdate } from "../utils/pwaClient";
 
-// 필요시 Role을 가져와 멤버 타입 정의
-import type { Role } from "../types/auth";
+type Role = "admin" | "member" | "viewer";
 type Member = { userId: string; role: Role };
 
-export function Component() {
+export default function Settings() {
   const exp = useSettingsStore((s) => s.expiringDays);
   const size = useSettingsStore((s) => s.pageSize);
   const mode = useSettingsStore((s) => s.updateMode);
@@ -18,21 +37,28 @@ export function Component() {
   const setSize = useSettingsStore((s) => s.setPageSize);
   const setMode = useSettingsStore((s) => s.setUpdateMode);
 
-  // Outbox 상태 가시화
+  // Outbox 상태
   const outboxJobs = useOutboxStore((s) => s.jobs);
   const isSyncing = useOutboxStore((s) => s.isSyncing);
-  const lastSyncAt = useOutboxStore((s) => s.lastSyncAt); // FIX: 스토어에 없다면 제거
+  const lastSyncAt = useOutboxStore((s) => s.lastSyncAt);
 
   const [needRefresh, setNeedRefresh] = useState(false);
   const [offlineReady, setOfflineReady] = useState(false);
+  const [activeTab, setActiveTab] = useState("general");
 
-  // currentId와 workspaces에서 현재 워크스페이스/멤버 유도
-  const currentId = useWorkspaceStore((s) => s.currentId); // FIX: current → currentId
-  const workspaces = useWorkspaceStore((s) => s.workspaces);
+  // 워크스페이스 정보 가져오기 (안전하게)
+  const currentId = useWorkspaceStore((s) => s.currentId);
+  const workspaces = useWorkspaceStore((s) => s.workspaces) || []; // null 방지
   const workspace = workspaces.find((w) => w.id === currentId) || null;
-  const members: Member[] = (workspace?.members as Member[]) ?? []; // FIX: members 접근
-
+  const members: Member[] = workspace?.members || [];
   const user = useAuthStore((s) => s.user);
+
+  // 현재 사용자의 역할 확인
+  const currentUserRole = members.find((m) => m.userId === user?.id)?.role;
+  const isOwnerOrAdmin = currentUserRole === "admin";
+
+  // 워크스페이스 오너 찾기
+  const workspaceOwner = members.find((m) => m.role === "admin");
 
   useEffect(() => {
     setPwaListeners({
@@ -40,199 +66,370 @@ export function Component() {
       onOfflineReady: () => setOfflineReady(true),
     });
   }, []);
+
+  const tabs = [
+    { id: "general", label: "일반", icon: Settings2 },
+    { id: "notifications", label: "알림", icon: Bell },
+    { id: "data", label: "데이터", icon: Database },
+    // 워크스페이스가 있을 때만 멤버 탭 표시
+    ...(workspace ? [{ id: "members", label: "멤버", icon: Users }] : []),
+  ];
+
+  const getRoleIcon = (role: Role) => {
+    switch (role) {
+      case "admin":
+        return <Crown className="w-4 h-4 text-yellow-600" />;
+      case "member":
+        return <User className="w-4 h-4 text-blue-600" />;
+      case "viewer":
+        return <Eye className="w-4 h-4 text-gray-600" />;
+      default:
+        return <User className="w-4 h-4 text-gray-600" />;
+    }
+  };
+
+  const getRoleLabel = (role: Role) => {
+    switch (role) {
+      case "admin":
+        return "관리자";
+      case "member":
+        return "멤버";
+      case "viewer":
+        return "뷰어";
+      default:
+        return "사용자";
+    }
+  };
+
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8">Settings</h1>
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">설정</h1>
+        <p className="text-gray-600">애플리케이션 설정을 관리하세요</p>
+      </div>
 
-      {/* App Settings */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">App Settings</h2>
+      {/* 알림 배너 */}
+      {needRefresh && (
+        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
+          <div className="flex items-center">
+            <Download className="w-5 h-5 text-blue-600 mr-3" />
+            <div>
+              <h3 className="font-semibold text-blue-900">
+                앱 업데이트 사용 가능
+              </h3>
+              <p className="text-sm text-blue-700">
+                새로운 버전이 준비되었습니다.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={applyUpdate}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            업데이트
+          </button>
+        </div>
+      )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {offlineReady && (
+        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-center">
+          <CheckCircle2 className="w-5 h-5 text-green-600 mr-3" />
           <div>
-            <label className="block text-sm font-medium mb-2">
-              Expiring Days Warning
-            </label>
-            <input
-              type="number"
-              value={exp ?? 30}
-              onChange={(e) => setExp(parseInt(e.target.value) || 30)}
-              min="1"
-              max="365"
-              className="w-full px-3 py-2 border rounded-lg"
-            />
-            <p className="text-sm text-gray-500 mt-1">
-              Show warning for items expiring within this many days
+            <h3 className="font-semibold text-green-900">오프라인 준비 완료</h3>
+            <p className="text-sm text-green-700">
+              이제 오프라인에서도 앱을 사용할 수 있습니다.
             </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">Page Size</label>
-            <select
-              value={size ?? 20}
-              onChange={(e) => setSize(parseInt(e.target.value))}
-              className="w-full px-3 py-2 border rounded-lg"
-            >
-              <option value="10">10</option>
-              <option value="20">20</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Sync Status */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Sync Status</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-gray-50 rounded">
-            <div className="text-2xl font-bold text-blue-600">
-              {outboxJobs.length}
-            </div>
-            <div className="text-sm text-gray-600">Pending Jobs</div>
-          </div>
-
-          <div className="text-center p-4 bg-gray-50 rounded">
-            <div
-              className={`text-2xl font-bold ${
-                isSyncing ? "text-yellow-600" : "text-green-600"
-              }`}
-            >
-              {isSyncing ? "Syncing..." : "Idle"}
-            </div>
-            <div className="text-sm text-gray-600">Sync Status</div>
-          </div>
-
-          <div className="text-center p-4 bg-gray-50 rounded">
-            <div className="text-sm font-medium text-gray-600">Last Sync</div>
-            <div className="text-sm text-gray-500">
-              {lastSyncAt ? new Date(lastSyncAt).toLocaleString() : "Never"}
-            </div>
-          </div>
-        </div>
-
-        {outboxJobs.length > 0 && (
-          <div className="mt-4">
-            <h3 className="font-medium mb-2">Pending Operations</h3>
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {outboxJobs.map((job) => (
-                <div
-                  key={job.id}
-                  className="flex justify-between items-center p-2 bg-gray-50 rounded"
-                >
-                  <span className="text-sm">
-                    {job.payload.type} - {job.payload.itemId} (qty:{" "}
-                    {job.payload.qty})
-                  </span>
-                  {job.retries > 0 && (
-                    <span className="text-xs text-red-600">
-                      Retries: {job.retries}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* PWA Settings */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">PWA Settings</h2>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Update Mode
-            </label>
-            <select
-              value={mode ?? "prompt"}
-              onChange={(e) => setMode(e.target.value as "auto" | "prompt")}
-              className="w-full px-3 py-2 border rounded-lg"
-            >
-              <option value="auto">Auto Update</option>
-              <option value="prompt">Prompt for Update</option>
-            </select>
-          </div>
-
-          {needRefresh && (
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded">
-              <p className="text-blue-800 mb-2">App update available!</p>
-              <button
-                onClick={() => applyUpdate()}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-              >
-                Update & Restart
-              </button>
-            </div>
-          )}
-
-          {offlineReady && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded">
-              <p className="text-green-800">App is ready for offline use!</p>
-            </div>
-          )}
-
-          <div className="text-sm text-gray-600">
-            브라우저의 설치(홈 화면 추가) 메뉴를 사용해 설치하세요.
-          </div>
-        </div>
-      </div>
-
-      {/* Workspace Members */}
-      {workspace && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-4">Workspace Members</h2>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full table-auto">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left p-2">User</th>
-                  <th className="text-left p-2">Role</th>
-                  <th className="text-left p-2">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {members.map((m) => (
-                  <tr key={m.userId} className="border-b">
-                    <td className="p-2">{m.userId}</td>
-                    <td className="p-2">{m.role}</td>
-                    <td className="p-2">
-                      {user?.id === m.userId ? (
-                        <span className="text-gray-500">
-                          {user?.id === m.userId ? <>You</> : null}
-                        </span>
-                      ) : (
-                        <button className="text-red-600 hover:underline">
-                          Remove
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {/* PWA 업데이트 알림/버튼 */}
-            {needRefresh && (
-              <div className="mt-3">
-                <p>App update available!</p>
-                <button className="btn" onClick={() => applyUpdate()}>
-                  업데이트 적용
-                </button>
-              </div>
-            )}
-            {offlineReady && (
-              <p className="mt-2">App is ready for offline use!</p>
-            )}
           </div>
         </div>
       )}
+
+      {/* 탭 네비게이션 */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-8">
+        <div className="border-b border-gray-100">
+          <nav className="flex overflow-x-auto">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? "border-blue-600 text-blue-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  <Icon className="w-5 h-5 mr-2" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* 탭 내용 */}
+        <div className="p-6">
+          {activeTab === "general" && (
+            <div className="space-y-8">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <List className="w-5 h-5 mr-2" />
+                  페이지 설정
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      페이지당 항목 수
+                    </label>
+                    <select
+                      value={size}
+                      onChange={(e) => setSize(Number(e.target.value))}
+                      className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value={10}>10개</option>
+                      <option value={20}>20개</option>
+                      <option value={50}>50개</option>
+                      <option value={100}>100개</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      업데이트 모드
+                    </label>
+                    <select
+                      value={mode}
+                      onChange={(e) =>
+                        setMode(e.target.value as "auto" | "manual")
+                      }
+                      className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="auto">자동</option>
+                      <option value="manual">수동</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "notifications" && (
+            <div className="space-y-8">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <Calendar className="w-5 h-5 mr-2" />
+                  유통기한 알림
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      유통기한 임박 경고 (일)
+                    </label>
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="number"
+                        min={1}
+                        max={365}
+                        value={exp}
+                        onChange={(e) => setExp(Number(e.target.value))}
+                        className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      <span className="text-sm text-gray-500">
+                        이 기간 내에 만료되는 상품에 대해 경고를 표시합니다
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "data" && (
+            <div className="space-y-8">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <Cloud className="w-5 h-5 mr-2" />
+                  동기화 상태
+                </h3>
+                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">
+                      동기화 상태
+                    </span>
+                    <div className="flex items-center">
+                      {isSyncing ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                          <span className="text-sm text-blue-600">
+                            동기화 중
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 text-green-600 mr-2" />
+                          <span className="text-sm text-green-600">완료</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">
+                      대기 중인 작업
+                    </span>
+                    <span className="text-sm text-gray-600">
+                      {outboxJobs.length}개
+                    </span>
+                  </div>
+
+                  {lastSyncAt && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">
+                        마지막 동기화
+                      </span>
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Clock className="w-4 h-4 mr-1" />
+                        {new Date(lastSyncAt).toLocaleString("ko-KR")}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {outboxJobs.length > 0 && (
+                <div>
+                  <h4 className="text-md font-semibold text-gray-900 mb-3">
+                    대기 중인 작업
+                  </h4>
+                  <div className="bg-yellow-50 rounded-lg border border-yellow-200">
+                    {outboxJobs.slice(0, 5).map((job, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 border-b border-yellow-200 last:border-b-0"
+                      >
+                        <div className="flex items-center">
+                          <AlertCircle className="w-4 h-4 text-yellow-600 mr-2" />
+                          <span className="text-sm font-medium text-yellow-900">
+                            {job.type || "알 수 없는 작업"}
+                          </span>
+                        </div>
+                        <span className="text-xs text-yellow-700">
+                          {new Date(job.createdAt || 0).toLocaleString("ko-KR")}
+                        </span>
+                      </div>
+                    ))}
+                    {outboxJobs.length > 5 && (
+                      <div className="p-3 text-center text-sm text-yellow-700">
+                        그 외 {outboxJobs.length - 5}개 작업 더...
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "members" && workspace && (
+            <div className="space-y-8">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <Users className="w-5 h-5 mr-2" />
+                    워크스페이스 멤버
+                  </h3>
+                  {isOwnerOrAdmin && (
+                    <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      멤버 초대
+                    </button>
+                  )}
+                </div>
+
+                {/* 워크스페이스 정보 */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-semibold text-blue-900">
+                        {workspace.name}
+                      </h4>
+                      {workspace.description && (
+                        <p className="text-sm text-blue-700 mt-1">
+                          {workspace.description}
+                        </p>
+                      )}
+                      {workspaceOwner && (
+                        <p className="text-sm text-blue-600 mt-2">
+                          <Crown className="w-4 h-4 inline mr-1" />
+                          오너: {workspaceOwner.userId}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm text-blue-700">
+                        멤버 {members.length}명
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
+                    <div className="grid grid-cols-3 gap-4 text-sm font-semibold text-gray-700">
+                      <span>사용자</span>
+                      <span>역할</span>
+                      <span className="text-right">작업</span>
+                    </div>
+                  </div>
+                  <div className="divide-y divide-gray-200">
+                    {members.map((member, index) => (
+                      <div key={index} className="px-6 py-4">
+                        <div className="grid grid-cols-3 gap-4 items-center">
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mr-3">
+                              <User className="w-4 h-4 text-gray-600" />
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-900">
+                                {member.userId}
+                              </span>
+                              {user?.id === member.userId && (
+                                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                                  나
+                                </span>
+                              )}
+                              {member.userId === workspaceOwner?.userId && (
+                                <span className="ml-2 px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full">
+                                  오너
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center">
+                            {getRoleIcon(member.role)}
+                            <span className="ml-2 text-sm font-medium text-gray-900">
+                              {getRoleLabel(member.role)}
+                            </span>
+                          </div>
+                          <div className="flex justify-end">
+                            {isOwnerOrAdmin &&
+                              user?.id !== member.userId &&
+                              member.userId !== workspaceOwner?.userId && (
+                                <button className="flex items-center px-3 py-1 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                  <Trash2 className="w-4 h-4 mr-1" />
+                                  제거
+                                </button>
+                              )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
-
-export default Component;

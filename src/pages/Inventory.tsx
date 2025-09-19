@@ -1,6 +1,22 @@
 // src/pages/Inventory.tsx
 import { useMemo, useState, useCallback } from "react";
 import {
+  Plus,
+  Search,
+  Package,
+  AlertTriangle,
+  Clock,
+  Edit,
+  Trash2,
+  Settings,
+  CheckCircle,
+  X,
+  ArrowUp,
+  ArrowDown,
+  RotateCcw,
+} from "lucide-react";
+
+import {
   useVisibleItems,
   useStockByItem,
   useExpiringSoonByItem,
@@ -26,6 +42,7 @@ function Input({
   type = "text",
   min,
   step,
+  className = "",
 }: {
   value: any;
   onChange: (v: any) => void;
@@ -33,10 +50,10 @@ function Input({
   type?: string;
   min?: number;
   step?: number | string;
+  className?: string;
 }) {
   return (
     <input
-      className="border rounded px-2 py-1"
       value={value}
       onChange={(e) =>
         onChange(
@@ -51,6 +68,7 @@ function Input({
       type={type}
       min={min as any}
       step={step as any}
+      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${className}`}
     />
   );
 }
@@ -68,101 +86,135 @@ function AddItemForm({ onAdded }: { onAdded: (id: string) => void }) {
     qty: "",
   });
   const [err, setErr] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const onSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
       setErr("");
+      setIsSubmitting(true);
 
       if (!f.name.trim()) {
         setErr("이름은 필수입니다");
+        setIsSubmitting(false);
         return;
       }
 
       if (f.sku.trim() && hasSku(f.sku.trim())) {
         setErr("이미 존재하는 SKU 입니다");
+        setIsSubmitting(false);
         return;
       }
 
-      const item = addItem({
-        name: f.name.trim(),
-        sku: f.sku.trim() || undefined,
-        barcode: f.barcode.trim() || undefined,
-        minStock: typeof f.minStock === "number" ? f.minStock : 0,
-        defaultPrice: typeof f.price === "number" ? f.price : undefined,
-      });
+      try {
+        const item = addItem({
+          name: f.name.trim(),
+          sku: f.sku.trim() || undefined,
+          barcode: f.barcode.trim() || undefined,
+          minStock: typeof f.minStock === "number" ? f.minStock : 0,
+          defaultPrice: typeof f.price === "number" ? f.price : undefined,
+        });
 
-      const qty = typeof f.qty === "number" ? f.qty : 0;
-      if (qty > 0) {
-        try {
+        const qty = typeof f.qty === "number" ? f.qty : 0;
+        if (qty > 0) {
           await createMovement({
             type: "IN",
             itemId: item.id,
             qty,
             reason: "초기 재고",
           });
-        } catch (error) {
-          console.error("Movement creation failed:", error);
         }
-      }
 
-      onAdded(item.id);
-      setF({
-        name: "",
-        sku: "",
-        barcode: "",
-        minStock: "",
-        price: "",
-        qty: "",
-      });
+        onAdded(item.id);
+        setF({
+          name: "",
+          sku: "",
+          barcode: "",
+          minStock: "",
+          price: "",
+          qty: "",
+        });
+      } catch (error) {
+        console.error("Movement creation failed:", error);
+        setErr("품목 추가 중 오류가 발생했습니다");
+      } finally {
+        setIsSubmitting(false);
+      }
     },
     [f, addItem, hasSku, createMovement, onAdded]
   );
 
   return (
-    <form onSubmit={onSubmit} className="space-y-2">
-      <Input
-        value={f.name}
-        onChange={(v) => setF((s) => ({ ...s, name: v }))}
-        placeholder="이름*"
-      />
-      <Input
-        value={f.sku}
-        onChange={(v) => setF((s) => ({ ...s, sku: v }))}
-        placeholder="SKU (선택)"
-      />
-      <Input
-        value={f.barcode}
-        onChange={(v) => setF((s) => ({ ...s, barcode: v }))}
-        placeholder="바코드"
-      />
-      <Input
-        value={f.minStock}
-        onChange={(v) => setF((s) => ({ ...s, minStock: v }))}
-        placeholder="최소 재고"
-        type="number"
-      />
-      <Input
-        value={f.price}
-        onChange={(v) => setF((s) => ({ ...s, price: v }))}
-        placeholder="가격 (선택)"
-        type="number"
-        step="0.01"
-      />
-      <Input
-        value={f.qty}
-        onChange={(v) => setF((s) => ({ ...s, qty: v }))}
-        placeholder="초기 수량 (선택)"
-        type="number"
-      />
-      <button
-        type="submit"
-        className="bg-blue-500 text-white px-4 py-2 rounded"
-      >
-        품목 추가
-      </button>
-      {err && <div className="text-red-500">{err}</div>}
-    </form>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <Plus className="w-5 h-5 mr-2 text-blue-600" />새 품목 추가
+      </h3>
+
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Input
+            value={f.name}
+            onChange={(v) => setF((s) => ({ ...s, name: v }))}
+            placeholder="상품명 *"
+          />
+          <Input
+            value={f.sku}
+            onChange={(v) => setF((s) => ({ ...s, sku: v }))}
+            placeholder="SKU (선택)"
+          />
+          <Input
+            value={f.barcode}
+            onChange={(v) => setF((s) => ({ ...s, barcode: v }))}
+            placeholder="바코드"
+          />
+          <Input
+            value={f.minStock}
+            onChange={(v) => setF((s) => ({ ...s, minStock: v }))}
+            placeholder="최소 재고"
+            type="number"
+            min={0}
+          />
+          <Input
+            value={f.price}
+            onChange={(v) => setF((s) => ({ ...s, price: v }))}
+            placeholder="가격 (선택)"
+            type="number"
+            step="0.01"
+            min={0}
+          />
+          <Input
+            value={f.qty}
+            onChange={(v) => setF((s) => ({ ...s, qty: v }))}
+            placeholder="초기 수량 (선택)"
+            type="number"
+            min={0}
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            {err && (
+              <div className="flex items-center text-red-600 text-sm">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                {err}
+              </div>
+            )}
+          </div>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isSubmitting ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+            ) : (
+              <Plus className="w-4 h-4 mr-2" />
+            )}
+            품목 추가
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 
@@ -177,11 +229,13 @@ function AdjustStockModal({
   const [mode, setMode] = useState<"IN" | "OUT" | "ADJUST">("IN");
   const [qty, setQty] = useState<number | "">("");
   const [reason, setReason] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const submit = useCallback(async () => {
     const n = typeof qty === "number" ? qty : 0;
     if (n <= 0) return onClose();
 
+    setIsSubmitting(true);
     try {
       if (mode === "IN") {
         await createMovement({
@@ -209,48 +263,99 @@ function AdjustStockModal({
     } catch (error) {
       console.error("Adjust movement failed:", error);
       onClose();
+    } finally {
+      setIsSubmitting(false);
     }
   }, [mode, qty, reason, itemId, createMovement, onClose]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
-      <div className="bg-white p-4 rounded-lg space-y-4">
-        <h3 className="text-lg font-semibold">재고 조정</h3>
-
-        <div className="flex gap-2">
-          {(["IN", "OUT", "ADJUST"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setMode(t)}
-              type="button"
-              className={`px-3 py-1 rounded ${
-                mode === t ? "bg-blue-500 text-white" : "bg-gray-200"
-              }`}
-            >
-              {t === "IN" ? "입고" : t === "OUT" ? "출고" : "조정"}
-            </button>
-          ))}
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+            <Settings className="w-5 h-5 mr-2 text-blue-600" />
+            재고 조정
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
         </div>
 
-        <Input
-          value={qty}
-          onChange={setQty}
-          placeholder="수량"
-          type="number"
-          min={1}
-        />
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              조정 유형
+            </label>
+            <div className="flex space-x-2">
+              {(
+                [
+                  ["IN", "입고", ArrowUp],
+                  ["OUT", "출고", ArrowDown],
+                  ["ADJUST", "조정", RotateCcw],
+                ] as const
+              ).map(([t, label, Icon]) => (
+                <button
+                  key={t}
+                  onClick={() => setMode(t)}
+                  type="button"
+                  className={`flex-1 flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    mode === t
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  <Icon className="w-4 h-4 mr-1" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-        <Input value={reason} onChange={setReason} placeholder="사유" />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              수량
+            </label>
+            <input
+              type="number"
+              value={qty}
+              onChange={(e) =>
+                setQty(e.target.value === "" ? "" : Number(e.target.value))
+              }
+              min={0}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
 
-        <div className="flex gap-2">
-          <button onClick={onClose} className="px-4 py-2 bg-gray-300 rounded">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              사유 (선택)
+            </label>
+            <input
+              type="text"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="조정 사유를 입력하세요"
+            />
+          </div>
+        </div>
+
+        <div className="flex space-x-3 mt-6">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          >
             취소
           </button>
           <button
             onClick={submit}
-            className="px-4 py-2 bg-blue-500 text-white rounded"
+            disabled={isSubmitting}
+            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
-            적용
+            {isSubmitting ? "처리 중..." : "적용"}
           </button>
         </div>
       </div>
@@ -258,7 +363,7 @@ function AdjustStockModal({
   );
 }
 
-function Row({
+function ItemRow({
   item,
   onEdit,
   onDelete,
@@ -289,54 +394,107 @@ function Row({
     setEditing(false);
   }, [onEdit, form]);
 
+  const isLowStock = stock <= (item.minStock ?? 0);
+
   return (
-    <tr className="border-b">
-      <td className="p-2">
+    <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+      <td className="px-6 py-4">
         {editing ? (
           <input
             value={form.name}
             onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
-            className="border rounded px-2 py-1"
+            className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
           />
         ) : (
-          <span>{item.name}</span>
+          <div>
+            <div className="font-medium text-gray-900">{item.name}</div>
+            <div className="text-sm text-gray-500">
+              {item.sku && `SKU: ${item.sku}`}
+              {item.sku && item.barcode && " • "}
+              {item.barcode && `바코드: ${item.barcode}`}
+            </div>
+          </div>
         )}
       </td>
-      <td className="p-2">{item.sku || item.barcode}</td>
-      <td className="p-2">{stock}</td>
-      <td className="p-2">
-        {stock <= (item.minStock ?? 0) && (
-          <span className="text-red-500 text-sm">재고 부족</span>
-        )}
-        {expSoon && (
-          <span className="text-orange-500 text-sm">유통기한 임박</span>
-        )}
+
+      <td className="px-6 py-4">
+        <div className="flex items-center space-x-2">
+          <span
+            className={`text-lg font-semibold ${
+              isLowStock ? "text-red-600" : "text-gray-900"
+            }`}
+          >
+            {stock}
+          </span>
+          <span className="text-sm text-gray-500">개</span>
+        </div>
       </td>
-      <td className="p-2">
+
+      <td className="px-6 py-4">
+        <div className="flex flex-wrap gap-1">
+          {isLowStock && (
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+              <AlertTriangle className="w-3 h-3 mr-1" />
+              재고 부족
+            </span>
+          )}
+          {expSoon && (
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+              <Clock className="w-3 h-3 mr-1" />
+              유통기한 임박
+            </span>
+          )}
+          {!isLowStock && !expSoon && (
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              <CheckCircle className="w-3 h-3 mr-1" />
+              정상
+            </span>
+          )}
+        </div>
+      </td>
+
+      <td className="px-6 py-4">
         {editing ? (
-          <div className="space-x-2">
-            <button onClick={save} className="text-blue-500 text-sm">
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={save}
+              className="flex items-center px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+            >
+              <CheckCircle className="w-3 h-3 mr-1" />
               저장
             </button>
             <button
               onClick={() => setEditing(false)}
-              className="text-gray-500 text-sm"
+              className="flex items-center px-3 py-1 bg-gray-500 text-white text-sm rounded hover:bg-gray-600 transition-colors"
             >
+              <X className="w-3 h-3 mr-1" />
               취소
             </button>
           </div>
         ) : (
-          <div className="space-x-2">
+          <div className="flex items-center space-x-1">
             <button
               onClick={() => setEditing(true)}
-              className="text-blue-500 text-sm"
+              className="flex items-center px-2 py-1 text-blue-600 hover:bg-blue-50 rounded text-sm transition-colors"
+              title="수정"
             >
+              <Edit className="w-3 h-3 mr-1" />
               수정
             </button>
-            <button onClick={onAdjust} className="text-green-500 text-sm">
+            <button
+              onClick={onAdjust}
+              className="flex items-center px-2 py-1 text-green-600 hover:bg-green-50 rounded text-sm transition-colors"
+              title="재고 조정"
+            >
+              <Settings className="w-3 h-3 mr-1" />
               조정
             </button>
-            <button onClick={onDelete} className="text-red-500 text-sm">
+            <button
+              onClick={onDelete}
+              className="flex items-center px-2 py-1 text-red-600 hover:bg-red-50 rounded text-sm transition-colors"
+              title="삭제"
+            >
+              <Trash2 className="w-3 h-3 mr-1" />
               삭제
             </button>
           </div>
@@ -383,57 +541,116 @@ export default function Inventory() {
     setAdjustFor(id);
   }, []);
 
+  // 성공 알림 자동 숨김
+  useState(() => {
+    if (addedId) {
+      const timer = setTimeout(() => setAddedId(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  });
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">인벤토리</h1>
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">인벤토리</h1>
+        <p className="text-gray-600">상품을 등록하고 재고를 관리하세요</p>
+      </div>
 
-      <AddItemForm onAdded={(id) => setAddedId(id)} />
-
-      <input
-        className="w-full border rounded px-3 py-2"
-        placeholder="검색..."
-        value={q}
-        onChange={(e) => setQuery(e.target.value)}
-      />
-
+      {/* 성공 알림 */}
       {addedId && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
-          품목이 추가되었습니다
+        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
+          <div className="flex items-center">
+            <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
+            <span className="text-green-800 font-medium">
+              품목이 성공적으로 추가되었습니다!
+            </span>
+          </div>
+          <button
+            onClick={() => setAddedId(null)}
+            className="text-green-600 hover:text-green-800"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse border">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="border p-2 text-left">이름</th>
-              <th className="border p-2 text-left">SKU/바코드</th>
-              <th className="border p-2 text-left">재고</th>
-              <th className="border p-2 text-left">상태</th>
-              <th className="border p-2 text-left">액션</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((it: any) => (
-              <Row
-                key={it.id}
-                item={it}
-                onEdit={(patch) => handleEdit(it.id, patch)}
-                onDelete={() => handleDelete(it.id)}
-                onAdjust={() => handleAdjust(it.id)}
-              />
-            ))}
-            {sorted.length === 0 && (
-              <tr>
-                <td colSpan={5} className="text-center p-8 text-gray-500">
-                  등록된 품목이 없습니다
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      {/* 품목 추가 폼 */}
+      <AddItemForm onAdded={(id) => setAddedId(id)} />
+
+      {/* 검색 */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="상품명, SKU, 바코드로 검색..."
+            value={q}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+          />
+        </div>
       </div>
 
+      {/* 품목 목록 */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="p-6 border-b border-gray-100">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <Package className="w-5 h-5 mr-2 text-blue-600" />
+              품목 목록
+            </h3>
+            <span className="text-sm text-gray-500">
+              총 {sorted.length}개 품목
+            </span>
+          </div>
+        </div>
+
+        {sorted.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+                    상품 정보
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+                    재고량
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+                    상태
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+                    작업
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((item: any) => (
+                  <ItemRow
+                    key={item.id}
+                    item={item}
+                    onEdit={(patch) => handleEdit(item.id, patch)}
+                    onDelete={() => handleDelete(item.id)}
+                    onAdjust={() => handleAdjust(item.id)}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              등록된 품목이 없습니다
+            </h3>
+            <p className="text-gray-500">
+              새 품목을 추가하여 재고 관리를 시작하세요.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* 재고 조정 모달 */}
       {adjustFor && (
         <AdjustStockModal
           itemId={adjustFor}

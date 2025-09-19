@@ -29,6 +29,8 @@ interface ItemsActions {
   hasSku: (sku: string) => boolean;
   updateItem: (id: string, updates: Partial<Item>) => void;
   removeItem: (id: string) => void;
+  adjustStock: (itemId: string, delta: number) => void;
+  setStock: (itemId: string, stock: number) => void;
 }
 
 type ItemsStore = ItemsState & ItemsActions;
@@ -58,11 +60,9 @@ export const useItemsStore = create<ItemsStore>()(
           createdAt: new Date().toISOString(),
           ...itemData,
         };
-
         set((state) => ({
           items: { ...state.items, [item.id]: item },
         }));
-
         return item;
       },
 
@@ -88,6 +88,36 @@ export const useItemsStore = create<ItemsStore>()(
           const newItems = { ...state.items };
           delete newItems[id];
           return { items: newItems };
+        }),
+
+      adjustStock: (itemId, delta) =>
+        set((state) => {
+          const item = state.items[itemId];
+          if (!item) return state;
+          return {
+            items: {
+              ...state.items,
+              [itemId]: {
+                ...item,
+                stock: Math.max(0, item.stock + delta),
+              },
+            },
+          };
+        }),
+
+      setStock: (itemId, stock) =>
+        set((state) => {
+          const item = state.items[itemId];
+          if (!item) return state;
+          return {
+            items: {
+              ...state.items,
+              [itemId]: {
+                ...item,
+                stock: Math.max(0, stock),
+              },
+            },
+          };
         }),
     }),
     {

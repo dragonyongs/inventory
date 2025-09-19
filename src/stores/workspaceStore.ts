@@ -1,28 +1,23 @@
-// src/stores/workspaceStore.ts
+// src/stores/workspaceStore.ts (단순화)
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useAuthStore } from "./authStore";
 
 export interface Workspace {
   id: string;
   name: string;
-  description?: string;
-  members: Array<{
-    userId: string;
-    role: "admin" | "member" | "viewer";
-  }>;
+  ownerId: string;
+  createdAt: string;
 }
 
 interface WorkspaceState {
-  workspaces: Workspace[];
-  currentId: string | null;
+  currentWorkspace: Workspace | null;
 }
 
 interface WorkspaceActions {
-  setWorkspaces: (workspaces: Workspace[]) => void;
-  setCurrentId: (id: string | null) => void;
-  addWorkspace: (workspace: Workspace) => void;
-  removeWorkspace: (id: string) => void;
-  can: (workspaceId: string, _permission: string) => boolean;
+  createPersonalWorkspace: (userId: string, userName: string) => void;
+  updateWorkspace: (updates: Partial<Workspace>) => void;
+  resetWorkspace: () => void;
 }
 
 type WorkspaceStore = WorkspaceState & WorkspaceActions;
@@ -30,29 +25,28 @@ type WorkspaceStore = WorkspaceState & WorkspaceActions;
 export const useWorkspaceStore = create<WorkspaceStore>()(
   persist(
     (set, get) => ({
-      workspaces: [],
-      currentId: null,
+      currentWorkspace: null,
 
-      setWorkspaces: (workspaces) => set({ workspaces }),
-
-      setCurrentId: (currentId) => set({ currentId }),
-
-      addWorkspace: (workspace) =>
-        set((state) => ({
-          workspaces: [...state.workspaces, workspace],
-        })),
-
-      removeWorkspace: (id) =>
-        set((state) => ({
-          workspaces: state.workspaces.filter((w) => w.id !== id),
-          currentId: state.currentId === id ? null : state.currentId,
-        })),
-
-      can: (workspaceId, _permission) => {
-        // 간단한 권한 체크 로직
-        const workspace = get().workspaces.find((w) => w.id === workspaceId);
-        return !!workspace; // 임시로 항상 허용
+      // 개인 워크스페이스 생성 (로그인한 사용자 기준)
+      createPersonalWorkspace: (userId: string, userName: string) => {
+        const workspace: Workspace = {
+          id: `ws_${userId}`,
+          name: `${userName}의 재고관리`,
+          ownerId: userId,
+          createdAt: new Date().toISOString(),
+        };
+        set({ currentWorkspace: workspace });
       },
+
+      updateWorkspace: (updates) => {
+        const current = get().currentWorkspace;
+        if (!current) return;
+        set({
+          currentWorkspace: { ...current, ...updates },
+        });
+      },
+
+      resetWorkspace: () => set({ currentWorkspace: null }),
     }),
     {
       name: "workspace-storage",

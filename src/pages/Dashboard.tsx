@@ -1,145 +1,425 @@
 // src/pages/Dashboard.tsx
 import { useMemo } from "react";
 import {
+  BarChart3,
+  Package,
+  AlertTriangle,
+  Activity,
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  CheckCircle,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Package2,
+  Calendar,
+  Users,
+  ShoppingCart,
+} from "lucide-react";
+
+import {
   useItemList,
   useMovementList,
-  useStockByItem,
-  useExpiringSoonByItem,
+  useAllStockByItems,
+  useAllExpiringItems,
 } from "../stores/selectors";
-import { useLotsStore } from "../stores/lotsStore";
 
 export default function Dashboard() {
   const items = useItemList();
   const movements = useMovementList();
-  const lots = useLotsStore((s: any) => s.lots);
 
-  // 통계 계산
+  const allStockByItems = useAllStockByItems();
+  const expiringItemsSet = useAllExpiringItems(30);
+
   const stats = useMemo(() => {
     const totalItems = items.length;
+
     const lowStockItems = items.filter(
-      (item: any) => useStockByItem(item.id) <= (item.minStock || 5)
+      (item: any) => (allStockByItems[item.id] || 0) <= (item.minStock || 5)
     ).length;
+
     const recentMovements = movements.filter(
       (m) =>
         Date.now() - new Date(m.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000
     ).length;
-    const totalLots = Object.keys(lots).length;
+
+    const totalStock = Object.values(allStockByItems).reduce(
+      (sum, stock) => sum + stock,
+      0
+    );
 
     return {
       totalItems,
       lowStockItems,
       recentMovements,
-      totalLots,
+      totalStock,
     };
-  }, [items, movements, lots]);
+  }, [items, movements, allStockByItems]);
 
-  // 최근 입고/출고 요약
   const recentActivity = useMemo(() => {
-    return movements.slice(0, 5).map((m) => {
+    return movements.slice(0, 8).map((m) => {
       const item = items.find((i: any) => i.id === m.itemId);
       return {
         ...m,
         itemName: item?.name || "Unknown Item",
-        value: m.qty as string | number,
       };
     });
   }, [movements, items]);
 
-  // 만료 임박 품목
   const expiringItems = useMemo(() => {
     return items
-      .filter((item: any) => useExpiringSoonByItem(item.id, 30))
+      .filter((item: any) => expiringItemsSet.has(item.id))
       .slice(0, 5);
-  }, [items]);
+  }, [items, expiringItemsSet]);
+
+  const lowStockItems = useMemo(() => {
+    return items
+      .filter(
+        (item: any) => (allStockByItems[item.id] || 0) <= (item.minStock || 5)
+      )
+      .slice(0, 5);
+  }, [items, allStockByItems]);
+
+  const getMovementIcon = (type: string) => {
+    switch (type) {
+      case "IN":
+        return <ArrowUpRight className="w-4 h-4" />;
+      case "OUT":
+        return <ArrowDownLeft className="w-4 h-4" />;
+      case "ADJUST":
+        return <Activity className="w-4 h-4" />;
+      default:
+        return <Activity className="w-4 h-4" />;
+    }
+  };
+
+  const getMovementColor = (type: string) => {
+    switch (type) {
+      case "IN":
+        return "text-green-600 bg-green-50";
+      case "OUT":
+        return "text-red-600 bg-red-50";
+      case "ADJUST":
+        return "text-blue-600 bg-blue-50";
+      default:
+        return "text-gray-600 bg-gray-50";
+    }
+  };
+
+  const getMovementLabel = (type: string) => {
+    switch (type) {
+      case "IN":
+        return "입고";
+      case "OUT":
+        return "출고";
+      case "ADJUST":
+        return "조정";
+      case "TRANSFER":
+        return "이동";
+      case "USE":
+        return "사용";
+      default:
+        return type;
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">대시보드</h1>
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">대시보드</h1>
+        <p className="text-gray-600">재고 현황을 한눈에 확인하세요</p>
+      </div>
 
       {/* 통계 카드 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <h3 className="text-sm font-medium text-blue-800">총 품목 수</h3>
-          <p className="text-2xl font-bold text-blue-900">{stats.totalItems}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-500 mb-1">
+                전체 상품
+              </p>
+              <p className="text-3xl font-bold text-gray-900">
+                {stats.totalItems}
+              </p>
+              <p className="text-xs text-gray-600 mt-2">등록된 상품 수</p>
+            </div>
+            <div className="p-3 bg-blue-100 rounded-xl">
+              <Package className="w-6 h-6 text-blue-600" />
+            </div>
+          </div>
         </div>
-        <div className="bg-red-50 p-4 rounded-lg">
-          <h3 className="text-sm font-medium text-red-800">재고 부족</h3>
-          <p className="text-2xl font-bold text-red-900">
-            {stats.lowStockItems}
-          </p>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-500 mb-1">
+                재고 부족
+              </p>
+              <p className="text-3xl font-bold text-red-600">
+                {stats.lowStockItems}
+              </p>
+              <p className="text-xs text-gray-600 mt-2">주의 필요</p>
+            </div>
+            <div className="p-3 bg-red-100 rounded-xl">
+              <AlertTriangle className="w-6 h-6 text-red-600" />
+            </div>
+          </div>
         </div>
-        <div className="bg-green-50 p-4 rounded-lg">
-          <h3 className="text-sm font-medium text-green-800">
-            최근 7일 움직임
-          </h3>
-          <p className="text-2xl font-bold text-green-900">
-            {stats.recentMovements}
-          </p>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-500 mb-1">
+                최근 움직임
+              </p>
+              <p className="text-3xl font-bold text-green-600">
+                {stats.recentMovements}
+              </p>
+              <p className="text-xs text-gray-600 mt-2">최근 7일</p>
+            </div>
+            <div className="p-3 bg-green-100 rounded-xl">
+              <Activity className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
         </div>
-        <div className="bg-purple-50 p-4 rounded-lg">
-          <h3 className="text-sm font-medium text-purple-800">로트 수</h3>
-          <p className="text-2xl font-bold text-purple-900">
-            {stats.totalLots}
-          </p>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-500 mb-1">총 재고</p>
+              <p className="text-3xl font-bold text-purple-600">
+                {stats.totalStock}
+              </p>
+              <p className="text-xs text-gray-600 mt-2">전체 재고량</p>
+            </div>
+            <div className="p-3 bg-purple-100 rounded-xl">
+              <Package2 className="w-6 h-6 text-purple-600" />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* 최근 활동 */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h2 className="text-lg font-semibold mb-4">최근 활동</h2>
-        {recentActivity.length > 0 ? (
-          <div className="space-y-3">
-            {recentActivity.map((activity) => (
-              <div
-                key={activity.id}
-                className="flex justify-between items-center border-b pb-2"
-              >
-                <div>
-                  <span className="font-medium">{activity.itemName}</span>
-                  <span className="text-sm text-gray-500 ml-2">
-                    {activity.type === "IN"
-                      ? "입고"
-                      : activity.type === "OUT"
-                      ? "출고"
-                      : "조정"}
-                  </span>
-                </div>
-                <div className="text-right">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* 최근 활동 */}
+        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100">
+          <div className="p-6 border-b border-gray-100">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <Activity className="w-5 h-5 mr-2 text-blue-600" />
+              최근 활동
+            </h3>
+          </div>
+          <div className="p-6">
+            {recentActivity.length > 0 ? (
+              <div className="space-y-4">
+                {recentActivity.map((activity, index) => (
                   <div
-                    className={`font-semibold ${
-                      activity.type === "IN" ? "text-green-600" : "text-red-600"
-                    }`}
+                    key={index}
+                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                   >
-                    {activity.type === "IN" ? "+" : "-"}
-                    {activity.value}
+                    <div className="flex items-center space-x-4">
+                      <div
+                        className={`p-2 rounded-lg ${getMovementColor(
+                          activity.type
+                        )}`}
+                      >
+                        {getMovementIcon(activity.type)}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {activity.itemName}
+                        </p>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span
+                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              activity.type === "IN"
+                                ? "bg-green-100 text-green-800"
+                                : activity.type === "OUT"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-blue-100 text-blue-800"
+                            }`}
+                          >
+                            {getMovementLabel(activity.type)}
+                          </span>
+                          {activity.reason && (
+                            <span className="text-xs text-gray-500">
+                              • {activity.reason}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div
+                        className={`text-lg font-semibold ${
+                          activity.type === "IN"
+                            ? "text-green-600"
+                            : activity.type === "OUT"
+                            ? "text-red-600"
+                            : "text-blue-600"
+                        }`}
+                      >
+                        {activity.type === "IN"
+                          ? "+"
+                          : activity.type === "OUT"
+                          ? "-"
+                          : "±"}
+                        {activity.qty}
+                      </div>
+                      <div className="flex items-center text-xs text-gray-400 mt-1">
+                        <Clock className="w-3 h-3 mr-1" />
+                        {new Date(activity.createdAt).toLocaleDateString(
+                          "ko-KR",
+                          {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-500">
-                    {new Date(activity.createdAt).toLocaleDateString()}
-                  </div>
-                </div>
+                ))}
               </div>
-            ))}
+            ) : (
+              <div className="text-center py-12">
+                <Activity className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">최근 활동이 없습니다.</p>
+              </div>
+            )}
           </div>
-        ) : (
-          <p className="text-gray-500">최근 활동이 없습니다.</p>
-        )}
+        </div>
+
+        {/* 알림 패널 */}
+        <div className="space-y-6">
+          {/* 재고 부족 품목 */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div className="p-6 border-b border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <AlertTriangle className="w-5 h-5 mr-2 text-red-600" />
+                재고 부족
+              </h3>
+            </div>
+            <div className="p-6">
+              {lowStockItems.length > 0 ? (
+                <div className="space-y-3">
+                  {lowStockItems.map((item: any, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-red-50 rounded-lg"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="p-1 bg-red-100 rounded">
+                          <Package className="w-4 h-4 text-red-600" />
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-900">
+                            {item.name}
+                          </span>
+                          <div className="text-xs text-gray-500">
+                            최소재고: {item.minStock || 5}개
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-sm font-semibold text-red-600">
+                          {allStockByItems[item.id] || 0}개
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                  <p className="text-sm text-gray-500">
+                    재고 부족 품목이 없습니다.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 유통기한 임박 품목 */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div className="p-6 border-b border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <Calendar className="w-5 h-5 mr-2 text-orange-600" />
+                유통기한 임박
+              </h3>
+            </div>
+            <div className="p-6">
+              {expiringItems.length > 0 ? (
+                <div className="space-y-3">
+                  {expiringItems.map((item: any, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-orange-50 rounded-lg"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="p-1 bg-orange-100 rounded">
+                          <Clock className="w-4 h-4 text-orange-600" />
+                        </div>
+                        <span className="text-sm font-medium text-gray-900">
+                          {item.name}
+                        </span>
+                      </div>
+                      <span className="inline-flex items-center px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full">
+                        주의
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                  <p className="text-sm text-gray-500">
+                    유통기한 임박 품목이 없습니다.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* 만료 임박 품목 */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h2 className="text-lg font-semibold mb-4">유통기한 임박</h2>
-        {expiringItems.length > 0 ? (
-          <div className="space-y-2">
-            {expiringItems.map((item: any) => (
-              <div key={item.id} className="flex justify-between items-center">
-                <span>{item.name}</span>
-                <span className="text-orange-600 text-sm">주의</span>
-              </div>
-            ))}
+      {/* 요약 통계 */}
+      <div className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-blue-100 rounded-xl">
+              <BarChart3 className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                재고 현황 요약
+              </h3>
+              <p className="text-sm text-gray-600">
+                전체적인 재고 상태를 확인하세요
+              </p>
+            </div>
           </div>
-        ) : (
-          <p className="text-gray-500">유통기한 임박 품목이 없습니다.</p>
-        )}
+          <div className="flex space-x-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">
+                {stats.totalItems}
+              </div>
+              <div className="text-xs text-gray-500">총 상품</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">
+                {stats.totalStock}
+              </div>
+              <div className="text-xs text-gray-500">총 재고</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">
+                {stats.recentMovements}
+              </div>
+              <div className="text-xs text-gray-500">최근 움직임</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
