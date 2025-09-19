@@ -1,6 +1,6 @@
 // tests/workspace-isolation.spec.ts
 import { describe, it, expect } from "vitest";
-import { useOutboxStoreFactory } from "@/stores/outbox";
+import { useOutboxStoreFactory } from "@/stores/outboxStore";
 
 describe("Outbox namespace isolation", () => {
   it("keeps jobs isolated per user/workspace", async () => {

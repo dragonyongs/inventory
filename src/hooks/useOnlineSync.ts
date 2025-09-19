@@ -1,8 +1,8 @@
 // src/hooks/useOnlineSync.ts
 import { useEffect } from "react";
+import { useOutboxStore } from "@/store/outboxStore";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useAuthStore } from "@/stores/auth";
-import { useWorkspaceStore } from "@/stores/workspace";
-import { useOutboxStoreFactory } from "@/stores/outbox";
 
 export function useOnlineSync() {
   const userId = useAuthStore((s) => s.user?.id);
@@ -10,9 +10,9 @@ export function useOnlineSync() {
 
   useEffect(() => {
     if (!userId || !wsId) return;
-    const useOutbox = useOutboxStoreFactory(userId, wsId);
+
     const tryFlush = () => {
-      useOutbox.getState().flush({ userId, workspaceId: wsId });
+      useOutboxStore.getState().flush({ userId, workspaceId: wsId });
     };
 
     const onOnline = () => tryFlush();
@@ -23,7 +23,7 @@ export function useOnlineSync() {
     window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onVisible);
 
-    // initial attempt
+    // initial
     tryFlush();
 
     return () => {

@@ -1,80 +1,86 @@
-// src/pages/Dashboard.tsx (추가)
+// src/pages/Dashboard.tsx
 import { useMemo } from "react";
-import { useItemList, useMovementList } from "../stores/selectors";
-import { useSettingsStore } from "../stores/settingsStore";
+import { useMovementList, useItemsMap } from "../stores/selectors";
 import { useLotsStore } from "../stores/lotsStore";
+import { useItemsStore } from "../stores/itemsStore";
+import { useSettingsStore } from "../stores/settingsStore"; // 만약 없다면 expiringDays 상수로 대체
 
 function Stat({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="border rounded p-3">
-      <div className="text-sm text-gray-600">{label}</div>
+    <div className="border rounded p-4">
+      <div className="text-sm text-gray-500">{label}</div>
       <div className="text-2xl">{value}</div>
     </div>
   );
 }
 
 export function Component() {
-  const items = useItemList(); // 얕은 비교 셀렉터 [web:13][web:16]
-  const movements = useMovementList(); // 얕은 비교 셀렉터 [web:13][web:16]
-  const expiringDays = useSettingsStore((s) => s.expiringDays);
-  const lotsMap = useLotsStore((s) => s.lots); // lots는 지도 형태로만 구독
+  const itemsMap = useItemsMap(); // {} 보장
+  const movements = useMovementList(); // [] 보장
+  const lotsMap = useLotsStore((s) => s.lots ?? {}); // {} 보장
+  const lowStockThreshold = useItemsStore((s) => s.lowStockThreshold);
+  const expiringDays = useSettingsStore
+    ? useSettingsStore((s) => s.expiringDays)
+    : 30;
 
-  const { lowStock, expiringSoon } = useMemo(() => {
-    let low = 0;
-    let exp = 0;
-    for (const it of items) {
-      const lots = Object.values(lotsMap).filter((l) => l.itemId === it.id);
-      const stock = lots.reduce((a, b) => a + b.qty, 0);
-      if (it.minStock != null && stock <= it.minStock) low++;
-      const soon = lots.some(
-        (l) =>
-          l.expiresAt &&
-          (new Date(l.expiresAt).getTime() - Date.now()) / 86400000 <=
-            expiringDays
-      );
-      if (soon) exp++;
-    }
-    return { lowStock: low, expiringSoon: exp };
-  }, [items, lotsMap, expiringDays]);
+  const items = useMemo(() => Object.values(itemsMap ?? {}), [itemsMap]);
+  const itemsCount = items.length;
 
-  const recent = useMemo(() => movements.slice(-5).reverse(), [movements]);
+  const lowStock = useMemo(
+    () =>
+      items.filter(
+        (it: any) =>
+          typeof it.stock === "number" && it.stock <= lowStockThreshold
+      ).length,
+    [items, lowStockThreshold]
+  );
+
+  const expiringSoon = useMemo(() => {
+    const now = Date.now();
+    const horizon = expiringDays * 24 * 60 * 60 * 1000;
+    return Object.values(lotsMap ?? {}).filter((l: any) => {
+      if (!l.expires_at && !l.expiresAt) return false;
+      const t = new Date(l.expires_at ?? l.expiresAt).getTime();
+      return !Number.isNaN(t) && t - now <= horizon;
+    }).length;
+  }, [lotsMap, expiringDays]);
+
+  const recent = useMemo(() => (movements ?? []).slice(0, 5), [movements]);
 
   return (
-    <div className="space-y-4">
-      <div className="text-xl">Dashboard</div>
+    <div className="p-4 space-y-6">
+      <h1 className="text-xl font-semibold">Dashboard</h1>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Items" value={items.length} />
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Stat label="Items" value={itemsCount} />
         <Stat label="Movements" value={movements.length} />
         <Stat label="Low Stock" value={lowStock} />
         <Stat label={`Expiring ≤ ${expiringDays}d`} value={expiringSoon} />
       </div>
 
       <section className="space-y-2">
-        <h3 className="font-medium">Recent Movements</h3>
-        <table className="w-full text-sm">
+        <h2 className="font-medium">Recent Movements</h2>
+        <table className="table w-full">
           <thead>
-            <tr className="border-b bg-gray-50">
-              <th className="text-left px-2 py-1">Date</th>
-              <th className="text-left px-2 py-1">Type</th>
-              <th className="text-left px-2 py-1">Item</th>
-              <th className="text-right px-2 py-1">Qty</th>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Item</th>
+              <th>Qty</th>
             </tr>
           </thead>
           <tbody>
             {recent.map((m) => (
-              <tr key={m.id} className="border-b">
-                <td className="px-2 py-1">
-                  {new Date(m.createdAt).toLocaleString()}
-                </td>
-                <td className="px-2 py-1">{m.type}</td>
-                <td className="px-2 py-1">{m.itemId}</td>
-                <td className="px-2 py-1 text-right">{m.qty}</td>
+              <tr key={m.id}>
+                <td>{new Date(m.createdAt).toLocaleString()}</td>
+                <td>{m.type}</td>
+                <td>{itemsMap[m.itemId]?.name ?? m.itemId}</td>
+                <td>{m.qty}</td>
               </tr>
             ))}
             {recent.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-2 py-6 text-center text-gray-500">
+                <td colSpan={4} className="text-center text-gray-500 py-6">
                   No recent movements
                 </td>
               </tr>
@@ -89,5 +95,5 @@ export function Component() {
 export { Component as default };
 
 export function ErrorBoundary() {
-  return <div>Dashboard failed to load.</div>;
+  return <>Dashboard failed to load.</>;
 }

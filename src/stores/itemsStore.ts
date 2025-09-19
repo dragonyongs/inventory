@@ -1,3 +1,4 @@
+// src/stores/itemsStore.ts
 import { create } from "zustand";
 import type { StateCreator } from "zustand";
 import type { Item } from "../types/domain";
@@ -52,12 +53,12 @@ const base: StateCreator<Store, [], []> = (set, get) => ({
 
 export const useItemsStore = create<Store>()(
   nsPersist<Store>("items", {
-    // persist only the raw items; derived getter is not persisted
+    // 파생 셀렉터는 저장하지 않고 원본만 저장
     partialize: (s) => ({ items: (s as Store).items } as Partial<Store>),
   })(base)
 );
 
-// when workspace changes, rotate the persist namespace key
+// 워크스페이스 전환 시 네임스페이스 회전
 useWorkspaceStore.subscribe(() => {
   (useItemsStore as any).persist?.setOptions({ name: makeNsName("items") });
 });

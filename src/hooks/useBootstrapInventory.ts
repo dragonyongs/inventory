@@ -8,7 +8,7 @@ import { useWorkspaceStore } from "../stores/workspaceStore";
 export function useBootstrapInventory() {
   const bulkItems = useItemsStore((s) => s.bulk);
   const bulkLots = useLotsStore((s) => s.bulk);
-  const bulkMovs = useMovementsStore((s) => s.bulk);
+  const bulkMovs = useMovementsStore((s) => s.bulkMovs);
   const wsId = useWorkspaceStore((s) => s.currentId);
   const svc = useInventoryService();
 
