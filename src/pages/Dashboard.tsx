@@ -27,6 +27,10 @@ export default function Dashboard() {
   const allStockByItems = useAllStockByItems();
   const expiringItemsSet = useAllExpiringItems(30);
 
+  // 로딩 상태 개선
+  const isLoading =
+    !items.length && !movements.length && !Object.keys(allStockByItems).length;
+
   const stats = useMemo(() => {
     const totalItems = items.length;
     const lowStockItems = items.filter(
@@ -126,6 +130,31 @@ export default function Dashboard() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">대시보드</h1>
+        </div>
+
+        {/* 로딩 스켈레톤 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white rounded-lg shadow p-6">
+              <div className="animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
+                <div className="h-8 bg-gray-200 rounded w-3/4"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="text-center text-gray-500 mt-8">
+          데이터를 불러오는 중...
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       <div className="mb-8">

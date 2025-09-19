@@ -21,12 +21,19 @@ export const WorkspaceSelector = () => {
 
   const workspaces = useWorkspaceStore((s) => s.workspaces);
   const currentId = useWorkspaceStore((s) => s.currentId);
-  const setCurrentId = useWorkspaceStore((s) => s.setCurrentId);
+  const setCurrentWorkspaceId = useWorkspaceStore(
+    (s) => s.setCurrentWorkspaceId
+  ); // ✅ 올바른 함수명
   const createWorkspace = useWorkspaceStore((s) => s.createWorkspace);
   const getUserRole = useWorkspaceStore((s) => s.getUserRole);
   const user = useAuthStore((s) => s.user);
 
   const currentWorkspace = workspaces.find((ws) => ws.id === currentId);
+
+  const handleWorkspaceSelect = (workspaceId: string) => {
+    setCurrentWorkspaceId(workspaceId); // ✅ 올바른 호출
+    setIsOpen(false);
+  };
 
   // 외부 클릭시 드롭다운 닫기
   useEffect(() => {
@@ -116,10 +123,7 @@ export const WorkspaceSelector = () => {
             {workspaces.map((workspace) => (
               <button
                 key={workspace.id}
-                onClick={() => {
-                  setCurrentId(workspace.id);
-                  setIsOpen(false);
-                }}
+                onClick={() => handleWorkspaceSelect(workspace.id)}
                 className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center space-x-3 min-w-0 flex-1">

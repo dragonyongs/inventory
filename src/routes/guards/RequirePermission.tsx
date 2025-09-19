@@ -1,4 +1,5 @@
 // src/routes/guards/RequirePermission.tsx
+
 import { ReactNode } from "react";
 import { useWorkspaceStore } from "../../stores/workspaceStore";
 import { useAuthStore } from "../../stores/authStore";
@@ -12,40 +13,53 @@ interface RequirePermissionProps {
 export default function RequirePermission({
   children,
   permission,
-  fallback = <div>권한이 없습니다.</div>,
+  fallback = (
+    <div className="text-center text-gray-500 py-8">권한이 없습니다.</div>
+  ),
 }: RequirePermissionProps) {
-  const user = useAuthStore((s) => s.user);
-  const workspaces = useWorkspaceStore((s) => s.workspaces); // 올바른 selector 사용
-  const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId); // currentId → currentWorkspaceId
+  const { user } = useAuthStore();
+  const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId); // ✅ 올바른 속성명
+  const getUserRole = useWorkspaceStore((s) => s.getUserRole);
 
-  if (!user || !currentWorkspaceId) {
-    return <>{fallback}</>;
+  // 사용자 인증 확인
+  if (!user) {
+    return fallback;
   }
 
-  const workspace = workspaces.find((ws) => ws.id === currentWorkspaceId);
-  if (!workspace || !workspace.members) {
-    // members 속성 체크 추가
-    return <>{fallback}</>;
+  // 현재 워크스페이스 확인
+  if (!currentWorkspaceId) {
+    return fallback;
   }
 
-  const member = workspace.members.find((m) => m.userId === user.id);
-  if (!member) {
-    return <>{fallback}</>;
+  // 사용자 권한 확인
+  const userRole = getUserRole(currentWorkspaceId, user.id);
+  if (!userRole) {
+    return fallback;
   }
 
   // 권한 체크 로직
-  const hasPermission = () => {
-    switch (permission) {
-      case "admin":
-        return member.role === "owner" || member.role === "admin";
-      case "write":
-        return member.role !== "viewer";
-      case "read":
-        return true; // 모든 멤버는 읽기 권한 있음
-      default:
-        return false;
-    }
+  const hasPermission = checkPermission(userRole, permission);
+
+  return hasPermission ? <>{children}</> : fallback;
+}
+
+// 권한 체크 헬퍼 함수
+function checkPermission(
+  userRole: "owner" | "admin" | "member" | "viewer",
+  requiredPermission: "read" | "write" | "admin"
+): boolean {
+  const roleHierarchy = {
+    owner: 4,
+    admin: 3,
+    member: 2,
+    viewer: 1,
   };
 
-  return hasPermission() ? <>{children}</> : <>{fallback}</>;
+  const permissionRequirements = {
+    read: 1, // viewer 이상
+    write: 2, // member 이상
+    admin: 3, // admin 이상
+  };
+
+  return roleHierarchy[userRole] >= permissionRequirements[requiredPermission];
 }

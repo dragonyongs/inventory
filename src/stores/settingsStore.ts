@@ -1,18 +1,43 @@
+// src/stores/settingsStore.ts (완전 수정 버전)
+
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
-type UpdateMode = "auto" | "prompt";
-type State = { expiringDays: number; pageSize: number; updateMode: UpdateMode };
-type Actions = {
-  setExpiringDays: (n: number) => void;
-  setPageSize: (n: number) => void;
-  setUpdateMode: (m: UpdateMode) => void;
-};
+export type UpdateMode = "auto" | "manual" | "prompt";
 
-export const useSettingsStore = create<State & Actions>((set) => ({
+interface SettingsState {
+  expiringDays: number;
+  pageSize: number;
+  updateMode: UpdateMode;
+}
+
+interface SettingsActions {
+  setExpiringDays: (days: number) => void;
+  setPageSize: (size: number) => void;
+  setUpdateMode: (mode: UpdateMode) => void;
+  reset: () => void;
+}
+
+type SettingsStore = SettingsState & SettingsActions;
+
+const initialState: SettingsState = {
   expiringDays: 30,
   pageSize: 20,
   updateMode: "auto",
-  setExpiringDays: (n) => set({ expiringDays: n }),
-  setPageSize: (n) => set({ pageSize: n }),
-  setUpdateMode: (m) => set({ updateMode: m }),
-}));
+};
+
+export const useSettingsStore = create<SettingsStore>()(
+  persist(
+    (set) => ({
+      ...initialState,
+
+      setExpiringDays: (expiringDays) => set({ expiringDays }),
+      setPageSize: (pageSize) => set({ pageSize }),
+      setUpdateMode: (updateMode) => set({ updateMode }),
+      reset: () => set(initialState),
+    }),
+    {
+      name: "settings-storage",
+    }
+  )
+);

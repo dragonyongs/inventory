@@ -24,6 +24,7 @@ import { useWorkspaceStore } from "../stores/workspaceStore";
 import { useAuthStore } from "../stores/authStore";
 import { useOutboxStore } from "../stores/outboxStore";
 import { setPwaListeners, applyUpdate } from "../utils/pwaClient";
+import type { UpdateMode } from "../stores/settingsStore";
 
 type Role = "owner" | "admin" | "member" | "viewer";
 type Member = { userId: string; role: Role };
@@ -102,6 +103,14 @@ export default function Settings() {
         return "뷰어";
       default:
         return "사용자";
+    }
+  };
+
+  // 타입 안전한 핸들러
+  const handleUpdateModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value as UpdateMode;
+    if (value === "auto" || value === "manual" || value === "prompt") {
+      setMode(value);
     }
   };
 
@@ -203,13 +212,12 @@ export default function Settings() {
                     </label>
                     <select
                       value={mode}
-                      onChange={(e) =>
-                        setMode(e.target.value as "auto" | "manual")
-                      } // 타입 캐스팅 수정
-                      className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      onChange={handleUpdateModeChange} // ✅ 타입 안전한 핸들러
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                     >
-                      <option value="auto">자동</option>
-                      <option value="manual">수동</option>
+                      <option value="auto">자동 업데이트</option>
+                      <option value="manual">수동 업데이트</option>
+                      <option value="prompt">업데이트 확인</option>
                     </select>
                   </div>
                 </div>

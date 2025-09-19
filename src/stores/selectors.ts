@@ -4,10 +4,9 @@ import { useMemo } from "react";
 import { useItemsStore } from "./itemsStore";
 import { useMovementsStore, type Movement } from "./movementsStore";
 import { useLotsStore } from "./lotsStore";
-import { useSettingsStore } from "./settingsStore";
+import { useWorkspaceStore } from "./workspaceStore";
 
 const EMPTY_OBJ = {} as const;
-const EMPTY_ARRAY = [] as const;
 
 // 안정적인 셀렉터 상수 (모듈 스코프)
 const selectItemsMap = (s: any) => s.items || EMPTY_OBJ;
@@ -97,18 +96,50 @@ export const useAllExpiringItems = (days = 30) => {
   }, [lots, days]);
 };
 
-// ✅ 수정된 useMovementList
-export const useMovementList = () => {
+// ✅ 수정된 useMovementList - 타입 안전성 강화
+export const useMovementList = (): Movement[] => {
   const byId = useMovementsStore(selectMovementsById);
-  return useMemo(() => Object.values(byId), [byId]);
+  return useMemo(() => {
+    const movements = Object.values(byId) as Movement[];
+    return movements.sort((a, b) => {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [byId]);
 };
 
-// 정렬된 movements
-export const useSortedMovements = () => {
+// ✅ 대안: getVisible 사용 (쿼리 필터링 포함)
+export const useFilteredMovementList = (): Movement[] => {
+  return useMovementsStore((s) => {
+    const result = s.getVisible?.();
+    return Array.isArray(result) ? (result as Movement[]) : [];
+  });
+};
+
+// ✅ 수정된 useSortedMovements - 이제 타입 에러 없음
+export const useSortedMovements = (): Movement[] => {
   const movements = useMovementList();
   return useMemo(() => {
-    return [...movements].sort((a: Movement, b: Movement) => {
+    // movements가 이미 Movement[] 타입이므로 추가 타입 캐스팅 불필요
+    return [...movements].sort((a, b) => {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   }, [movements]);
+};
+
+// 워크스페이스 관련 selectors
+export const useCurrentWorkspace = () => {
+  const workspaces = useWorkspaceStore((s) => s.workspaces);
+  const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
+  return useMemo(() => {
+    return workspaces.find((ws) => ws.id === currentWorkspaceId) || null;
+  }, [workspaces, currentWorkspaceId]);
+};
+
+export const useCurrentWorkspaceId = () => {
+  return useWorkspaceStore((s) => s.currentWorkspaceId);
+};
+
+// 하위 호환성을 위한 별칭
+export const useCurrentId = () => {
+  return useWorkspaceStore((s) => s.currentWorkspaceId);
 };

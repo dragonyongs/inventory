@@ -14,7 +14,7 @@ import { DevTools } from "./DevTools";
 import { WorkspaceSelector } from "./WorkspaceSelector";
 import { UserProfile } from "./UserProfile";
 
-export function RootLayout() {
+export function RootLayout({ children }: { children?: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -172,7 +172,7 @@ export function RootLayout() {
         {/* Main Content */}
         <main className="flex-1 lg:pl-72">
           <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30">
-            <Outlet />
+            {children || <Outlet />}
           </div>
         </main>
       </div>

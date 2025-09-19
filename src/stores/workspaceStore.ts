@@ -1,4 +1,5 @@
 // src/stores/workspaceStore.ts
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -25,7 +26,7 @@ export interface Workspace {
 
 interface WorkspaceState {
   workspaces: Workspace[];
-  currentId: string | null;
+  currentWorkspaceId: string | null; // ✅ currentId → currentWorkspaceId로 수정
   pendingInvites: Array<{
     id: string;
     workspaceId: string;
@@ -35,12 +36,16 @@ interface WorkspaceState {
     createdAt: string;
     expiresAt: string;
   }>;
+  // ✅ 하위 호환성을 위한 computed property 추가
+  get currentId(): string | null;
 }
 
 interface WorkspaceActions {
   // 기본 워크스페이스 관리
   setWorkspaces: (workspaces: Workspace[]) => void;
-  setCurrentWorkspaceId: (id: string | null) => void; // currentId → currentWorkspaceId
+  setCurrentWorkspaceId: (id: string | null) => void;
+  // ✅ 하위 호환성을 위한 별칭 추가
+  setCurrentId: (id: string | null) => void;
   createWorkspace: (name: string, description?: string) => Workspace;
   updateWorkspace: (id: string, updates: Partial<Workspace>) => void;
   deleteWorkspace: (id: string) => void;
@@ -62,7 +67,10 @@ interface WorkspaceActions {
   // 권한 체크
   canInviteMembers: (workspaceId: string) => boolean;
   canRemoveMembers: (workspaceId: string) => boolean;
-  getUserRole: (workspaceId: string, userId: string) => string | null;
+  getUserRole: (
+    workspaceId: string,
+    userId: string
+  ) => "owner" | "admin" | "member" | "viewer" | null;
 }
 
 type WorkspaceStore = WorkspaceState & WorkspaceActions;
@@ -71,13 +79,21 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
   persist(
     (set, get) => ({
       workspaces: [],
-      currentWorkspaceId: null, // currentId → currentWorkspaceId
+      currentWorkspaceId: null,
       pendingInvites: [],
+
+      // ✅ computed property - currentId getter
+      get currentId() {
+        return this.currentWorkspaceId;
+      },
 
       setWorkspaces: (workspaces) => set({ workspaces }),
 
       setCurrentWorkspaceId: (currentWorkspaceId) =>
-        set({ currentWorkspaceId }), // currentId → currentWorkspaceId
+        set({ currentWorkspaceId }),
+
+      // ✅ 하위 호환성을 위한 별칭
+      setCurrentId: (currentWorkspaceId) => set({ currentWorkspaceId }),
 
       createWorkspace: (name: string, description?: string) => {
         const user = JSON.parse(localStorage.getItem("auth-storage") || "{}")
@@ -110,7 +126,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
 
         set((state) => ({
           workspaces: [...state.workspaces, workspace],
-          currentWorkspaceId: workspace.id, // currentId → currentWorkspaceId
+          currentWorkspaceId: workspace.id,
         }));
 
         return workspace;
@@ -129,7 +145,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         set((state) => ({
           workspaces: state.workspaces.filter((ws) => ws.id !== id),
           currentWorkspaceId:
-            state.currentWorkspaceId === id ? null : state.currentWorkspaceId, // currentId → currentWorkspaceId
+            state.currentWorkspaceId === id ? null : state.currentWorkspaceId,
         })),
 
       inviteMember: (workspaceId, email, role) => {
@@ -146,14 +162,13 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           createdAt: new Date().toISOString(),
           expiresAt: new Date(
             Date.now() + 7 * 24 * 60 * 60 * 1000
-          ).toISOString(), // 7일 후 만료
+          ).toISOString(),
         };
 
         set((state) => ({
           pendingInvites: [...state.pendingInvites, invite],
         }));
 
-        // 실제 구현에서는 이메일 발송 등의 로직 추가
         console.log("Member invited:", invite);
       },
 

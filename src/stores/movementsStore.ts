@@ -44,22 +44,28 @@ export const useMovementsStore = create<Store>()(
       byId: {},
       query: "",
 
-      add: (m) =>
+      add: (
+        m: Movement // 타입 명시
+      ) =>
         set((s) => ({
           ...s,
           byId: { ...s.byId, [m.id]: m },
         })),
 
-      addMany: (ms) =>
+      addMany: (
+        ms: Movement[] // 타입 명시
+      ) =>
         set((s) => ({
           ...s,
           byId: { ...s.byId, ...Object.fromEntries(ms.map((m) => [m.id, m])) },
         })),
 
-      bulk: (ms) =>
-        set((s) => ({
-          ...s,
+      bulk: (
+        ms: Movement[] // 타입 명시
+      ) =>
+        set(() => ({
           byId: Object.fromEntries(ms.map((m) => [m.id, m])),
+          query: "",
         })),
 
       create: ({ itemId, type, qty, reason }) => {
@@ -95,16 +101,18 @@ export const useMovementsStore = create<Store>()(
 
       setQuery: (q) => set((s) => ({ ...s, query: q })),
 
-      getVisible: () => {
+      getVisible: (): Movement[] => {
+        // ✅ 명확한 반환 타입 지정
         const state = get();
         const q = state.query.trim().toLowerCase();
-        const list = Object.values(state.byId).sort(
+        const list = Object.values(state.byId) as Movement[]; // ✅ 타입 캐스팅
+        const sorted = list.sort(
           (a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
         return q
-          ? list.filter((m) => m.reason?.toLowerCase().includes(q))
-          : list;
+          ? sorted.filter((m) => m.reason?.toLowerCase().includes(q))
+          : sorted;
       },
     }),
     {
