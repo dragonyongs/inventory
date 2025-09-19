@@ -1,5 +1,4 @@
 {
-  "files": [],
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
@@ -18,6 +17,5 @@
     "noFallthroughCasesInSwitch": true,
     "typeRoots": ["./node_modules/@types", "./src/types"]
   },
-  "include": ["src", "src/types/**/*"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": ["src", "src/types/**/*"]
 }
