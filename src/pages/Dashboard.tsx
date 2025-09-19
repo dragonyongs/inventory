@@ -1,76 +1,144 @@
 // src/pages/Dashboard.tsx
 import { useMemo } from "react";
 import {
+  useItemList,
   useMovementList,
-  useItemsMap,
-  type UIMovement,
+  useStockByItem,
+  useExpiringSoonByItem,
 } from "../stores/selectors";
 import { useLotsStore } from "../stores/lotsStore";
-import { useItemsStore } from "../stores/itemsStore";
-
-function Stat({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="bg-white p-4 rounded-lg shadow">
-      <div className="text-sm text-gray-500">{label}</div>
-      <div className="text-2xl font-semibold">{value}</div>
-    </div>
-  );
-}
 
 export default function Dashboard() {
-  const items = useItemsStore((s) => s.items);
-  const lots = useLotsStore((s) => s.lots);
+  const items = useItemList();
   const movements = useMovementList();
-  const itemsMap = useItemsMap();
+  const lots = useLotsStore((s: any) => s.lots);
 
-  const totalStock = useMemo(
-    () => Object.values(lots).reduce((sum: any, lot: any) => sum + lot.qty, 0),
-    [lots]
-  );
-  const totalItems = useMemo(() => Object.keys(items).length, [items]);
+  // 통계 계산
+  const stats = useMemo(() => {
+    const totalItems = items.length;
+    const lowStockItems = items.filter(
+      (item: any) => useStockByItem(item.id) <= (item.minStock || 5)
+    ).length;
+    const recentMovements = movements.filter(
+      (m) =>
+        Date.now() - new Date(m.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000
+    ).length;
+    const totalLots = Object.keys(lots).length;
 
-  const recentMovements = useMemo(() => {
-    return [...movements]
-      .sort(
-        (a: UIMovement, b: UIMovement) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
+    return {
+      totalItems,
+      lowStockItems,
+      recentMovements,
+      totalLots,
+    };
+  }, [items, movements, lots]);
+
+  // 최근 입고/출고 요약
+  const recentActivity = useMemo(() => {
+    return movements.slice(0, 5).map((m) => {
+      const item = items.find((i: any) => i.id === m.itemId);
+      return {
+        ...m,
+        itemName: item?.name || "Unknown Item",
+        value: m.qty as string | number,
+      };
+    });
+  }, [movements, items]);
+
+  // 만료 임박 품목
+  const expiringItems = useMemo(() => {
+    return items
+      .filter((item: any) => useExpiringSoonByItem(item.id, 30))
       .slice(0, 5);
-  }, [movements]);
+  }, [items]);
 
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-4">대시보드</h1>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Stat label="총 재고 수량" value={totalStock} />
-        <Stat label="총 품목 수" value={totalItems} />
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">대시보드</h1>
+
+      {/* 통계 카드 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <h3 className="text-sm font-medium text-blue-800">총 품목 수</h3>
+          <p className="text-2xl font-bold text-blue-900">{stats.totalItems}</p>
+        </div>
+        <div className="bg-red-50 p-4 rounded-lg">
+          <h3 className="text-sm font-medium text-red-800">재고 부족</h3>
+          <p className="text-2xl font-bold text-red-900">
+            {stats.lowStockItems}
+          </p>
+        </div>
+        <div className="bg-green-50 p-4 rounded-lg">
+          <h3 className="text-sm font-medium text-green-800">
+            최근 7일 움직임
+          </h3>
+          <p className="text-2xl font-bold text-green-900">
+            {stats.recentMovements}
+          </p>
+        </div>
+        <div className="bg-purple-50 p-4 rounded-lg">
+          <h3 className="text-sm font-medium text-purple-800">로트 수</h3>
+          <p className="text-2xl font-bold text-purple-900">
+            {stats.totalLots}
+          </p>
+        </div>
       </div>
 
-      <div className="bg-white p-4 rounded-lg shadow">
-        <h2 className="font-semibold mb-2">최근 활동</h2>
-        {recentMovements.length === 0 ? (
-          <div className="text-gray-500">최근 활동이 없습니다.</div>
+      {/* 최근 활동 */}
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h2 className="text-lg font-semibold mb-4">최근 활동</h2>
+        {recentActivity.length > 0 ? (
+          <div className="space-y-3">
+            {recentActivity.map((activity) => (
+              <div
+                key={activity.id}
+                className="flex justify-between items-center border-b pb-2"
+              >
+                <div>
+                  <span className="font-medium">{activity.itemName}</span>
+                  <span className="text-sm text-gray-500 ml-2">
+                    {activity.type === "IN"
+                      ? "입고"
+                      : activity.type === "OUT"
+                      ? "출고"
+                      : "조정"}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <div
+                    className={`font-semibold ${
+                      activity.type === "IN" ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    {activity.type === "IN" ? "+" : "-"}
+                    {activity.value}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {new Date(activity.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
-          <table className="min-w-full">
-            <thead>
-              <tr>
-                <th className="text-left py-2">일시</th>
-                <th className="text-left py-2">유형</th>
-                <th className="text-left py-2">품목</th>
-                <th className="text-right py-2">수량</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentMovements.map((m: UIMovement) => (
-                <tr key={m.id}>
-                  <td>{new Date(m.createdAt).toLocaleString()}</td>
-                  <td>{m.type}</td>
-                  <td>{itemsMap[m.itemId]?.name ?? m.itemId}</td>
-                  <td className="text-right">{m.qty}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <p className="text-gray-500">최근 활동이 없습니다.</p>
+        )}
+      </div>
+
+      {/* 만료 임박 품목 */}
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h2 className="text-lg font-semibold mb-4">유통기한 임박</h2>
+        {expiringItems.length > 0 ? (
+          <div className="space-y-2">
+            {expiringItems.map((item: any) => (
+              <div key={item.id} className="flex justify-between items-center">
+                <span>{item.name}</span>
+                <span className="text-orange-600 text-sm">주의</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500">유통기한 임박 품목이 없습니다.</p>
         )}
       </div>
     </div>

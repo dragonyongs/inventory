@@ -8,10 +8,10 @@ import { useWorkspaceStore } from "../stores/workspaceStore";
 import type { Item as DomainItem } from "../types/domain";
 
 export function useBootstrapInventory() {
-  const bulkItems = useItemsStore((s) => s.bulk);
-  const bulkLots = useLotsStore((s) => s.bulk);
-  const bulkMovements = useMovementsStore((s) => s.bulk);
-  const wsId = useWorkspaceStore((s) => s.currentId);
+  const bulkItems = useItemsStore((s: any) => s.bulk);
+  const bulkLots = useLotsStore((s: any) => s.bulk);
+  const bulkMovements = useMovementsStore((s: any) => s.bulk);
+  const wsId = useWorkspaceStore((s: any) => s.currentId);
   const svc = useInventoryService();
   const cancelRef = useRef(false);
 
@@ -34,6 +34,7 @@ export function useBootstrapInventory() {
         const storeItems: StoreItem[] = domainItems.map((item: DomainItem) => ({
           ...item,
           stock: item.stock ?? 0,
+          createdAt: item.createdAt || new Date().toISOString(),
         }));
 
         // 도메인 Movement를 스토어 Movement로 변환

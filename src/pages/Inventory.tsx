@@ -7,7 +7,7 @@ import {
   useSetQuery,
   useQuery,
 } from "../stores/selectors";
-import { useItemsStore } from "../stores/itemsStore";
+import { useItemsStore, type Item } from "../stores/itemsStore";
 import { useCreateMovement } from "../hooks/useCreateMovement";
 
 type FormState = {
@@ -264,8 +264,8 @@ function Row({
   onDelete,
   onAdjust,
 }: {
-  item: any;
-  onEdit: (patch: any) => void;
+  item: Item;
+  onEdit: (patch: Partial<Item>) => void;
   onDelete: () => void;
   onAdjust: () => void;
 }) {
@@ -366,7 +366,7 @@ export default function Inventory() {
   );
 
   const handleEdit = useCallback(
-    (id: string, patch: any) => updateItem(id, patch),
+    (id: string, patch: Partial<Item>) => updateItem(id, patch),
     [updateItem]
   );
 

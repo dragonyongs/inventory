@@ -9,6 +9,9 @@ export interface Item {
   barcode?: string;
   stock: number;
   category?: string;
+  minStock?: number;
+  defaultPrice?: number;
+  createdAt: string;
 }
 
 interface ItemsState {
@@ -20,7 +23,9 @@ interface ItemsActions {
   upsert: (item: Item) => void;
   bulk: (items: Item[]) => void;
   setQuery: (query: string) => void;
-  addItem: (item: Item) => void;
+  addItem: (
+    item: Omit<Item, "id" | "stock" | "createdAt"> & { stock?: number }
+  ) => Item;
   hasSku: (sku: string) => boolean;
   updateItem: (id: string, updates: Partial<Item>) => void;
   removeItem: (id: string) => void;
@@ -46,10 +51,20 @@ export const useItemsStore = create<ItemsStore>()(
 
       setQuery: (query) => set({ query }),
 
-      addItem: (item) =>
+      addItem: (itemData) => {
+        const item: Item = {
+          id: globalThis.crypto?.randomUUID?.() ?? `item_${Date.now()}`,
+          stock: 0,
+          createdAt: new Date().toISOString(),
+          ...itemData,
+        };
+
         set((state) => ({
           items: { ...state.items, [item.id]: item },
-        })),
+        }));
+
+        return item;
+      },
 
       hasSku: (sku) => {
         const items = get().items;

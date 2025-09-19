@@ -11,6 +11,7 @@ export const useInventoryService = () => ({
         sku: "TEST-001",
         category: "Test Category",
         stock: 10,
+        createdAt: new Date().toISOString(),
       },
     ];
   },

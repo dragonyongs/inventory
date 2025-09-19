@@ -58,7 +58,7 @@ export const useStockByItem = (itemId: string) => {
     () =>
       Object.values(lots)
         .filter((l: any) => l.itemId === itemId)
-        .reduce((sum: number, l: any) => sum + l.qty, 0),
+        .reduce((sum: number, l: any) => sum + (l.qty || 0), 0),
     [lots, itemId]
   );
 };
