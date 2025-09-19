@@ -1,5 +1,6 @@
 // src/stores/itemsStore.ts
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 export interface Item {
   id: string;
@@ -19,23 +20,63 @@ interface ItemsActions {
   upsert: (item: Item) => void;
   bulk: (items: Item[]) => void;
   setQuery: (query: string) => void;
+  addItem: (item: Item) => void;
+  hasSku: (sku: string) => boolean;
+  updateItem: (id: string, updates: Partial<Item>) => void;
+  removeItem: (id: string) => void;
 }
 
 type ItemsStore = ItemsState & ItemsActions;
 
-export const useItemsStore = create<ItemsStore>()((set) => ({
-  items: {},
-  query: "",
+export const useItemsStore = create<ItemsStore>()(
+  persist(
+    (set, get) => ({
+      items: {},
+      query: "",
 
-  upsert: (item) =>
-    set((state) => ({
-      items: { ...state.items, [item.id]: item },
-    })),
+      upsert: (item) =>
+        set((state) => ({
+          items: { ...state.items, [item.id]: item },
+        })),
 
-  bulk: (items) =>
-    set(() => ({
-      items: Object.fromEntries(items.map((item) => [item.id, item])),
-    })),
+      bulk: (items) =>
+        set(() => ({
+          items: Object.fromEntries(items.map((item) => [item.id, item])),
+        })),
 
-  setQuery: (query) => set({ query }),
-}));
+      setQuery: (query) => set({ query }),
+
+      addItem: (item) =>
+        set((state) => ({
+          items: { ...state.items, [item.id]: item },
+        })),
+
+      hasSku: (sku) => {
+        const items = get().items;
+        return Object.values(items).some((item) => item.sku === sku);
+      },
+
+      updateItem: (id, updates) =>
+        set((state) => {
+          const item = state.items[id];
+          if (!item) return state;
+          return {
+            items: {
+              ...state.items,
+              [id]: { ...item, ...updates },
+            },
+          };
+        }),
+
+      removeItem: (id) =>
+        set((state) => {
+          const newItems = { ...state.items };
+          delete newItems[id];
+          return { items: newItems };
+        }),
+    }),
+    {
+      name: "items-storage",
+    }
+  )
+);

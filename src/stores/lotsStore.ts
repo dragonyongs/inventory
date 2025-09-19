@@ -1,5 +1,6 @@
 // src/stores/lotsStore.ts
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 export interface Lot {
   id: string;
@@ -20,16 +21,23 @@ interface LotsActions {
 
 type LotsStore = LotsState & LotsActions;
 
-export const useLotsStore = create<LotsStore>()((set) => ({
-  lots: {},
+export const useLotsStore = create<LotsStore>()(
+  persist(
+    (set) => ({
+      lots: {},
 
-  replaceMany: (lots) =>
-    set(() => ({
-      lots: Object.fromEntries(lots.map((lot) => [lot.id, lot])),
-    })),
+      replaceMany: (lots) =>
+        set(() => ({
+          lots: Object.fromEntries(lots.map((lot) => [lot.id, lot])),
+        })),
 
-  bulk: (lots) =>
-    set(() => ({
-      lots: Object.fromEntries(lots.map((lot) => [lot.id, lot])),
-    })),
-}));
+      bulk: (lots) =>
+        set(() => ({
+          lots: Object.fromEntries(lots.map((lot) => [lot.id, lot])),
+        })),
+    }),
+    {
+      name: "lots-storage",
+    }
+  )
+);

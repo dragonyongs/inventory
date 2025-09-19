@@ -5,19 +5,18 @@ export interface Item {
   id: string;
   name: string;
   sku?: string;
-  minStock?: number;
   barcode?: string;
+  category?: string;
+  stock?: number; // optional로 변경
 }
 
 export interface Lot {
   id: string;
   itemId: string;
   qty: number;
-  unitCost?: number;
-  receivedAt: string; // ISO
-  expiresAt?: string; // ISO (FEFO 대비)
+  expiresAt?: string;
+  batchNumber?: string;
 }
-
 export interface Movement {
   id: string;
   type: MovementType;

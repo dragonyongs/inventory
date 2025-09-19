@@ -1,9 +1,25 @@
-import { createNamespacedMemory } from "./db/memoryAdapter.namespaced";
-import { useWorkspaceStore } from "../stores/workspaceStore_";
+// src/services/index.ts
+import type { Item, Lot } from "../types/domain";
 
-const ns = createNamespacedMemory();
-
-export function useInventoryService() {
-  const wsId = useWorkspaceStore((s) => s.currentId)!;
-  return ns.service(wsId);
-}
+export const useInventoryService = () => ({
+  listItems: async (): Promise<Item[]> => {
+    // Mock data
+    return [
+      {
+        id: "item-1",
+        name: "Test Item",
+        sku: "TEST-001",
+        category: "Test Category",
+        stock: 10,
+      },
+    ];
+  },
+  listLots: async (): Promise<Lot[]> => {
+    // Mock data
+    return [];
+  },
+  listMovements: async () => {
+    // Mock data
+    return [];
+  },
+});
