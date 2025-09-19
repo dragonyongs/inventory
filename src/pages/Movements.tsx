@@ -21,8 +21,8 @@ function fmtDate(iso: string) {
 export default function Movements() {
   const movements = useMovementList();
   const itemsMap = useItemsMap();
-  const [type, setType] = useState<ViewType>("ALL");
-  const [q, setQ] = useState("");
+  const [type, _setType] = useState<ViewType>("ALL");
+  const [q, _setQ] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = useSettingsStore((s: any) => s.pageSize ?? 20);
 

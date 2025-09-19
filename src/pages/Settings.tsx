@@ -4,11 +4,11 @@ import { useSettingsStore } from "../stores/settingsStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { useAuthStore } from "../stores/authStore";
 import { useOutboxStore } from "../stores/outboxStore";
-import {
-  setPwaListeners,
-  applyUpdate,
-  getNeedRefresh,
-} from "../utils/pwaClient";
+import { setPwaListeners, applyUpdate } from "../utils/pwaClient"; // FIX: getNeedRefresh 제거
+
+// 필요시 Role을 가져와 멤버 타입 정의
+import type { Role } from "../types/auth";
+type Member = { userId: string; role: Role };
 
 export function Component() {
   const exp = useSettingsStore((s) => s.expiringDays);
@@ -21,13 +21,17 @@ export function Component() {
   // Outbox 상태 가시화
   const outboxJobs = useOutboxStore((s) => s.jobs);
   const isSyncing = useOutboxStore((s) => s.isSyncing);
-  const lastSyncAt = useOutboxStore((s) => s.lastSyncAt);
+  const lastSyncAt = useOutboxStore((s) => s.lastSyncAt); // FIX: 스토어에 없다면 제거
 
   const [needRefresh, setNeedRefresh] = useState(false);
   const [offlineReady, setOfflineReady] = useState(false);
 
-  const workspace = useWorkspaceStore((s) => s.current);
-  const members = useWorkspaceStore((s) => s.members);
+  // currentId와 workspaces에서 현재 워크스페이스/멤버 유도
+  const currentId = useWorkspaceStore((s) => s.currentId); // FIX: current → currentId
+  const workspaces = useWorkspaceStore((s) => s.workspaces);
+  const workspace = workspaces.find((w) => w.id === currentId) || null;
+  const members: Member[] = (workspace?.members as Member[]) ?? []; // FIX: members 접근
+
   const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
@@ -36,7 +40,6 @@ export function Component() {
       onOfflineReady: () => setOfflineReady(true),
     });
   }, []);
-
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-8">Settings</h1>
@@ -199,7 +202,9 @@ export function Component() {
                     <td className="p-2">{m.role}</td>
                     <td className="p-2">
                       {user?.id === m.userId ? (
-                        <span className="text-gray-500">You</span>
+                        <span className="text-gray-500">
+                          {user?.id === m.userId ? <>You</> : null}
+                        </span>
                       ) : (
                         <button className="text-red-600 hover:underline">
                           Remove
@@ -210,6 +215,19 @@ export function Component() {
                 ))}
               </tbody>
             </table>
+
+            {/* PWA 업데이트 알림/버튼 */}
+            {needRefresh && (
+              <div className="mt-3">
+                <p>App update available!</p>
+                <button className="btn" onClick={() => applyUpdate()}>
+                  업데이트 적용
+                </button>
+              </div>
+            )}
+            {offlineReady && (
+              <p className="mt-2">App is ready for offline use!</p>
+            )}
           </div>
         </div>
       )}

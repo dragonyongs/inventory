@@ -1,11 +1,9 @@
 import { Navigate, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
 
-import { Permission } from "@/lib/rbac/permissions";
-import useAuthStore, { type Store as AuthStore } from "@/stores/auth";
-import useWorkspaceStore, {
-  type Store as WorkspaceStore,
-} from "@/stores/workspace";
+import type { Permission } from "@/lib/rbac/permissions"; // FIX: type-only
+import { useAuthStore } from "@/stores/authStore"; // FIX: 경로 수정
+import { useWorkspaceStore } from "@/stores/workspaceStore"; // FIX: 경로 수정
 
 interface RequirePermissionProps {
   permission: Permission;
@@ -19,16 +17,18 @@ export function RequirePermission({
   fallback = null,
 }: RequirePermissionProps) {
   const location = useLocation();
-  const user = useAuthStore((s: AuthStore) => s.user);
-  const currentRole = useWorkspaceStore((s: WorkspaceStore) => s.currentRole);
+  const user = useAuthStore((s) => s.user);
+  const currentRole = useWorkspaceStore((s) => {
+    const ws = s.workspaces.find((w) => w.id === s.currentId);
+    return ws?.members.find((m) => m.userId === user?.id)?.role ?? null;
+  });
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // NOTE: 실제 RBAC(역할 기반 접근 제어) 로직은 여기서 구현되어야 합니다.
-  // 이 예시에서는 단순히 역할이 있는지 여부만 확인합니다.
-  const hasPermission = !!currentRole; // TODO: 실제 권한 확인 로직으로 교체
+  // TODO: 실제 RBAC 확인: permission과 currentRole로 판정
+  const hasPermission = !!currentRole && !!permission;
 
   if (!hasPermission) {
     return <>{fallback}</>;

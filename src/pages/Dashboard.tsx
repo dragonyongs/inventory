@@ -7,7 +7,6 @@ import {
 } from "../stores/selectors";
 import { useLotsStore } from "../stores/lotsStore";
 import { useItemsStore } from "../stores/itemsStore";
-import { useSettingsStore } from "../stores/settingsStore";
 
 function Stat({ label, value }: { label: string; value: number | string }) {
   return (

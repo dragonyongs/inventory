@@ -1,129 +1,113 @@
 // src/stores/movementsStore.ts
-import { create, type StateCreator } from "zustand";
+import { create } from "zustand";
+import type { StateCreator } from "zustand";
 import { nsPersist, makeNsName } from "./persistNamespace";
 import { useWorkspaceStore } from "./workspaceStore";
-import type { Movement as DomainMovement } from "../types/domain";
+import { useItemsStore } from "./itemsStore";
+import { useOutboxStore, type MovementKind } from "./outboxStore";
 
-// 선택: Outbox 연동이 이미 구성되어 있다면 사용, 아니면 주석 처리 가능
-import { useOutboxStore } from "./outboxStore";
+export type Movement = {
+  id: string;
+  workspace_id: string;
+  item_id: string;
+  type: MovementKind;
+  qty: number;
+  reason?: string;
+  created_at: string;
+};
 
-// 상태 모델: byId 단일 소스 (배열 노출/게터 없음)
 type State = {
-  byId: Record<string, DomainMovement>;
+  byId: Record<string, Movement>;
+  query: string;
+  get visible(): Movement[];
 };
 
 type Actions = {
-  // 표준 액션
-  push: (m: DomainMovement) => void;
-  pushMany: (ms: DomainMovement[]) => void;
-  bulk: (ms: DomainMovement[]) => void;
-  remove: (id: string) => void;
-  reset: () => void;
-
-  // 레거시/호환 액션: 간편 생성
+  add: (m: Movement) => void;
+  addMany: (ms: Movement[]) => void;
+  bulk: (ms: Movement[]) => void; // 배열로 전체 대체
+  bulkMovs: (ms: Movement[]) => void; // 레거시 호환 alias
   create: (p: {
     itemId: string;
-    type: DomainMovement["type"];
+    type: MovementKind;
     qty: number;
     reason?: string;
-    lotId?: string;
-    actor?: string;
-    createdAt?: string;
-  }) => DomainMovement;
+  }) => void;
+  remove: (id: string) => void;
+  reset: () => void;
+  setQuery: (q: string) => void;
 };
 
 type Store = State & Actions;
 
-// 초기 상태
-const initial: State = { byId: {} };
-
-// 유틸: 안전한 UUID 생성
-const makeId = () =>
-  (globalThis.crypto as any)?.randomUUID?.() ??
-  `mov_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
-// 구현
-const base: StateCreator<Store> = (set, get) => ({
-  ...initial,
-
-  push: (m) =>
+const base: StateCreator<Store, [], []> = (set, get) => ({
+  byId: {},
+  query: "",
+  get visible() {
+    const q = get().query.trim().toLowerCase();
+    const list = Object.values(get().byId).sort((a, b) =>
+      b.created_at.localeCompare(a.created_at)
+    );
+    return q ? list.filter((m) => m.reason?.toLowerCase().includes(q)) : list;
+  },
+  add: (m) => set((s) => ({ byId: { ...s.byId, [m.id]: m } })),
+  addMany: (ms) =>
     set((s) => ({
-      byId: { ...s.byId, [m.id]: m },
+      byId: { ...s.byId, ...Object.fromEntries(ms.map((m) => [m.id, m])) },
     })),
-
-  pushMany: (ms) =>
-    set((s) => {
-      const next = { ...s.byId };
-      for (const m of ms) next[m.id] = m;
-      return { byId: next };
-    }),
-
   bulk: (ms) =>
     set(() => ({
       byId: Object.fromEntries(ms.map((m) => [m.id, m])),
     })),
-
+  bulkMovs: (ms) =>
+    set(() => ({
+      byId: Object.fromEntries(ms.map((m) => [m.id, m])),
+    })),
+  create: ({ itemId, type, qty, reason }) => {
+    const wsId = useWorkspaceStore.getState().activeWsId;
+    if (!wsId) return;
+    const movement: Movement = {
+      id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
+      workspace_id: wsId,
+      item_id: itemId,
+      type,
+      qty,
+      reason,
+      created_at: new Date().toISOString(),
+    };
+    set((s) => ({ byId: { ...s.byId, [movement.id]: movement } }));
+    const item = useItemsStore.getState().items[itemId] as any;
+    if (item && typeof item.stock === "number") {
+      const delta = type === "IN" ? qty : type === "OUT" ? -qty : 0;
+      useItemsStore
+        .getState()
+        .upsert({ ...item, stock: Math.max(0, item.stock + delta) });
+    }
+    useOutboxStore
+      .getState()
+      .enqueueMovement(
+        { workspaceId: wsId, userId: "local-user" },
+        { itemId, qty, type, reason }
+      );
+  },
   remove: (id) =>
     set((s) => {
-      if (!(id in s.byId)) return s;
       const next = { ...s.byId };
       delete next[id];
       return { byId: next };
     }),
-
-  reset: () => set(initial),
-
-  // 레거시 호환: 최소 필수 필드로 Movement 생성 후 push
-  create: ({ itemId, type, qty, reason, lotId, actor, createdAt }) => {
-    const wsId = useWorkspaceStore.getState().currentId;
-    if (!wsId) throw new Error("No active workspace");
-
-    const movement: DomainMovement = {
-      id: makeId(),
-      type,
-      itemId,
-      lotId,
-      qty,
-      reason,
-      actor,
-      createdAt: createdAt ?? new Date().toISOString(),
-    };
-
-    // 상태 반영
-    get().push(movement);
-
-    // 선택: Outbox 큐에 적재(온라인 동기화 대비)
-    try {
-      useOutboxStore.getState().enqueueMovement(
-        { workspaceId: wsId, userId: actor ?? "local-user" },
-        {
-          movementId: movement.id,
-          itemId: movement.itemId,
-          qty: movement.qty,
-          type:
-            (movement.type as any) === "ADJUST" ? "IN" : (movement.type as any), // 서버 타입 제약 시 보정 가능
-          reason: movement.reason,
-          lotId: movement.lotId,
-        }
-      );
-    } catch {
-      // Outbox 미사용 환경이면 조용히 무시
-    }
-
-    return movement;
-  },
+  reset: () => set({ byId: {} }),
+  setQuery: (q) => set({ query: q }),
 });
 
-// 퍼시스트 + 워크스페이스 네임스페이스 적용
 export const useMovementsStore = create<Store>()(
-  nsPersist("movements", {
-    partialize: (s) => ({ byId: s.byId }),
+  nsPersist<Store>("movements", {
+    partialize: (s) => ({ byId: (s as Store).byId } as Partial<Store>),
   })(base)
 );
 
-// 워크스페이스 전환 시 퍼시스트 네임 변경
 useWorkspaceStore.subscribe(() => {
-  (useMovementsStore as any)?.persist?.setOptions?.({
+  (useMovementsStore as any).persist?.setOptions({
     name: makeNsName("movements"),
   });
 });

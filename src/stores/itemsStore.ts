@@ -38,7 +38,7 @@ type Actions = {
   hasSku: (sku: string, excludeId?: string) => boolean;
 };
 
-type Store = State & Actions;
+export type Store = State & Actions;
 
 const nowISO = () => new Date().toISOString();
 const genId = () =>
@@ -110,7 +110,7 @@ const base: StateCreator<Store, [], []> = (set, get) => ({
     const name = input.name?.trim();
     if (!name) throw new Error("Name is required");
 
-    // SKU 자동 생성(미입력 시): name-slug + 짧은 해시, 충돌 시 접미사 증가
+    // SKU 자동 생성(미입력 시)
     let sku = input.sku?.trim() || `${slugify(name)}-${id.slice(4, 8)}`;
     let suffix = 1;
     while (get().hasSku(sku)) {
@@ -170,11 +170,11 @@ const base: StateCreator<Store, [], []> = (set, get) => ({
   },
 });
 
-// nsPersist의 반환 타입을 Store에 맞게 고정
+// nsPersist의 반환 타입을 Store에 맞게 고정(좁은 캐스팅으로 partialize 서명 충돌 해소)
 type PersistHof<T> = (sc: StateCreator<T, [], []>) => StateCreator<T, [], []>;
-const withNsPersist = nsPersist("items", {
-  partialize: (s: Store) => ({ items: s.items }),
-}) as unknown as PersistHof<Store>;
+const withNsPersist = (nsPersist as any)("items", {
+  partialize: (s: Store) => ({ items: s.items } as Pick<Store, "items">),
+}) as PersistHof<Store>;
 
 // 최종 스토어
 export const useItemsStore = create<Store>()(withNsPersist(base));
