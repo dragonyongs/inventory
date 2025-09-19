@@ -7,7 +7,7 @@ import { applyMovementToLots } from "../utils/applyMovement";
 import { useLotsStore } from "../stores/lotsStore";
 import { useMovementsStore } from "../stores/movementsStore";
 import { useAuthStore } from "../stores/authStore";
-import { useWorkspaceStore } from "../stores/workspaceStore_";
+import { useWorkspaceStore } from "../stores/workspaceStore";
 
 function makeId() {
   return (

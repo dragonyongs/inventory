@@ -2,7 +2,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type MovementKind = "IN" | "OUT" | "TRANSFER";
+export type MovementKind = "IN" | "OUT" | "TRANSFER" | "ADJUST";
 
 export type MovementJobPayload = {
   movementId: string;

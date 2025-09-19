@@ -1,5 +1,16 @@
 // src/types/domain.ts
-export type MovementType = "IN" | "OUT" | "ADJUST" | "TRANSFER";
+export type MovementType = "IN" | "OUT" | "TRANSFER" | "ADJUST";
+
+export interface Movement {
+  id: string;
+  type: MovementType;
+  itemId: string;
+  lotId?: string;
+  qty: number;
+  reason?: string;
+  actor: string;
+  createdAt: string;
+}
 
 export interface Item {
   id: string;
@@ -7,7 +18,10 @@ export interface Item {
   sku?: string;
   barcode?: string;
   category?: string;
-  stock?: number; // optional로 변경
+  stock?: number;
+  minStock?: number;
+  defaultPrice?: number;
+  createdAt?: string;
 }
 
 export interface Lot {
@@ -16,14 +30,5 @@ export interface Lot {
   qty: number;
   expiresAt?: string;
   batchNumber?: string;
-}
-export interface Movement {
-  id: string;
-  type: MovementType;
-  itemId: string;
-  lotId?: string;
-  qty: number;
-  reason?: string;
-  actor?: string;
-  createdAt: string; // ISO
+  receivedAt?: string;
 }

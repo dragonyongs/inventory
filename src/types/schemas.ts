@@ -2,7 +2,7 @@
 import { z } from "zod";
 
 export const MovementInputSchema = z.object({
-  type: z.enum(["IN", "OUT", "TRANSFER"]),
+  type: z.enum(["IN", "OUT", "TRANSFER", "ADJUST"]),
   itemId: z.string(),
   lotId: z.string().optional(),
   qty: z.number().positive(),

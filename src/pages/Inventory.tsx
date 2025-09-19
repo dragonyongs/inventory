@@ -36,8 +36,8 @@ function Input({
 }) {
   return (
     <input
-      className="border rounded px-3 py-2 w-full"
-      value={value as any}
+      className="border rounded px-2 py-1"
+      value={value}
       onChange={(e) =>
         onChange(
           type === "number"
@@ -59,7 +59,6 @@ function AddItemForm({ onAdded }: { onAdded: (id: string) => void }) {
   const addItem = useItemsStore((s) => s.addItem);
   const hasSku = useItemsStore((s) => s.hasSku);
   const createMovement = useCreateMovement();
-
   const [f, setF] = useState<FormState>({
     name: "",
     sku: "",
@@ -79,6 +78,7 @@ function AddItemForm({ onAdded }: { onAdded: (id: string) => void }) {
         setErr("이름은 필수입니다");
         return;
       }
+
       if (f.sku.trim() && hasSku(f.sku.trim())) {
         setErr("이미 존재하는 SKU 입니다");
         return;
@@ -100,7 +100,7 @@ function AddItemForm({ onAdded }: { onAdded: (id: string) => void }) {
             itemId: item.id,
             qty,
             reason: "초기 재고",
-          } as any);
+          });
         } catch (error) {
           console.error("Movement creation failed:", error);
         }
@@ -120,10 +120,7 @@ function AddItemForm({ onAdded }: { onAdded: (id: string) => void }) {
   );
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className="bg-white rounded-lg shadow p-4 mb-4 grid grid-cols-1 md:grid-cols-7 gap-3"
-    >
+    <form onSubmit={onSubmit} className="space-y-2">
       <Input
         value={f.name}
         onChange={(v) => setF((s) => ({ ...s, name: v }))}
@@ -140,34 +137,31 @@ function AddItemForm({ onAdded }: { onAdded: (id: string) => void }) {
         placeholder="바코드"
       />
       <Input
-        type="number"
-        min={0}
         value={f.minStock}
         onChange={(v) => setF((s) => ({ ...s, minStock: v }))}
         placeholder="최소 재고"
+        type="number"
       />
       <Input
-        type="number"
-        min={0}
-        step="0.01"
         value={f.price}
         onChange={(v) => setF((s) => ({ ...s, price: v }))}
         placeholder="가격 (선택)"
+        type="number"
+        step="0.01"
       />
       <Input
-        type="number"
-        min={0}
         value={f.qty}
         onChange={(v) => setF((s) => ({ ...s, qty: v }))}
         placeholder="초기 수량 (선택)"
+        type="number"
       />
       <button
         type="submit"
-        className="bg-blue-600 text-white rounded px-4 py-2 hover:bg-blue-700"
+        className="bg-blue-500 text-white px-4 py-2 rounded"
       >
         품목 추가
       </button>
-      {err && <div className="md:col-span-7 text-sm text-red-600">{err}</div>}
+      {err && <div className="text-red-500">{err}</div>}
     </form>
   );
 }
@@ -180,7 +174,7 @@ function AdjustStockModal({
   onClose: () => void;
 }) {
   const createMovement = useCreateMovement();
-  const [mode, setMode] = useState<"IN" | "OUT" | "USE">("IN");
+  const [mode, setMode] = useState<"IN" | "OUT" | "ADJUST">("IN");
   const [qty, setQty] = useState<number | "">("");
   const [reason, setReason] = useState("");
 
@@ -195,21 +189,21 @@ function AdjustStockModal({
           itemId,
           qty: n,
           reason: reason || "조정-입고",
-        } as any);
+        });
       } else if (mode === "OUT") {
         await createMovement({
           type: "OUT",
           itemId,
           qty: n,
           reason: reason || "조정-출고",
-        } as any);
+        });
       } else {
         await createMovement({
-          type: "OUT",
+          type: "ADJUST",
           itemId,
           qty: n,
-          reason: reason ? `USE: ${reason}` : "USE",
-        } as any);
+          reason: reason || "재고조정",
+        });
       }
       onClose();
     } catch (error) {
@@ -219,43 +213,42 @@ function AdjustStockModal({
   }, [mode, qty, reason, itemId, createMovement, onClose]);
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white p-4 rounded w-full max-w-md space-y-3">
-        <h3 className="font-semibold">재고 조정</h3>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+      <div className="bg-white p-4 rounded-lg space-y-4">
+        <h3 className="text-lg font-semibold">재고 조정</h3>
+
         <div className="flex gap-2">
-          {(["IN", "OUT", "USE"] as const).map((t) => (
+          {(["IN", "OUT", "ADJUST"] as const).map((t) => (
             <button
               key={t}
-              className={`px-3 py-1 rounded ${
-                mode === t ? "bg-blue-600 text-white" : "bg-gray-100"
-              }`}
               onClick={() => setMode(t)}
               type="button"
+              className={`px-3 py-1 rounded ${
+                mode === t ? "bg-blue-500 text-white" : "bg-gray-200"
+              }`}
             >
-              {t === "IN" ? "입고" : t === "OUT" ? "출고" : "사용"}
+              {t === "IN" ? "입고" : t === "OUT" ? "출고" : "조정"}
             </button>
           ))}
         </div>
+
         <Input
-          type="number"
-          min={0}
           value={qty}
           onChange={setQty}
           placeholder="수량"
+          type="number"
+          min={1}
         />
-        <Input value={reason} onChange={setReason} placeholder="사유 (선택)" />
-        <div className="flex justify-end gap-2">
-          <button
-            className="px-3 py-2 border rounded"
-            onClick={onClose}
-            type="button"
-          >
+
+        <Input value={reason} onChange={setReason} placeholder="사유" />
+
+        <div className="flex gap-2">
+          <button onClick={onClose} className="px-4 py-2 bg-gray-300 rounded">
             취소
           </button>
           <button
-            className="px-3 py-2 bg-blue-600 text-white rounded"
             onClick={submit}
-            type="button"
+            className="px-4 py-2 bg-blue-500 text-white rounded"
           >
             적용
           </button>
@@ -278,7 +271,6 @@ function Row({
 }) {
   const stock = useStockByItem(item.id);
   const expSoon = useExpiringSoonByItem(item.id, 30);
-
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     name: item.name,
@@ -299,68 +291,52 @@ function Row({
 
   return (
     <tr className="border-b">
-      <td className="p-3">
+      <td className="p-2">
         {editing ? (
           <input
-            className="border rounded px-2 py-1 w-full"
             value={form.name}
             onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+            className="border rounded px-2 py-1"
           />
         ) : (
-          <div className="font-medium">{item.name}</div>
+          <span>{item.name}</span>
         )}
-        <div className="text-xs text-gray-500">{item.sku || item.barcode}</div>
       </td>
-      <td className="p-3">{stock}</td>
-      <td className="p-3">
-        <div className="flex gap-2">
-          {stock <= (item.minStock ?? 0) && (
-            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">
-              재고 부족
-            </span>
-          )}
-          {expSoon && (
-            <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded">
-              유통기한 임박
-            </span>
-          )}
-        </div>
+      <td className="p-2">{item.sku || item.barcode}</td>
+      <td className="p-2">{stock}</td>
+      <td className="p-2">
+        {stock <= (item.minStock ?? 0) && (
+          <span className="text-red-500 text-sm">재고 부족</span>
+        )}
+        {expSoon && (
+          <span className="text-orange-500 text-sm">유통기한 임박</span>
+        )}
       </td>
-      <td className="p-3">
+      <td className="p-2">
         {editing ? (
-          <div className="flex flex-wrap gap-2">
-            {/* Edit form inputs */}
-            <button
-              className="px-3 py-1 bg-blue-600 text-white rounded"
-              onClick={save}
-            >
+          <div className="space-x-2">
+            <button onClick={save} className="text-blue-500 text-sm">
               저장
             </button>
             <button
-              className="px-3 py-1 border rounded"
               onClick={() => setEditing(false)}
+              className="text-gray-500 text-sm"
             >
               취소
             </button>
           </div>
         ) : (
-          <div className="flex gap-2">
+          <div className="space-x-2">
             <button
-              className="px-3 py-1 border rounded"
               onClick={() => setEditing(true)}
+              className="text-blue-500 text-sm"
             >
               수정
             </button>
-            <button
-              className="px-3 py-1 bg-blue-600 text-white rounded"
-              onClick={onAdjust}
-            >
+            <button onClick={onAdjust} className="text-green-500 text-sm">
               조정
             </button>
-            <button
-              className="px-3 py-1 bg-red-600 text-white rounded"
-              onClick={onDelete}
-            >
+            <button onClick={onDelete} className="text-red-500 text-sm">
               삭제
             </button>
           </div>
@@ -374,10 +350,8 @@ export default function Inventory() {
   const items = useVisibleItems();
   const setQuery = useSetQuery();
   const q = useQuery();
-
   const updateItem = useItemsStore((s) => s.updateItem);
   const removeItem = useItemsStore((s) => s.removeItem);
-
   const [adjustFor, setAdjustFor] = useState<string | null>(null);
   const [addedId, setAddedId] = useState<string | null>(null);
 
@@ -385,7 +359,8 @@ export default function Inventory() {
     () =>
       [...items].sort(
         (a: any, b: any) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          new Date(b.createdAt || 0).getTime() -
+          new Date(a.createdAt || 0).getTime()
       ),
     [items]
   );
@@ -409,28 +384,35 @@ export default function Inventory() {
   }, []);
 
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-4">인벤토리</h1>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">인벤토리</h1>
 
-      <AddItemForm onAdded={setAddedId} />
+      <AddItemForm onAdded={(id) => setAddedId(id)} />
 
-      <div className="flex items-center justify-between mb-3">
-        <input
-          className="border rounded px-3 py-2 w-full md:w-96"
-          placeholder="이름, SKU, 바코드 검색..."
-          value={q}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        {addedId && (
-          <span className="ml-3 text-sm text-green-700">
-            품목이 추가되었습니다
-          </span>
-        )}
-      </div>
+      <input
+        className="w-full border rounded px-3 py-2"
+        placeholder="검색..."
+        value={q}
+        onChange={(e) => setQuery(e.target.value)}
+      />
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full">
-          {/* Table head */}
+      {addedId && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+          품목이 추가되었습니다
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse border">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border p-2 text-left">이름</th>
+              <th className="border p-2 text-left">SKU/바코드</th>
+              <th className="border p-2 text-left">재고</th>
+              <th className="border p-2 text-left">상태</th>
+              <th className="border p-2 text-left">액션</th>
+            </tr>
+          </thead>
           <tbody>
             {sorted.map((it: any) => (
               <Row
@@ -443,7 +425,7 @@ export default function Inventory() {
             ))}
             {sorted.length === 0 && (
               <tr>
-                <td className="p-4 text-gray-500" colSpan={4}>
+                <td colSpan={5} className="text-center p-8 text-gray-500">
                   등록된 품목이 없습니다
                 </td>
               </tr>
