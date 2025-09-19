@@ -1,12 +1,19 @@
 // src/stores/selectors.ts
-import { useMemo } from "react";
+
+import { useMemo, useCallback } from "react";
 import { shallow } from "zustand/shallow";
 import { useItemsStore } from "./itemsStore";
 import { useLotsStore } from "./lotsStore";
 import { useMovementsStore } from "./movementsStore";
-import type { Movement, Item } from "../types/domain";
+import type { Movement } from "../types/domain";
 
-const EMPTY_OBJ = {};
+const EMPTY_OBJ = {} as const;
+
+// 안정적인 셀렉터 상수 (모듈 스코프)
+const selectItemsMap = (s: ReturnType<typeof useItemsStore.getState>) =>
+  s.items || EMPTY_OBJ;
+const selectLotsMap = (s: any) => s.lots || EMPTY_OBJ;
+const selectMovementsById = (s: any) => s.byId || EMPTY_OBJ;
 
 export type UIMovement = Movement;
 
@@ -22,7 +29,7 @@ const normalizeMovement = (m: any): UIMovement => ({
 });
 
 export const useItemsMap = () =>
-  useItemsStore((s) => s.items || EMPTY_OBJ, shallow) as Record<string, Item>;
+  useItemsStore(selectItemsMap as any, shallow) as Record<string, any>;
 
 export const useItemList = () => {
   const map = useItemsMap();
@@ -47,7 +54,7 @@ export const useVisibleItems = () => {
 };
 
 export const useStockByItem = (itemId: string) => {
-  const lots = useLotsStore((s) => s.lots || EMPTY_OBJ, shallow);
+  const lots = useLotsStore(selectLotsMap, shallow);
   return useMemo(
     () =>
       Object.values(lots)
@@ -58,7 +65,7 @@ export const useStockByItem = (itemId: string) => {
 };
 
 export const useExpiringSoonByItem = (itemId: string, days = 30) => {
-  const lots = useLotsStore((s) => s.lots || EMPTY_OBJ, shallow);
+  const lots = useLotsStore(selectLotsMap, shallow);
   return useMemo(
     () =>
       Object.values(lots).some((l: any) => {
@@ -71,7 +78,8 @@ export const useExpiringSoonByItem = (itemId: string, days = 30) => {
 };
 
 export const useMovementList = () => {
-  const byId = useMovementsStore((s) => s.byId || EMPTY_OBJ, shallow);
+  // 안정적인 셀렉터 + shallow로 스냅샷 참조 변동 억제
+  const byId = useMovementsStore(selectMovementsById, shallow);
   return useMemo(() => {
     return Object.values(byId)
       .map(normalizeMovement)

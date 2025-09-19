@@ -11,12 +11,12 @@ export type Item = DomainItem & {
   sku?: string;
   barcode?: string;
   minStock?: number;
-  defaultPrice?: number; // 선택
+  defaultPrice?: number;
   createdAt: string;
 };
 
 type State = {
-  items: Record<string, Item>; // map
+  items: Record<string, Item>;
   query: string;
   lowStockThreshold: number;
   get visibleItems(): Item[];
@@ -67,7 +67,8 @@ const normalize = (r: DomainItem): Item => {
   };
 };
 
-const base: StateCreator<Store> = (set, get) => ({
+// 상태/액션을 명시적으로 고정
+const base: StateCreator<Store, [], []> = (set, get) => ({
   items: {},
   query: "",
   lowStockThreshold: 5,
@@ -169,14 +170,20 @@ const base: StateCreator<Store> = (set, get) => ({
   },
 });
 
-// 네임스페이스 기반 persist(파생 제외)
-export const useItemsStore = create<Store>()(
-  nsPersist("items", {
-    partialize: (s) => ({ items: (s as Store).items }),
-  })(base)
-);
+// nsPersist의 반환 타입을 Store에 맞게 고정
+type PersistHof<T> = (sc: StateCreator<T, [], []>) => StateCreator<T, [], []>;
+const withNsPersist = nsPersist("items", {
+  partialize: (s: Store) => ({ items: s.items }),
+}) as unknown as PersistHof<Store>;
+
+// 최종 스토어
+export const useItemsStore = create<Store>()(withNsPersist(base));
 
 // 워크스페이스 전환 시 persist 키 회전
 useWorkspaceStore.subscribe(() => {
-  (useItemsStore as any).persist?.setOptions({ name: makeNsName("items") });
+  (
+    useItemsStore as unknown as {
+      persist?: { setOptions: (o: { name: string }) => void };
+    }
+  ).persist?.setOptions({ name: makeNsName("items") });
 });
