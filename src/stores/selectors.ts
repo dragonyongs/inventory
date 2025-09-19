@@ -1,44 +1,28 @@
 // src/stores/selectors.ts
 import { useMemo } from "react";
 import { shallow } from "zustand/shallow";
-
 import { useItemsStore } from "./itemsStore";
 import { useLotsStore } from "./lotsStore";
 import { useMovementsStore } from "./movementsStore";
+import type { Movement } from "../types/domain";
 
-// 참조 안정 상수
-const EMPTY_ARR: any[] = [];
-const EMPTY_OBJ: Record<string, any> = {};
+const EMPTY_OBJ = {};
 
-// UI 표시용 Movement 타입
-export type UIMovement = {
-  id: string;
-  itemId: string;
-  lotId?: string;
-  type: "IN" | "OUT" | "TRANSFER" | "ADJUST";
-  qty: number;
-  reason?: string;
-  createdAt: string;
-};
+export type UIMovement = Movement;
 
-// 날짜 정규화
-const normalizeDate = (d: any): string =>
-  typeof d === "string" ? d : new Date(d ?? Date.now()).toISOString();
-
-// Movement 정규화
 const normalizeMovement = (m: any): UIMovement => ({
   id: m.id,
-  itemId: m.item_id ?? m.itemId ?? "",
-  lotId: m.lot_id ?? m.lotId,
   type: m.type,
+  itemId: m.itemId,
+  lotId: m.lotId,
   qty: m.qty,
   reason: m.reason,
-  createdAt: normalizeDate(m.created_at ?? m.createdAt),
+  actor: m.actor,
+  createdAt: new Date(m.createdAt ?? 0).toISOString(),
 });
 
-// 1) Items
 export const useItemsMap = () =>
-  useItemsStore((s: any) => s.items || EMPTY_OBJ, shallow);
+  useItemsStore((s) => s.items || EMPTY_OBJ, shallow);
 
 export const useItemList = () => {
   const map = useItemsMap();
@@ -49,59 +33,51 @@ export const useQuery = () => useItemsStore((s) => s.query);
 export const useSetQuery = () => useItemsStore((s) => s.setQuery);
 
 export const useVisibleItems = () => {
-  const itemsRef = useItemsStore((s: any) => s.items || EMPTY_OBJ, shallow);
-  const q = useItemsStore((s) => s.query);
+  const items = useItemList();
+  const q = useQuery();
   return useMemo(() => {
-    const values = Object.values(itemsRef);
-    const query = q?.trim()?.toLowerCase?.() ?? "";
-    if (!query) return values;
-    return values.filter((it: any) => {
-      const name = it.name?.toLowerCase() ?? "";
-      const sku = it.sku?.toLowerCase() ?? "";
-      const barcode = it.barcode?.toLowerCase() ?? "";
-      return (
-        name.includes(query) || sku.includes(query) || barcode.includes(query)
-      );
-    });
-  }, [itemsRef, q]);
+    const query = q?.trim().toLowerCase();
+    if (!query) return items;
+    return items.filter((it: any) =>
+      [it.name, it.sku, it.barcode].some((v) =>
+        v?.toLowerCase().includes(query)
+      )
+    );
+  }, [items, q]);
 };
 
-// 2) Lots
 export const useStockByItem = (itemId: string) => {
-  const lotsRef = useLotsStore((s: any) => s.lots || EMPTY_OBJ, shallow);
+  const lots = useLotsStore((s) => s.lots || EMPTY_OBJ, shallow);
   return useMemo(
     () =>
-      Object.values(lotsRef)
-        .filter((l: any) => (l.itemId ?? l.item_id) === itemId)
-        .reduce((a: number, b: any) => a + (b.qty ?? 0), 0),
-    [lotsRef, itemId]
+      Object.values(lots)
+        .filter((l: any) => l.itemId === itemId)
+        .reduce((sum, l: any) => sum + l.qty, 0),
+    [lots, itemId]
   );
 };
 
 export const useExpiringSoonByItem = (itemId: string, days = 30) => {
-  const lotsRef = useLotsStore((s: any) => s.lots || EMPTY_OBJ, shallow);
-  return useMemo(() => {
-    return Object.values(lotsRef).some((l: any) => {
-      if ((l.itemId ?? l.item_id) !== itemId) return false;
-      const exp = l.expiresAt ?? l.expires_at;
-      if (!exp) return false;
-      const diffDays = (new Date(exp).getTime() - Date.now()) / 86400000;
-      return diffDays <= days;
-    });
-  }, [lotsRef, itemId, days]);
+  const lots = useLotsStore((s) => s.lots || EMPTY_OBJ, shallow);
+  return useMemo(
+    () =>
+      Object.values(lots).some((l: any) => {
+        if (l.itemId !== itemId || !l.expiresAt) return false;
+        const diff = new Date(l.expiresAt).getTime() - Date.now();
+        return diff > 0 && diff < days * 86400000;
+      }),
+    [lots, itemId, days]
+  );
 };
 
-// 3) Movements — byId 맵을 배열로 안전 변환
 export const useMovementList = () => {
-  const byId = useMovementsStore((s: any) => s.byId || EMPTY_OBJ, shallow);
+  const byId = useMovementsStore((s) => s.byId || EMPTY_OBJ, shallow);
   return useMemo(() => {
-    const list = Object.values(byId) as any[];
-    return list
-      .toSorted(
-        (a, b) =>
-          new Date(b.created_at ?? b.createdAt ?? 0).getTime() -
-          new Date(a.created_at ?? a.createdAt ?? 0).getTime()
-      )
-      .map(normalizeMovement);
+    return Object.values(byId)
+      .map(normalizeMovement)
+      .sort(
+        (a: UIMovement, b: UIMovement) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
   }, [byId]);
 };

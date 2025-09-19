@@ -1,15 +1,30 @@
 // tests/fefo.spec.ts
 import { describe, it, expect } from "vitest";
-import { pickFEFOLot } from "@/services/fefo";
+import { orderLotsFefo } from "../utils/fefo"; // @/services -> ../utils
+import type { Lot } from "../types/domain";
 
-describe("FEFO picking", () => {
-  it("picks the earliest expiring lot first", () => {
-    const lots = [
-      { id: "l1", expires_at: "2025-12-31" },
-      { id: "l2", expires_at: "2025-10-01" },
-      { id: "l3", expires_at: "2026-01-01" },
-    ];
-    const picked = pickFEFOLot(lots);
-    expect(picked?.id).toBe("l2");
+const now = new Date();
+const lots: Lot[] = [
+  {
+    id: "1",
+    itemId: "a",
+    qty: 10,
+    receivedAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + 10 * 86400000).toISOString(),
+  },
+  {
+    id: "2",
+    itemId: "a",
+    qty: 5,
+    receivedAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + 5 * 86400000).toISOString(),
+  },
+];
+
+describe("FEFO Logic", () => {
+  it("should sort lots by expiration date", () => {
+    const sorted = orderLotsFefo(lots);
+    expect(sorted[0].id).toBe("2");
+    expect(sorted[1].id).toBe("1");
   });
 });
