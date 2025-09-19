@@ -1,50 +1,21 @@
 // src/lib/rbac/permissions.ts
-export type Role = "owner" | "editor" | "viewer" | "guest";
-
 export type Permission =
-  | "items:view"
-  | "items:edit"
-  | "lots:view"
-  | "lots:edit"
-  | "movements:view"
-  | "movements:create"
-  | "movements:delete";
+  | "items.read"
+  | "items.write"
+  | "items.delete"
+  | "movements.read"
+  | "movements.write"
+  | "movements.delete"
+  | "workspace.admin"
+  | "workspace.member";
 
-const rolePermissions: Record<Role, Permission[]> = {
-  owner: [
-    "items:view",
-    "items:edit",
-    "lots:view",
-    "lots:edit",
-    "movements:view",
-    "movements:create",
-    "movements:delete",
-  ],
-  editor: [
-    "items:view",
-    "items:edit",
-    "lots:view",
-    "lots:edit",
-    "movements:view",
-    "movements:create",
-  ],
-  viewer: ["items:view", "lots:view", "movements:view"],
-  guest: [],
+export const PERMISSIONS = {
+  ITEMS_READ: "items.read" as const,
+  ITEMS_WRITE: "items.write" as const,
+  ITEMS_DELETE: "items.delete" as const,
+  MOVEMENTS_READ: "movements.read" as const,
+  MOVEMENTS_WRITE: "movements.write" as const,
+  MOVEMENTS_DELETE: "movements.delete" as const,
+  WORKSPACE_ADMIN: "workspace.admin" as const,
+  WORKSPACE_MEMBER: "workspace.member" as const,
 };
-
-export function hasPermission(role: Role, perm: Permission) {
-  return rolePermissions[role]?.includes(perm) ?? false;
-}
-
-export function canAccessPage(role: Role, page: "view" | "edit") {
-  if (page === "view")
-    return (
-      hasPermission(role, "items:view") && hasPermission(role, "movements:view")
-    );
-  if (page === "edit")
-    return (
-      hasPermission(role, "items:edit") &&
-      hasPermission(role, "movements:create")
-    );
-  return false;
-}

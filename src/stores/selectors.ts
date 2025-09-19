@@ -27,15 +27,15 @@ const normalizeMovement = (m: any): UIMovement => ({
 });
 
 export const useItemsMap = () =>
-  useItemsStore(selectItemsMap, shallow) as Record<string, any>;
+  useItemsStore(selectItemsMap) as Record<string, any>;
 
 export const useItemList = () => {
   const map = useItemsMap();
   return useMemo(() => Object.values(map), [map]);
 };
 
-export const useQuery = () => useItemsStore((s) => s.query);
-export const useSetQuery = () => useItemsStore((s) => s.setQuery);
+export const useQuery = () => useItemsStore((s: any) => s.query);
+export const useSetQuery = () => useItemsStore((s: any) => s.setQuery);
 
 export const useVisibleItems = () => {
   const items = useItemList();
@@ -54,7 +54,7 @@ export const useVisibleItems = () => {
 };
 
 export const useStockByItem = (itemId: string) => {
-  const lots = useLotsStore(selectLotsMap, shallow);
+  const lots = useLotsStore(selectLotsMap);
   return useMemo(
     () =>
       Object.values(lots)
@@ -65,7 +65,7 @@ export const useStockByItem = (itemId: string) => {
 };
 
 export const useExpiringSoonByItem = (itemId: string, days = 30) => {
-  const lots = useLotsStore(selectLotsMap, shallow);
+  const lots = useLotsStore(selectLotsMap);
   return useMemo(
     () =>
       Object.values(lots).some((l: any) => {
@@ -79,7 +79,7 @@ export const useExpiringSoonByItem = (itemId: string, days = 30) => {
 
 export const useMovementList = () => {
   // 안정적인 셀렉터 + shallow로 스냅샷 참조 변동 억제
-  const byId = useMovementsStore(selectMovementsById, shallow);
+  const byId = useMovementsStore(selectMovementsById);
   return useMemo(() => {
     return Object.values(byId)
       .map(normalizeMovement)

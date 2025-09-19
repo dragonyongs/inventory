@@ -1,7 +1,7 @@
 // src/hooks/useOnlineSync.ts
 import { useEffect } from "react";
 import { useOutboxStore } from "../stores/outboxStore";
-import { useWorkspaceStore } from "../stores/workspaceStore";
+import { useWorkspaceStore } from "../stores/workspaceStore_";
 import { useAuthStore } from "../stores/authStore";
 
 export function useOnlineSync() {

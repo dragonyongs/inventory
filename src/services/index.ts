@@ -1,5 +1,5 @@
 import { createNamespacedMemory } from "./db/memoryAdapter.namespaced";
-import { useWorkspaceStore } from "../stores/workspaceStore";
+import { useWorkspaceStore } from "../stores/workspaceStore_";
 
 const ns = createNamespacedMemory();
 

@@ -4,7 +4,7 @@ import { useInventoryService } from "../services";
 import { useItemsStore } from "../stores/itemsStore";
 import { useLotsStore } from "../stores/lotsStore";
 import { useMovementsStore, type Movement } from "../stores/movementsStore";
-import { useWorkspaceStore } from "../stores/workspaceStore";
+import { useWorkspaceStore } from "../stores/workspaceStore_";
 
 export function useBootstrapInventory() {
   const bulkItems = useItemsStore((s) => s.bulk);

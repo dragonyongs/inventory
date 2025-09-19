@@ -1,6 +1,7 @@
 // src/stores/persistNamespace.ts
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { PersistOptions, StateCreator } from "zustand/middleware";
+import type { PersistOptions } from "zustand/middleware";
+import type { StateCreator } from "zustand";
 import { useAuthStore } from "./authStore";
 import { useWorkspaceStore } from "./workspaceStore";
 

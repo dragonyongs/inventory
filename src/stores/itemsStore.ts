@@ -3,7 +3,7 @@ import { create } from "zustand";
 import type { StateCreator } from "zustand";
 import type { Item as DomainItem } from "../types/domain";
 import { nsPersist, makeNsName } from "./persistNamespace";
-import { useWorkspaceStore } from "./workspaceStore";
+import { useWorkspaceStore } from "./workspaceStore_";
 
 export type Item = DomainItem & {
   id: string;

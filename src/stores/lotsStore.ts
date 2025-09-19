@@ -1,19 +1,35 @@
+// src/stores/lotsStore.ts
 import { create } from "zustand";
-import type { Lot } from "../types/domain";
 
-type State = { lots: Record<string, Lot> };
-type Actions = {
-  bulk: (lots: Lot[]) => void;
+export interface Lot {
+  id: string;
+  itemId: string;
+  qty: number;
+  expiresAt?: string;
+  batchNumber?: string;
+}
+
+interface LotsState {
+  lots: Record<string, Lot>;
+}
+
+interface LotsActions {
   replaceMany: (lots: Lot[]) => void;
-};
-export const useLotsStore = create<State & Actions>((set) => ({
+  bulk: (lots: Lot[]) => void;
+}
+
+type LotsStore = LotsState & LotsActions;
+
+export const useLotsStore = create<LotsStore>()((set) => ({
   lots: {},
-  bulk: (lots) =>
-    set(() => ({ lots: Object.fromEntries(lots.map((l) => [l.id, l])) })),
+
   replaceMany: (lots) =>
-    set((s) => {
-      const next = new Map(Object.entries(s.lots));
-      lots.forEach((l) => next.set(l.id, l));
-      return { lots: Object.fromEntries(next) };
-    }),
+    set(() => ({
+      lots: Object.fromEntries(lots.map((lot) => [lot.id, lot])),
+    })),
+
+  bulk: (lots) =>
+    set(() => ({
+      lots: Object.fromEntries(lots.map((lot) => [lot.id, lot])),
+    })),
 }));

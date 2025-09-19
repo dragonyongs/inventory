@@ -1,13 +1,44 @@
+// src/stores/authStore.ts
 import { create } from "zustand";
-import type { User } from "../types/auth";
+import { persist } from "zustand/middleware";
 
-type State = { user: User | null };
-type Actions = {
-  signInMock: (u: User) => void;
-  signOut: () => void;
-};
-export const useAuthStore = create<State & Actions>((set) => ({
-  user: { id: "u-A", name: "Alice" }, // 초기 mock
-  signInMock: (u) => set({ user: u }),
-  signOut: () => set({ user: null }),
-}));
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  avatar?: string;
+}
+
+interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+}
+
+interface AuthActions {
+  login: (user: User) => void;
+  logout: () => void;
+  updateUser: (updates: Partial<User>) => void;
+}
+
+type AuthStore = AuthState & AuthActions;
+
+export const useAuthStore = create<AuthStore>()(
+  persist(
+    (set) => ({
+      user: null,
+      isAuthenticated: false,
+
+      login: (user) => set({ user, isAuthenticated: true }),
+
+      logout: () => set({ user: null, isAuthenticated: false }),
+
+      updateUser: (updates) =>
+        set((state) => ({
+          user: state.user ? { ...state.user, ...updates } : null,
+        })),
+    }),
+    {
+      name: "auth-storage",
+    }
+  )
+);

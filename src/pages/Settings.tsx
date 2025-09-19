@@ -1,7 +1,7 @@
 // src/pages/Settings.tsx
 import { useState, useEffect } from "react";
 import { useSettingsStore } from "../stores/settingsStore";
-import { useWorkspaceStore } from "../stores/workspaceStore";
+import { useWorkspaceStore } from "../stores/workspaceStore_";
 import { useAuthStore } from "../stores/authStore";
 import { useOutboxStore } from "../stores/outboxStore";
 import { setPwaListeners, applyUpdate } from "../utils/pwaClient"; // FIX: getNeedRefresh 제거
