@@ -55,22 +55,22 @@ const createMovementsStore: StateCreator<Store, [], [], Store> = (
     return q ? list.filter((m) => m.reason?.toLowerCase().includes(q)) : list;
   },
 
-  add: (m) => set((s: Store) => ({ ...s, byId: { ...s.byId, [m.id]: m } })),
+  add: (m) => set((s) => ({ ...s, byId: { ...s.byId, [m.id]: m } })),
 
   addMany: (ms) =>
-    set((s: Store) => ({
+    set((s) => ({
       ...s,
       byId: { ...s.byId, ...Object.fromEntries(ms.map((m) => [m.id, m])) },
     })),
 
   bulk: (ms) =>
-    set((s: Store) => ({
+    set((s) => ({
       ...s,
       byId: Object.fromEntries(ms.map((m) => [m.id, m])),
     })),
 
   bulkMovs: (ms) =>
-    set((s: Store) => ({
+    set((s) => ({
       ...s,
       byId: Object.fromEntries(ms.map((m) => [m.id, m])),
     })),
@@ -89,7 +89,7 @@ const createMovementsStore: StateCreator<Store, [], [], Store> = (
       created_at: new Date().toISOString(),
     };
 
-    set((s: Store) => ({ ...s, byId: { ...s.byId, [movement.id]: movement } }));
+    set((s) => ({ ...s, byId: { ...s.byId, [movement.id]: movement } }));
 
     const item = useItemsStore.getState().items[itemId] as any;
     if (item && typeof item.stock === "number") {
@@ -108,14 +108,14 @@ const createMovementsStore: StateCreator<Store, [], [], Store> = (
   },
 
   remove: (id) =>
-    set((s: Store) => {
+    set((s) => {
       const next = { ...s.byId };
       delete next[id];
       return { ...s, byId: next };
     }),
 
-  reset: () => set((s: Store) => ({ ...s, byId: {} })),
-  setQuery: (q) => set((s: Store) => ({ ...s, query: q })),
+  reset: () => set((s) => ({ ...s, byId: {} })),
+  setQuery: (q) => set((s) => ({ ...s, query: q })),
 });
 
 export const useMovementsStore = create<Store>()(

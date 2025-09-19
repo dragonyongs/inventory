@@ -1,6 +1,5 @@
 // src/stores/selectors.ts
 import { useMemo } from "react";
-import { shallow } from "zustand/shallow";
 import { useItemsStore } from "./itemsStore";
 import { useLotsStore } from "./lotsStore";
 import { useMovementsStore } from "./movementsStore";
@@ -78,7 +77,6 @@ export const useExpiringSoonByItem = (itemId: string, days = 30) => {
 };
 
 export const useMovementList = () => {
-  // 안정적인 셀렉터 + shallow로 스냅샷 참조 변동 억제
   const byId = useMovementsStore(selectMovementsById);
   return useMemo(() => {
     return Object.values(byId)

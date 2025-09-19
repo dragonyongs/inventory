@@ -68,7 +68,7 @@ const createOutboxStore: StateCreator<Store, [], [], Store> = (set, get) => ({
       retries: 0,
     };
 
-    set((s: Store) =>
+    set((s) =>
       s.jobs.some((j) => j.idempotencyKey === job.idempotencyKey)
         ? s
         : { ...s, jobs: [...s.jobs, job] }
@@ -78,7 +78,7 @@ const createOutboxStore: StateCreator<Store, [], [], Store> = (set, get) => ({
   },
 
   dequeue: (id) =>
-    set((s: Store) => ({ ...s, jobs: s.jobs.filter((j) => j.id !== id) })),
+    set((s) => ({ ...s, jobs: s.jobs.filter((j) => j.id !== id) })),
 
   clearAll: () => set({ jobs: [], isSyncing: false, lastSyncAt: undefined }),
 
@@ -86,7 +86,7 @@ const createOutboxStore: StateCreator<Store, [], [], Store> = (set, get) => ({
     const { jobs } = get();
     if (!navigator.onLine || jobs.length === 0) return;
 
-    set((s: Store) => ({ ...s, isSyncing: true }));
+    set((s) => ({ ...s, isSyncing: true }));
 
     try {
       for (const job of jobs) {
@@ -94,9 +94,9 @@ const createOutboxStore: StateCreator<Store, [], [], Store> = (set, get) => ({
         get().dequeue(job.id);
       }
 
-      set((s: Store) => ({ ...s, lastSyncAt: new Date().toISOString() }));
+      set((s) => ({ ...s, lastSyncAt: new Date().toISOString() }));
     } finally {
-      set((s: Store) => ({ ...s, isSyncing: false }));
+      set((s) => ({ ...s, isSyncing: false }));
     }
   },
 });

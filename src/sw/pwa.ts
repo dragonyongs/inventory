@@ -2,7 +2,7 @@
 import { registerSW } from "virtual:pwa-register";
 
 export function setupPWA() {
-  const updateSW = registerSW({
+  const { updateSW } = registerSW({
     immediate: true, // take control asap
     onNeedRefresh() {
       // show UI prompt or auto-apply

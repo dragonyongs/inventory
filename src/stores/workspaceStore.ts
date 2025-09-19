@@ -22,7 +22,7 @@ interface WorkspaceActions {
   setCurrentId: (id: string | null) => void;
   addWorkspace: (workspace: Workspace) => void;
   removeWorkspace: (id: string) => void;
-  can: (workspaceId: string, permission: string) => boolean;
+  can: (workspaceId: string, _permission: string) => boolean;
 }
 
 type WorkspaceStore = WorkspaceState & WorkspaceActions;
@@ -48,7 +48,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           currentId: state.currentId === id ? null : state.currentId,
         })),
 
-      can: (workspaceId, permission) => {
+      can: (workspaceId, _permission) => {
         // 간단한 권한 체크 로직
         const workspace = get().workspaces.find((w) => w.id === workspaceId);
         return !!workspace; // 임시로 항상 허용
