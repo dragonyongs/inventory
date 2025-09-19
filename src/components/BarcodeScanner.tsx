@@ -19,7 +19,6 @@ export function BarcodeScanner({ onDetect, onClose }: Props) {
         v.pause();
       } catch {}
       v.srcObject = null;
-      // allow promise chain to settle before tracks stop
       await Promise.resolve();
     }
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -32,7 +31,7 @@ export function BarcodeScanner({ onDetect, onClose }: Props) {
     async function start() {
       try {
         if (!("BarcodeDetector" in window)) {
-          setError("BarcodeDetector not supported");
+          setError("BarcodeDetector를 지원하지 않는 환경입니다.");
           return;
         }
         // @ts-ignore
@@ -51,7 +50,7 @@ export function BarcodeScanner({ onDetect, onClose }: Props) {
 
         streamRef.current = stream;
         const v = videoRef.current!;
-        v.muted = true; // 자동재생 정책 회피 [권장]
+        v.muted = true;
         v.playsInline = true;
         v.srcObject = stream;
 
@@ -60,15 +59,14 @@ export function BarcodeScanner({ onDetect, onClose }: Props) {
           try {
             await playPromise;
           } catch (e) {
-            // 사용자가 닫는 동안 등 play 실패는 무시하고 종료
             if (!closedRef.current)
-              setError((e as Error)?.message ?? "play failed");
+              setError((e as Error)?.message ?? "카메라 재생에 실패했습니다.");
             return;
           }
         }
         loop();
       } catch (e: any) {
-        setError(e?.message ?? "camera error");
+        setError(e?.message ?? "카메라를 시작하는 중 오류가 발생했습니다.");
       }
     }
 
@@ -80,9 +78,9 @@ export function BarcodeScanner({ onDetect, onClose }: Props) {
         if (codes?.length) {
           const raw = codes[0].rawValue as string;
           closedRef.current = true;
-          await cleanup(); // 먼저 정리
+          await cleanup();
           onDetect(raw);
-          onClose(); // 나중에 닫기
+          onClose();
           return;
         }
       } catch {}
@@ -101,7 +99,7 @@ export function BarcodeScanner({ onDetect, onClose }: Props) {
     <div className="fixed inset-0 bg-black/70 z-50 grid place-items-center">
       <div className="bg-white rounded p-2 w-[90vw] max-w-md space-y-2">
         <div className="flex items-center justify-between">
-          <div className="font-medium">Scan Barcode</div>
+          <div className="font-medium">바코드 스캔</div>
           <button
             className="border px-2 py-1"
             onClick={async () => {
@@ -110,7 +108,7 @@ export function BarcodeScanner({ onDetect, onClose }: Props) {
               onClose();
             }}
           >
-            Close
+            닫기
           </button>
         </div>
         {error ? (
