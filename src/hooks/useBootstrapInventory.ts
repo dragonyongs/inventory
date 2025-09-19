@@ -9,7 +9,7 @@ import { useWorkspaceStore } from "../stores/workspaceStore";
 export function useBootstrapInventory() {
   const bulkItems = useItemsStore((s) => s.bulk);
   const bulkLots = useLotsStore((s) => s.bulk);
-  const bulkMovs = useMovementsStore((s) => s.bulkMovs);
+  const bulkMovements = useMovementsStore((s) => s.bulk); // bulkMovs -> bulk
   const wsId = useWorkspaceStore((s) => s.currentId);
   const svc = useInventoryService();
   const cancelRef = useRef(false);
@@ -18,7 +18,6 @@ export function useBootstrapInventory() {
     if (!wsId) return;
 
     cancelRef.current = false;
-
     const bootstrap = async () => {
       try {
         const [items, lots, movs] = await Promise.all([
@@ -26,13 +25,10 @@ export function useBootstrapInventory() {
           svc.listLots(),
           svc.listMovements(),
         ]);
-
-        // 취소되었으면 상태 업데이트 건너뛰기
         if (cancelRef.current) return;
-
         bulkItems(items);
         bulkLots(lots);
-        bulkMovs(movs);
+        bulkMovements(movs);
       } catch (error) {
         if (!cancelRef.current) {
           console.error("[useBootstrapInventory] bootstrap failed:", error);
@@ -42,9 +38,8 @@ export function useBootstrapInventory() {
 
     bootstrap();
 
-    // cleanup: 다음 wsId 변경 시 이전 요청 취소
     return () => {
       cancelRef.current = true;
     };
-  }, [wsId]); // 의존성은 wsId만 유지 [web:17][web:11]
+  }, [wsId, bulkItems, bulkLots, bulkMovements, svc]);
 }

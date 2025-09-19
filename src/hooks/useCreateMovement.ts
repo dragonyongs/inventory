@@ -2,7 +2,7 @@
 import { useCallback } from "react";
 import { MovementInputSchema } from "../types/schemas";
 import type { MovementInput } from "../types/schemas";
-import type { Movement } from "../types/domain";
+import type { Movement, Lot } from "../types/domain";
 import { applyMovementToLots } from "../utils/applyMovement";
 
 import { useLotsStore } from "../stores/lotsStore";
@@ -46,7 +46,7 @@ export function useCreateMovement() {
         createdAt: now,
       };
 
-      const currentLots = Object.values(useLotsStore.getState().lots as any);
+      const currentLots = Object.values(useLotsStore.getState().lots) as Lot[];
       const nextLots = applyMovementToLots(currentLots, movement);
       replaceMany(nextLots);
       pushMovement(movement);
