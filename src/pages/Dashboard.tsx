@@ -1,6 +1,10 @@
 // src/pages/Dashboard.tsx
 import { useMemo } from "react";
-import { useMovementList, useItemsMap, UIMovement } from "../stores/selectors";
+import {
+  useMovementList,
+  useItemsMap,
+  type UIMovement,
+} from "../stores/selectors";
 import { useLotsStore } from "../stores/lotsStore";
 import { useItemsStore } from "../stores/itemsStore";
 import { useSettingsStore } from "../stores/settingsStore";
@@ -19,10 +23,9 @@ export default function Dashboard() {
   const lots = useLotsStore((s) => s.lots);
   const movements = useMovementList();
   const itemsMap = useItemsMap();
-  const expiringDays = useSettingsStore((s) => s.expiringDays ?? 30);
 
   const totalStock = useMemo(
-    () => Object.values(lots).reduce((sum, lot: any) => sum + lot.qty, 0),
+    () => Object.values(lots).reduce((sum: any, lot: any) => sum + lot.qty, 0),
     [lots]
   );
   const totalItems = useMemo(() => Object.keys(items).length, [items]);

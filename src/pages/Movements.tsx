@@ -1,6 +1,10 @@
 // src/pages/Movements.tsx
 import { useMemo, useState, useEffect } from "react";
-import { useMovementList, useItemsMap, UIMovement } from "../stores/selectors";
+import {
+  useMovementList,
+  useItemsMap,
+  type UIMovement,
+} from "../stores/selectors";
 import { useSettingsStore } from "../stores/settingsStore";
 import { paginate } from "../utils/pagination";
 

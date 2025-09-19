@@ -4,7 +4,7 @@ import { shallow } from "zustand/shallow";
 import { useItemsStore } from "./itemsStore";
 import { useLotsStore } from "./lotsStore";
 import { useMovementsStore } from "./movementsStore";
-import type { Movement } from "../types/domain";
+import type { Movement, Item } from "../types/domain";
 
 const EMPTY_OBJ = {};
 
@@ -22,7 +22,7 @@ const normalizeMovement = (m: any): UIMovement => ({
 });
 
 export const useItemsMap = () =>
-  useItemsStore((s) => s.items || EMPTY_OBJ, shallow);
+  useItemsStore((s) => s.items || EMPTY_OBJ, shallow) as Record<string, Item>;
 
 export const useItemList = () => {
   const map = useItemsMap();
@@ -52,7 +52,7 @@ export const useStockByItem = (itemId: string) => {
     () =>
       Object.values(lots)
         .filter((l: any) => l.itemId === itemId)
-        .reduce((sum, l: any) => sum + l.qty, 0),
+        .reduce((sum: number, l: any) => sum + l.qty, 0),
     [lots, itemId]
   );
 };

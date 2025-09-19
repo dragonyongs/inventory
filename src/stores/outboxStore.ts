@@ -61,7 +61,7 @@ const base: StateCreator<Store, [], []> = (set, get) => ({
     set((s) =>
       s.jobs.some((j) => j.idempotencyKey === job.idempotencyKey)
         ? s
-        : { jobs: [...s.jobs, job] }
+        : ({ jobs: [...s.jobs, job] } as Store)
     );
     return job;
   },
