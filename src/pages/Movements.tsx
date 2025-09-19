@@ -1,232 +1,179 @@
 // src/pages/Movements.tsx
-import { useMemo, useState, useEffect } from "react";
+import { useMemo } from "react";
 import {
-  useMovementList,
-  useItemsMap,
-  type UIMovement,
-} from "../stores/selectors";
-import { useSettingsStore } from "../stores/settingsStore";
+  Activity,
+  Calendar,
+  ArrowUpRight,
+  ArrowDownLeft,
+  RotateCcw,
+} from "lucide-react";
+import { useMovementList, useItemList } from "../stores/selectors";
+import type { Movement } from "../stores/movementsStore"; // Movement 타입 import
 
-type ViewType = "ALL" | "IN" | "OUT" | "TRANSFER" | "USE" | "ADJUST";
-
-function formatDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString("ko-KR", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-const paginate = (items: any[], page: number, pageSize: number) => {
-  const start = (page - 1) * pageSize;
-  return items.slice(start, start + pageSize);
+type UIMovement = Movement & {
+  itemName: string;
 };
 
 export default function Movements() {
-  const movements = useMovementList();
-  const itemsMap = useItemsMap();
-  const [type, setType] = useState<ViewType>("ALL");
-  const [q, setQ] = useState("");
-  const [page, setPage] = useState(1);
-  const pageSize = useSettingsStore((s: any) => s.pageSize ?? 20);
+  const movements = useMovementList() || []; // 기본값 설정
+  const items = useItemList() || []; // 기본값 설정
 
-  const filtered = useMemo(() => {
-    const query = q.trim().toLowerCase();
-    let rows = movements;
+  const enrichedMovements = useMemo(() => {
+    return movements.map((m: Movement) => ({
+      // 타입 명시
+      ...m,
+      itemName:
+        items.find((item: any) => item.id === m.itemId)?.name || "Unknown Item",
+    })) as UIMovement[];
+  }, [movements, items]);
 
-    if (type !== "ALL") {
-      rows = rows.filter((m: UIMovement) => m.type === type);
+  const recentMovements = useMemo(() => {
+    return enrichedMovements
+      .filter(
+        (m: UIMovement) =>
+          Date.now() - new Date(m.createdAt).getTime() <
+          30 * 24 * 60 * 60 * 1000
+      )
+      .sort(
+        (a: UIMovement, b: UIMovement) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ); // 타입 명시
+  }, [enrichedMovements]);
+
+  const getMovementIcon = (type: string) => {
+    switch (type) {
+      case "IN":
+        return <ArrowUpRight className="w-4 h-4" />;
+      case "OUT":
+        return <ArrowDownLeft className="w-4 h-4" />;
+      case "ADJUST":
+        return <RotateCcw className="w-4 h-4" />;
+      default:
+        return <Activity className="w-4 h-4" />;
     }
+  };
 
-    if (query) {
-      rows = rows.filter((m: UIMovement) => {
-        const itemName = itemsMap[m.itemId]?.name?.toLowerCase() ?? "";
-        const reason = m.reason?.toLowerCase() ?? "";
-        return itemName.includes(query) || reason.includes(query);
-      });
+  const getMovementColor = (type: string) => {
+    switch (type) {
+      case "IN":
+        return "text-green-600 bg-green-50";
+      case "OUT":
+        return "text-red-600 bg-red-50";
+      case "ADJUST":
+        return "text-blue-600 bg-blue-50";
+      default:
+        return "text-gray-600 bg-gray-50";
     }
+  };
 
-    return rows;
-  }, [movements, itemsMap, type, q]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const paged = useMemo(
-    () => paginate(filtered, page, pageSize),
-    [filtered, page, pageSize]
-  );
-
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+  const getMovementLabel = (type: string) => {
+    switch (type) {
+      case "IN":
+        return "입고";
+      case "OUT":
+        return "출고";
+      case "ADJUST":
+        return "조정";
+      default:
+        return type;
+    }
+  };
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">이동 내역</h1>
-        <p className="text-gray-600">모든 재고 이동 내역을 확인하세요</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">이동내역</h1>
+        <p className="text-gray-600">재고 입출고 내역을 확인하세요</p>
       </div>
 
-      {/* 필터 및 검색 */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div className="flex flex-wrap gap-2">
-            {(
-              ["ALL", "IN", "OUT", "ADJUST", "TRANSFER", "USE"] as ViewType[]
-            ).map((t) => (
-              <button
-                key={t}
-                onClick={() => {
-                  setType(t);
-                  setPage(1);
-                }}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  type === t
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                {t === "ALL"
-                  ? "전체"
-                  : t === "IN"
-                  ? "입고"
-                  : t === "OUT"
-                  ? "출고"
-                  : t === "ADJUST"
-                  ? "조정"
-                  : t === "TRANSFER"
-                  ? "이동"
-                  : "사용"}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex-1 lg:flex-initial lg:w-64">
-            <input
-              type="text"
-              value={q}
-              onChange={(e) => {
-                setQ(e.target.value);
-                setPage(1);
-              }}
-              placeholder="상품명 또는 사유로 검색..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="p-6 border-b border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+            <Activity className="w-5 h-5 mr-2 text-blue-600" />
+            최근 이동내역
+          </h3>
         </div>
-      </div>
 
-      {/* 테이블 */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                  날짜
-                </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                  유형
-                </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                  상품
-                </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                  수량
-                </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                  사유
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {paged.map((m: UIMovement, index) => (
-                <tr
-                  key={m.id}
-                  className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+        <div className="p-6">
+          {recentMovements.length > 0 ? (
+            <div className="space-y-4">
+              {recentMovements.map((movement, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    {formatDate(m.createdAt)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        m.type === "IN"
-                          ? "bg-green-100 text-green-800"
-                          : m.type === "OUT"
-                          ? "bg-red-100 text-red-800"
-                          : m.type === "ADJUST"
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-gray-100 text-gray-800"
+                  <div className="flex items-center space-x-4">
+                    <div
+                      className={`p-2 rounded-lg ${getMovementColor(
+                        movement.type
+                      )}`}
+                    >
+                      {getMovementIcon(movement.type)}
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {movement.itemName}
+                      </p>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <span
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            movement.type === "IN"
+                              ? "bg-green-100 text-green-800"
+                              : movement.type === "OUT"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-blue-100 text-blue-800"
+                          }`}
+                        >
+                          {getMovementLabel(movement.type)}
+                        </span>
+                        {movement.reason && (
+                          <span className="text-xs text-gray-500">
+                            • {movement.reason}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div
+                      className={`text-lg font-semibold ${
+                        movement.type === "IN"
+                          ? "text-green-600"
+                          : movement.type === "OUT"
+                          ? "text-red-600"
+                          : "text-blue-600"
                       }`}
                     >
-                      {m.type === "IN"
-                        ? "입고"
-                        : m.type === "OUT"
-                        ? "출고"
-                        : m.type === "ADJUST"
-                        ? "조정"
-                        : m.type === "TRANSFER"
-                        ? "이동"
-                        : "사용"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                    {itemsMap[m.itemId]?.name ?? m.itemId}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`text-sm font-semibold ${
-                        m.type === "IN" ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {m.type === "IN" ? "+" : m.type === "OUT" ? "-" : "±"}
-                      {m.qty}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {m.reason ?? "—"}
-                  </td>
-                </tr>
+                      {movement.type === "IN"
+                        ? "+"
+                        : movement.type === "OUT"
+                        ? "-"
+                        : "±"}
+                      {movement.qty}
+                    </div>
+                    <div className="flex items-center text-xs text-gray-400 mt-1">
+                      <Calendar className="w-3 h-3 mr-1" />
+                      {new Date(movement.createdAt).toLocaleDateString(
+                        "ko-KR",
+                        {
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }
+                      )}
+                    </div>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Activity className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">최근 이동내역이 없습니다.</p>
+            </div>
+          )}
         </div>
-
-        {paged.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500">조건에 맞는 이동 내역이 없습니다.</p>
-          </div>
-        )}
-
-        {/* 페이지네이션 */}
-        {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-              >
-                이전
-              </button>
-              <span className="text-sm text-gray-700">
-                페이지 {page} / {totalPages}
-              </span>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-              >
-                다음
-              </button>
-            </div>
-            <div className="text-sm text-gray-500">
-              총 {filtered.length}개 항목
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

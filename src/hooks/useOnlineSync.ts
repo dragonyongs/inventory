@@ -1,33 +1,38 @@
 // src/hooks/useOnlineSync.ts
 import { useEffect } from "react";
-import { useOutboxStore } from "../stores/outboxStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
-import { useAuthStore } from "../stores/authStore";
 
-export function useOnlineSync() {
-  const userId = useAuthStore((s) => s.user?.id);
-  const wsId = useWorkspaceStore((s) => s.currentId); // activeWsId -> currentId
+export const useOnlineSync = () => {
+  const workspaces = useWorkspaceStore((s) => s.workspaces);
+  const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId); // currentId → currentWorkspaceId로 수정
 
   useEffect(() => {
-    if (!userId || !wsId) return;
+    // 온라인 동기화 로직
+    const syncData = async () => {
+      if (!currentWorkspaceId || workspaces.length === 0) return;
 
-    const tryFlush = () => {
-      useOutboxStore.getState().flush({ userId, workspaceId: wsId });
+      try {
+        // 실제 API 호출 로직이 들어갈 부분
+        console.log("Syncing data for workspace:", currentWorkspaceId);
+      } catch (error) {
+        console.error("Sync failed:", error);
+      }
     };
 
-    const onOnline = () => tryFlush();
-    const onVisible = () => {
-      if (document.visibilityState === "visible") tryFlush();
+    // 네트워크 상태 변경 감지
+    const handleOnline = () => {
+      syncData();
     };
 
-    window.addEventListener("online", onOnline);
-    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", handleOnline);
 
-    tryFlush();
+    // 초기 동기화
+    if (navigator.onLine) {
+      syncData();
+    }
 
     return () => {
-      window.removeEventListener("online", onOnline);
-      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", handleOnline);
     };
-  }, [userId, wsId]);
-}
+  }, [currentWorkspaceId, workspaces]);
+};

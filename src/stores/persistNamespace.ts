@@ -24,3 +24,24 @@ export function nsPersist<T>(
       ...opts,
     } as PersistOptions<T>);
 }
+
+export const getNamespace = (): string => {
+  try {
+    // Zustand persist 상태에서 직접 접근
+    const persistedState = localStorage.getItem("workspace-storage");
+    if (persistedState) {
+      const parsed = JSON.parse(persistedState);
+      const currentWorkspaceId = parsed?.state?.currentWorkspaceId; // currentId → currentWorkspaceId
+      return currentWorkspaceId ? `ws_${currentWorkspaceId}` : "default";
+    }
+  } catch (error) {
+    console.error("Failed to get namespace:", error);
+  }
+
+  return "default";
+};
+
+export const createNamespacedKey = (key: string): string => {
+  const namespace = getNamespace();
+  return `${namespace}_${key}`;
+};

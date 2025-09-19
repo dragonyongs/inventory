@@ -5,16 +5,12 @@ import {
   Package,
   AlertTriangle,
   Activity,
-  TrendingUp,
-  TrendingDown,
   Clock,
   CheckCircle,
   ArrowUpRight,
   ArrowDownLeft,
   Package2,
   Calendar,
-  Users,
-  ShoppingCart,
 } from "lucide-react";
 
 import {
@@ -23,23 +19,22 @@ import {
   useAllStockByItems,
   useAllExpiringItems,
 } from "../stores/selectors";
+import type { Movement } from "../stores/movementsStore";
 
 export default function Dashboard() {
   const items = useItemList();
   const movements = useMovementList();
-
   const allStockByItems = useAllStockByItems();
   const expiringItemsSet = useAllExpiringItems(30);
 
   const stats = useMemo(() => {
     const totalItems = items.length;
-
     const lowStockItems = items.filter(
       (item: any) => (allStockByItems[item.id] || 0) <= (item.minStock || 5)
     ).length;
 
     const recentMovements = movements.filter(
-      (m) =>
+      (m: Movement) =>
         Date.now() - new Date(m.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000
     ).length;
 
@@ -57,7 +52,7 @@ export default function Dashboard() {
   }, [items, movements, allStockByItems]);
 
   const recentActivity = useMemo(() => {
-    return movements.slice(0, 8).map((m) => {
+    return movements.slice(0, 8).map((m: Movement) => {
       const item = items.find((i: any) => i.id === m.itemId);
       return {
         ...m,
@@ -79,6 +74,14 @@ export default function Dashboard() {
       )
       .slice(0, 5);
   }, [items, allStockByItems]);
+
+  if (!items || !movements) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">로딩 중...</div>
+      </div>
+    );
+  }
 
   const getMovementIcon = (type: string) => {
     switch (type) {

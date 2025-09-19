@@ -1,23 +1,68 @@
-// src/stores/workspaceStore.ts (단순화)
+// src/stores/workspaceStore.ts
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { useAuthStore } from "./authStore";
 
 export interface Workspace {
   id: string;
   name: string;
+  description?: string;
   ownerId: string;
   createdAt: string;
+  updatedAt: string;
+  members: Array<{
+    userId: string;
+    email: string;
+    name: string;
+    role: "owner" | "admin" | "member" | "viewer";
+    joinedAt: string;
+    invitedBy: string;
+  }>;
+  settings: {
+    allowMemberInvite: boolean;
+    defaultRole: "member" | "viewer";
+  };
 }
 
 interface WorkspaceState {
-  currentWorkspace: Workspace | null;
+  workspaces: Workspace[];
+  currentId: string | null;
+  pendingInvites: Array<{
+    id: string;
+    workspaceId: string;
+    email: string;
+    role: "admin" | "member" | "viewer";
+    invitedBy: string;
+    createdAt: string;
+    expiresAt: string;
+  }>;
 }
 
 interface WorkspaceActions {
-  createPersonalWorkspace: (userId: string, userName: string) => void;
-  updateWorkspace: (updates: Partial<Workspace>) => void;
-  resetWorkspace: () => void;
+  // 기본 워크스페이스 관리
+  setWorkspaces: (workspaces: Workspace[]) => void;
+  setCurrentWorkspaceId: (id: string | null) => void; // currentId → currentWorkspaceId
+  createWorkspace: (name: string, description?: string) => Workspace;
+  updateWorkspace: (id: string, updates: Partial<Workspace>) => void;
+  deleteWorkspace: (id: string) => void;
+
+  // 멤버 관리
+  inviteMember: (
+    workspaceId: string,
+    email: string,
+    role: "admin" | "member" | "viewer"
+  ) => void;
+  acceptInvite: (inviteId: string) => void;
+  removeMember: (workspaceId: string, userId: string) => void;
+  updateMemberRole: (
+    workspaceId: string,
+    userId: string,
+    role: "admin" | "member" | "viewer"
+  ) => void;
+
+  // 권한 체크
+  canInviteMembers: (workspaceId: string) => boolean;
+  canRemoveMembers: (workspaceId: string) => boolean;
+  getUserRole: (workspaceId: string, userId: string) => string | null;
 }
 
 type WorkspaceStore = WorkspaceState & WorkspaceActions;
@@ -25,28 +70,183 @@ type WorkspaceStore = WorkspaceState & WorkspaceActions;
 export const useWorkspaceStore = create<WorkspaceStore>()(
   persist(
     (set, get) => ({
-      currentWorkspace: null,
+      workspaces: [],
+      currentWorkspaceId: null, // currentId → currentWorkspaceId
+      pendingInvites: [],
 
-      // 개인 워크스페이스 생성 (로그인한 사용자 기준)
-      createPersonalWorkspace: (userId: string, userName: string) => {
+      setWorkspaces: (workspaces) => set({ workspaces }),
+
+      setCurrentWorkspaceId: (currentWorkspaceId) =>
+        set({ currentWorkspaceId }), // currentId → currentWorkspaceId
+
+      createWorkspace: (name: string, description?: string) => {
+        const user = JSON.parse(localStorage.getItem("auth-storage") || "{}")
+          ?.state?.user;
+        if (!user) throw new Error("User not authenticated");
+
+        const now = new Date().toISOString();
         const workspace: Workspace = {
-          id: `ws_${userId}`,
-          name: `${userName}의 재고관리`,
-          ownerId: userId,
-          createdAt: new Date().toISOString(),
+          id: `ws_${Date.now()}_${Math.random().toString(36).substring(2)}`,
+          name,
+          description,
+          ownerId: user.id,
+          createdAt: now,
+          updatedAt: now,
+          members: [
+            {
+              userId: user.id,
+              email: user.email,
+              name: user.name,
+              role: "owner",
+              joinedAt: now,
+              invitedBy: user.id,
+            },
+          ],
+          settings: {
+            allowMemberInvite: true,
+            defaultRole: "member",
+          },
         };
-        set({ currentWorkspace: workspace });
+
+        set((state) => ({
+          workspaces: [...state.workspaces, workspace],
+          currentWorkspaceId: workspace.id, // currentId → currentWorkspaceId
+        }));
+
+        return workspace;
       },
 
-      updateWorkspace: (updates) => {
-        const current = get().currentWorkspace;
-        if (!current) return;
-        set({
-          currentWorkspace: { ...current, ...updates },
-        });
+      updateWorkspace: (id, updates) =>
+        set((state) => ({
+          workspaces: state.workspaces.map((ws) =>
+            ws.id === id
+              ? { ...ws, ...updates, updatedAt: new Date().toISOString() }
+              : ws
+          ),
+        })),
+
+      deleteWorkspace: (id) =>
+        set((state) => ({
+          workspaces: state.workspaces.filter((ws) => ws.id !== id),
+          currentWorkspaceId:
+            state.currentWorkspaceId === id ? null : state.currentWorkspaceId, // currentId → currentWorkspaceId
+        })),
+
+      inviteMember: (workspaceId, email, role) => {
+        const user = JSON.parse(localStorage.getItem("auth-storage") || "{}")
+          ?.state?.user;
+        if (!user) return;
+
+        const invite = {
+          id: `inv_${Date.now()}_${Math.random().toString(36).substring(2)}`,
+          workspaceId,
+          email,
+          role,
+          invitedBy: user.id,
+          createdAt: new Date().toISOString(),
+          expiresAt: new Date(
+            Date.now() + 7 * 24 * 60 * 60 * 1000
+          ).toISOString(), // 7일 후 만료
+        };
+
+        set((state) => ({
+          pendingInvites: [...state.pendingInvites, invite],
+        }));
+
+        // 실제 구현에서는 이메일 발송 등의 로직 추가
+        console.log("Member invited:", invite);
       },
 
-      resetWorkspace: () => set({ currentWorkspace: null }),
+      acceptInvite: (inviteId) => {
+        const user = JSON.parse(localStorage.getItem("auth-storage") || "{}")
+          ?.state?.user;
+        if (!user) return;
+
+        const { pendingInvites } = get();
+        const invite = pendingInvites.find((inv) => inv.id === inviteId);
+        if (!invite || invite.email !== user.email) return;
+
+        const newMember = {
+          userId: user.id,
+          email: user.email,
+          name: user.name,
+          role: invite.role as "admin" | "member" | "viewer",
+          joinedAt: new Date().toISOString(),
+          invitedBy: invite.invitedBy,
+        };
+
+        set((state) => ({
+          workspaces: state.workspaces.map((ws) =>
+            ws.id === invite.workspaceId
+              ? { ...ws, members: [...ws.members, newMember] }
+              : ws
+          ),
+          pendingInvites: state.pendingInvites.filter(
+            (inv) => inv.id !== inviteId
+          ),
+        }));
+      },
+
+      removeMember: (workspaceId, userId) =>
+        set((state) => ({
+          workspaces: state.workspaces.map((ws) =>
+            ws.id === workspaceId
+              ? {
+                  ...ws,
+                  members: ws.members.filter((m) => m.userId !== userId),
+                }
+              : ws
+          ),
+        })),
+
+      updateMemberRole: (workspaceId, userId, role) =>
+        set((state) => ({
+          workspaces: state.workspaces.map((ws) =>
+            ws.id === workspaceId
+              ? {
+                  ...ws,
+                  members: ws.members.map((m) =>
+                    m.userId === userId ? { ...m, role } : m
+                  ),
+                }
+              : ws
+          ),
+        })),
+
+      canInviteMembers: (workspaceId) => {
+        const user = JSON.parse(localStorage.getItem("auth-storage") || "{}")
+          ?.state?.user;
+        if (!user) return false;
+
+        const { workspaces } = get();
+        const workspace = workspaces.find((ws) => ws.id === workspaceId);
+        if (!workspace) return false;
+
+        const member = workspace.members.find((m) => m.userId === user.id);
+        return member?.role === "owner" || member?.role === "admin";
+      },
+
+      canRemoveMembers: (workspaceId) => {
+        const user = JSON.parse(localStorage.getItem("auth-storage") || "{}")
+          ?.state?.user;
+        if (!user) return false;
+
+        const { workspaces } = get();
+        const workspace = workspaces.find((ws) => ws.id === workspaceId);
+        if (!workspace) return false;
+
+        const member = workspace.members.find((m) => m.userId === user.id);
+        return member?.role === "owner" || member?.role === "admin";
+      },
+
+      getUserRole: (workspaceId, userId) => {
+        const { workspaces } = get();
+        const workspace = workspaces.find((ws) => ws.id === workspaceId);
+        if (!workspace) return null;
+
+        const member = workspace.members.find((m) => m.userId === userId);
+        return member?.role || null;
+      },
     }),
     {
       name: "workspace-storage",

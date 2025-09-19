@@ -10,7 +10,9 @@ import {
   X,
   ChevronRight,
 } from "lucide-react";
-import { DevTools } from "./DevTools"; // DevTools 임포트 추가
+import { DevTools } from "./DevTools";
+import { WorkspaceSelector } from "./WorkspaceSelector";
+import { UserProfile } from "./UserProfile";
 
 export function RootLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -51,10 +53,8 @@ export function RootLayout() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* DevTools 추가 */}
       <DevTools />
 
-      {/* 기존 코드는 그대로... */}
       {/* Mobile Header */}
       <header className="bg-white shadow-sm border-b lg:hidden sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -106,6 +106,12 @@ export function RootLayout() {
               );
             })}
           </div>
+
+          {/* Mobile 워크스페이스 & 사용자 정보 */}
+          <div className="px-4 py-3 border-t border-gray-100 space-y-3">
+            <WorkspaceSelector />
+            <UserProfile />
+          </div>
         </div>
       )}
 
@@ -155,21 +161,10 @@ export function RootLayout() {
               </div>
             </nav>
 
-            {/* Footer */}
-            <div className="px-6 py-4 border-t border-gray-100">
-              <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg p-3">
-                <div className="flex items-center">
-                  <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-blue-500 rounded-full flex items-center justify-center mr-3">
-                    <span className="text-xs font-bold text-white">V</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      Version 1.0
-                    </p>
-                    <p className="text-xs text-gray-500">© 2025 재고관리</p>
-                  </div>
-                </div>
-              </div>
+            {/* Workspace & User Section */}
+            <div className="px-4 py-4 border-t border-gray-100 space-y-3">
+              <WorkspaceSelector />
+              <UserProfile />
             </div>
           </div>
         </aside>

@@ -12,7 +12,6 @@ import {
   AlertCircle,
   CheckCircle2,
   Download,
-  Shield,
   Trash2,
   UserPlus,
   Crown,
@@ -26,7 +25,7 @@ import { useAuthStore } from "../stores/authStore";
 import { useOutboxStore } from "../stores/outboxStore";
 import { setPwaListeners, applyUpdate } from "../utils/pwaClient";
 
-type Role = "admin" | "member" | "viewer";
+type Role = "owner" | "admin" | "member" | "viewer";
 type Member = { userId: string; role: Role };
 
 export default function Settings() {
@@ -46,19 +45,21 @@ export default function Settings() {
   const [offlineReady, setOfflineReady] = useState(false);
   const [activeTab, setActiveTab] = useState("general");
 
-  // 워크스페이스 정보 가져오기 (안전하게)
-  const currentId = useWorkspaceStore((s) => s.currentId);
-  const workspaces = useWorkspaceStore((s) => s.workspaces) || []; // null 방지
-  const workspace = workspaces.find((w) => w.id === currentId) || null;
+  // 워크스페이스 정보 가져오기 (수정된 스토어 구조 반영)
+  // const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId); // currentId → currentWorkspaceId
+  const workspaces = useWorkspaceStore((s) => s.workspaces);
+  const currentId = useWorkspaceStore((s) => s.currentId); // currentWorkspaceId → currentId
+  const workspace = workspaces.find((w: any) => w.id === currentId) || null;
   const members: Member[] = workspace?.members || [];
   const user = useAuthStore((s) => s.user);
 
   // 현재 사용자의 역할 확인
   const currentUserRole = members.find((m) => m.userId === user?.id)?.role;
-  const isOwnerOrAdmin = currentUserRole === "admin";
+  const isOwnerOrAdmin =
+    currentUserRole === "owner" || currentUserRole === "admin";
 
   // 워크스페이스 오너 찾기
-  const workspaceOwner = members.find((m) => m.role === "admin");
+  const workspaceOwner = members.find((m) => m.role === "owner");
 
   useEffect(() => {
     setPwaListeners({
@@ -71,16 +72,17 @@ export default function Settings() {
     { id: "general", label: "일반", icon: Settings2 },
     { id: "notifications", label: "알림", icon: Bell },
     { id: "data", label: "데이터", icon: Database },
-    // 워크스페이스가 있을 때만 멤버 탭 표시
     ...(workspace ? [{ id: "members", label: "멤버", icon: Users }] : []),
   ];
 
   const getRoleIcon = (role: Role) => {
     switch (role) {
-      case "admin":
+      case "owner":
         return <Crown className="w-4 h-4 text-yellow-600" />;
+      case "admin":
+        return <User className="w-4 h-4 text-blue-600" />; // Shield 대신 User 사용
       case "member":
-        return <User className="w-4 h-4 text-blue-600" />;
+        return <User className="w-4 h-4 text-green-600" />;
       case "viewer":
         return <Eye className="w-4 h-4 text-gray-600" />;
       default:
@@ -90,6 +92,8 @@ export default function Settings() {
 
   const getRoleLabel = (role: Role) => {
     switch (role) {
+      case "owner":
+        return "오너";
       case "admin":
         return "관리자";
       case "member":
@@ -123,7 +127,7 @@ export default function Settings() {
             </div>
           </div>
           <button
-            onClick={applyUpdate}
+            onClick={() => applyUpdate()} // 이벤트 핸들러 수정
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             업데이트
@@ -201,7 +205,7 @@ export default function Settings() {
                       value={mode}
                       onChange={(e) =>
                         setMode(e.target.value as "auto" | "manual")
-                      }
+                      } // 타입 캐스팅 수정
                       className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="auto">자동</option>
@@ -310,11 +314,14 @@ export default function Settings() {
                         <div className="flex items-center">
                           <AlertCircle className="w-4 h-4 text-yellow-600 mr-2" />
                           <span className="text-sm font-medium text-yellow-900">
-                            {job.type || "알 수 없는 작업"}
+                            {(job as any).type || "알 수 없는 작업"}{" "}
+                            {/* job.type 수정 */}
                           </span>
                         </div>
                         <span className="text-xs text-yellow-700">
-                          {new Date(job.createdAt || 0).toLocaleString("ko-KR")}
+                          {new Date((job as any).createdAt || 0).toLocaleString(
+                            "ko-KR"
+                          )}
                         </span>
                       </div>
                     ))}

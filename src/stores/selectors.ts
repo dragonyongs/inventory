@@ -2,9 +2,12 @@
 
 import { useMemo } from "react";
 import { useItemsStore } from "./itemsStore";
-import { useLotsStore } from "./lotsStore";
 import { useMovementsStore, type Movement } from "./movementsStore";
+import { useLotsStore } from "./lotsStore";
+import { useSettingsStore } from "./settingsStore";
+
 const EMPTY_OBJ = {} as const;
+const EMPTY_ARRAY = [] as const;
 
 // 안정적인 셀렉터 상수 (모듈 스코프)
 const selectItemsMap = (s: any) => s.items || EMPTY_OBJ;
@@ -18,7 +21,10 @@ export const useItemsMap = () =>
 
 export const useItemList = () => {
   const map = useItemsMap();
-  return useMemo(() => Object.values(map), [map]);
+  return useMemo(() => {
+    const values = Object.values(map);
+    return Array.isArray(values) ? values : [];
+  }, [map]);
 };
 
 export const useQuery = () => useItemsStore((s: any) => s.query);
@@ -62,9 +68,12 @@ export const useExpiringSoonByItem = (itemId: string, days = 30) => {
 export const useAllStockByItems = () => {
   const items = useItemsMap();
   return useMemo(() => {
+    if (!items || typeof items !== "object") return {};
     const stockMap: Record<string, number> = {};
     Object.values(items).forEach((item: any) => {
-      stockMap[item.id] = item.stock || 0;
+      if (item?.id) {
+        stockMap[item.id] = item.stock || 0;
+      }
     });
     return stockMap;
   }, [items]);
@@ -74,27 +83,32 @@ export const useAllStockByItems = () => {
 export const useAllExpiringItems = (days = 30) => {
   const lots = useLotsStore(selectLotsMap);
   return useMemo(() => {
+    if (!lots || typeof lots !== "object") return new Set<string>();
     const expiringSet = new Set<string>();
     const cutoffTime = Date.now() + days * 86400000;
-
     Object.values(lots).forEach((l: any) => {
-      if (!l.itemId || !l.expiresAt) return;
+      if (!l?.itemId || !l?.expiresAt) return;
       const expiresTime = new Date(l.expiresAt).getTime();
       if (expiresTime > Date.now() && expiresTime < cutoffTime) {
         expiringSet.add(l.itemId);
       }
     });
-
     return expiringSet;
   }, [lots, days]);
 };
 
+// ✅ 수정된 useMovementList
 export const useMovementList = () => {
   const byId = useMovementsStore(selectMovementsById);
+  return useMemo(() => Object.values(byId), [byId]);
+};
+
+// 정렬된 movements
+export const useSortedMovements = () => {
+  const movements = useMovementList();
   return useMemo(() => {
-    return Object.values(byId).sort(
-      (a: Movement, b: Movement) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }, [byId]);
+    return [...movements].sort((a: Movement, b: Movement) => {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [movements]);
 };

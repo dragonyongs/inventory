@@ -1,44 +1,51 @@
 // src/routes/guards/RequirePermission.tsx
-import { Navigate, useLocation } from "react-router-dom";
-import type { ReactNode } from "react";
-import type { Permission } from "../../lib/rbac/permissions";
-import { useAuthStore, type User } from "../../stores/authStore";
-import { useWorkspaceStore, type Workspace } from "../../stores/workspaceStore";
+import { ReactNode } from "react";
+import { useWorkspaceStore } from "../../stores/workspaceStore";
+import { useAuthStore } from "../../stores/authStore";
 
 interface RequirePermissionProps {
-  permission: Permission;
   children: ReactNode;
-  fallback?: ReactNode | null;
+  permission: "read" | "write" | "admin";
+  fallback?: ReactNode;
 }
 
-export function RequirePermission({
-  permission,
+export default function RequirePermission({
   children,
-  fallback = null,
+  permission,
+  fallback = <div>권한이 없습니다.</div>,
 }: RequirePermissionProps) {
-  const location = useLocation();
-  const user = useAuthStore((s: { user: User | null }) => s.user);
-  const currentRole = useWorkspaceStore(
-    (s: { workspaces: Workspace[]; currentId: string | null }) => {
-      const ws = s.workspaces.find((w: Workspace) => w.id === s.currentId);
-      return (
-        ws?.members.find(
-          (m: { userId: string; role: string }) => m.userId === user?.id
-        )?.role ?? null
-      );
-    }
-  );
+  const user = useAuthStore((s) => s.user);
+  const workspaces = useWorkspaceStore((s) => s.workspaces); // 올바른 selector 사용
+  const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId); // currentId → currentWorkspaceId
 
-  if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  // TODO: 실제 RBAC 확인: permission과 currentRole로 판정
-  const hasPermission = !!currentRole && !!permission;
-
-  if (!hasPermission) {
+  if (!user || !currentWorkspaceId) {
     return <>{fallback}</>;
   }
 
-  return <>{children}</>;
+  const workspace = workspaces.find((ws) => ws.id === currentWorkspaceId);
+  if (!workspace || !workspace.members) {
+    // members 속성 체크 추가
+    return <>{fallback}</>;
+  }
+
+  const member = workspace.members.find((m) => m.userId === user.id);
+  if (!member) {
+    return <>{fallback}</>;
+  }
+
+  // 권한 체크 로직
+  const hasPermission = () => {
+    switch (permission) {
+      case "admin":
+        return member.role === "owner" || member.role === "admin";
+      case "write":
+        return member.role !== "viewer";
+      case "read":
+        return true; // 모든 멤버는 읽기 권한 있음
+      default:
+        return false;
+    }
+  };
+
+  return hasPermission() ? <>{children}</> : <>{fallback}</>;
 }

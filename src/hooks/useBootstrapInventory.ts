@@ -3,9 +3,23 @@ import { useEffect, useRef } from "react";
 import { useInventoryService } from "../services";
 import { useItemsStore, type Item as StoreItem } from "../stores/itemsStore";
 import { useLotsStore } from "../stores/lotsStore";
-import { useMovementsStore, type Movement } from "../stores/movementsStore";
+import {
+  useMovementsStore,
+  type Movement,
+  type MovementKind,
+} from "../stores/movementsStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import type { Item as DomainItem } from "../types/domain";
+
+interface DomainMovement {
+  id: string;
+  workspaceId?: string;
+  itemId: string;
+  type: MovementKind;
+  qty: number;
+  reason?: string;
+  createdAt?: string;
+}
 
 export function useBootstrapInventory() {
   const bulkItems = useItemsStore((s: any) => s.bulk);
@@ -38,15 +52,17 @@ export function useBootstrapInventory() {
         }));
 
         // 도메인 Movement를 스토어 Movement로 변환
-        const storeMovements: Movement[] = domainMovements.map((dm: any) => ({
-          id: dm.id,
-          workspace_id: dm.workspaceId || wsId,
-          item_id: dm.itemId,
-          type: dm.type,
-          qty: dm.qty,
-          reason: dm.reason,
-          created_at: dm.createdAt || new Date().toISOString(),
-        }));
+        const storeMovements: Movement[] = domainMovements.map(
+          (dm: DomainMovement) => ({
+            id: dm.id,
+            workspaceId: dm.workspaceId || wsId,
+            itemId: dm.itemId,
+            type: dm.type,
+            qty: dm.qty,
+            reason: dm.reason,
+            createdAt: dm.createdAt || new Date().toISOString(),
+          })
+        );
 
         bulkItems(storeItems);
         bulkLots(lots);
