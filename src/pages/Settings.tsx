@@ -1,4 +1,3 @@
-// src/pages/Settings.tsx
 import { useState, useEffect } from "react";
 import {
   Settings2,
@@ -17,6 +16,9 @@ import {
   Crown,
   User,
   Eye,
+  Building2, // 추가
+  Edit, // 추가
+  AlertTriangle,
 } from "lucide-react";
 
 import { useSettingsStore } from "../stores/settingsStore";
@@ -24,12 +26,13 @@ import { useWorkspaceStore } from "../stores/workspaceStore";
 import { useAuthStore } from "../stores/authStore";
 import { useOutboxStore } from "../stores/outboxStore";
 import { setPwaListeners, applyUpdate } from "../utils/pwaClient";
-import type { UpdateMode } from "../stores/settingsStore";
+import { useItemList, useMovementList } from "../stores/selectors"; // 추가
 
 type Role = "owner" | "admin" | "member" | "viewer";
 type Member = { userId: string; role: Role };
 
 export default function Settings() {
+  // 기존 상태값들...
   const exp = useSettingsStore((s) => s.expiringDays);
   const size = useSettingsStore((s) => s.pageSize);
   const mode = useSettingsStore((s) => s.updateMode);
@@ -37,7 +40,6 @@ export default function Settings() {
   const setSize = useSettingsStore((s) => s.setPageSize);
   const setMode = useSettingsStore((s) => s.setUpdateMode);
 
-  // Outbox 상태
   const outboxJobs = useOutboxStore((s) => s.jobs);
   const isSyncing = useOutboxStore((s) => s.isSyncing);
   const lastSyncAt = useOutboxStore((s) => s.lastSyncAt);
@@ -46,18 +48,80 @@ export default function Settings() {
   const [offlineReady, setOfflineReady] = useState(false);
   const [activeTab, setActiveTab] = useState("general");
 
-  // 워크스페이스 정보 가져오기 (수정된 스토어 구조 반영)
-  // const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId); // currentId → currentWorkspaceId
+  // 워크스페이스 관련 상태값들
+  const currentId = useWorkspaceStore((s) => s.currentId);
   const workspaces = useWorkspaceStore((s) => s.workspaces);
-  const currentId = useWorkspaceStore((s) => s.currentId); // currentWorkspaceId → currentId
+  const setCurrentId = useWorkspaceStore((s) => s.setCurrentId);
+  const deleteWorkspace = useWorkspaceStore((s) => s.deleteWorkspace); // 추가
   const workspace = workspaces.find((w: any) => w.id === currentId) || null;
   const members: Member[] = workspace?.members || [];
   const user = useAuthStore((s) => s.user);
+
+  // 통계 정보를 위한 데이터 (추가)
+  const items = useItemList();
+  const movements = useMovementList();
+
+  // 워크스페이스 삭제 관련 상태값들 (추가)
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // 현재 사용자의 역할 확인
   const currentUserRole = members.find((m) => m.userId === user?.id)?.role;
   const isOwnerOrAdmin =
     currentUserRole === "owner" || currentUserRole === "admin";
+
+  // 워크스페이스 삭제 핸들러 함수
+  const handleDeleteWorkspace = async () => {
+    if (!workspace || deleteConfirmation !== workspace.name || isDeleting) {
+      return;
+    }
+
+    setIsDeleting(true);
+
+    try {
+      // 워크스페이스가 하나뿐이면 삭제 불가
+      if (workspaces.length <= 1) {
+        alert("마지막 워크스페이스는 삭제할 수 없습니다.");
+        return;
+      }
+
+      // 현재 워크스페이스가 아닌 다른 워크스페이스로 전환
+      const remainingWorkspaces = workspaces.filter(
+        (ws) => ws.id !== currentId
+      );
+      if (remainingWorkspaces.length > 0) {
+        setCurrentId(remainingWorkspaces[0].id);
+      }
+
+      // 워크스페이스 삭제
+      deleteWorkspace(currentId!);
+
+      // 모달 닫기
+      setShowDeleteModal(false);
+      setDeleteConfirmation("");
+
+      // 성공 메시지
+      alert(`워크스페이스 "${workspace.name}"가 성공적으로 삭제되었습니다.`);
+    } catch (error) {
+      console.error("Failed to delete workspace:", error);
+      alert("워크스페이스 삭제 중 오류가 발생했습니다.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // 삭제 모달 닫기 함수
+  const handleCloseDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeleteConfirmation("");
+    setIsDeleting(false);
+  };
+
+  const handleUpdateModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newMode = e.target.value as "auto" | "manual";
+    setMode(newMode);
+  };
 
   // 워크스페이스 오너 찾기
   const workspaceOwner = members.find((m) => m.role === "owner");
@@ -69,10 +133,12 @@ export default function Settings() {
     });
   }, []);
 
+  // 탭 목록 수정 (워크스페이스 탭 추가)
   const tabs = [
     { id: "general", label: "일반", icon: Settings2 },
     { id: "notifications", label: "알림", icon: Bell },
     { id: "data", label: "데이터", icon: Database },
+    { id: "workspace", label: "워크스페이스", icon: Building2 }, // 추가
     ...(workspace ? [{ id: "members", label: "멤버", icon: Users }] : []),
   ];
 
@@ -81,7 +147,7 @@ export default function Settings() {
       case "owner":
         return <Crown className="w-4 h-4 text-yellow-600" />;
       case "admin":
-        return <User className="w-4 h-4 text-blue-600" />; // Shield 대신 User 사용
+        return <User className="w-4 h-4 text-blue-600" />;
       case "member":
         return <User className="w-4 h-4 text-green-600" />;
       case "viewer":
@@ -106,16 +172,9 @@ export default function Settings() {
     }
   };
 
-  // 타입 안전한 핸들러
-  const handleUpdateModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value as UpdateMode;
-    if (value === "auto" || value === "manual" || value === "prompt") {
-      setMode(value);
-    }
-  };
-
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+      {/* 기존 헤더와 알림 배너들... */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">설정</h1>
         <p className="text-gray-600">애플리케이션 설정을 관리하세요</p>
@@ -224,7 +283,6 @@ export default function Settings() {
               </div>
             </div>
           )}
-
           {activeTab === "notifications" && (
             <div className="space-y-8">
               <div>
@@ -255,7 +313,6 @@ export default function Settings() {
               </div>
             </div>
           )}
-
           {activeTab === "data" && (
             <div className="space-y-8">
               <div>
@@ -343,7 +400,6 @@ export default function Settings() {
               )}
             </div>
           )}
-
           {activeTab === "members" && workspace && (
             <div className="space-y-8">
               <div>
@@ -439,6 +495,170 @@ export default function Settings() {
                       </div>
                     ))}
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {activeTab === "workspace" && (
+            <div className="space-y-8">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <Building2 className="w-5 h-5 mr-2" />
+                  워크스페이스 관리
+                </h3>
+
+                {workspace && (
+                  <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h4 className="text-xl font-semibold text-gray-900">
+                          {workspace.name}
+                        </h4>
+                        {workspace.description && (
+                          <p className="text-gray-600 mt-1">
+                            {workspace.description}
+                          </p>
+                        )}
+                        <p className="text-sm text-gray-500 mt-2">
+                          생성일:{" "}
+                          {new Date(workspace.createdAt).toLocaleDateString(
+                            "ko-KR"
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button className="flex items-center px-3 py-1 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                          <Edit className="w-4 h-4 mr-1" />
+                          수정
+                        </button>
+                        {isOwnerOrAdmin && (
+                          <button
+                            onClick={() => setShowDeleteModal(true)}
+                            className="flex items-center px-3 py-1 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            삭제
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 워크스페이스 통계 */}
+                    <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-200">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {members.length}
+                        </div>
+                        <div className="text-xs text-gray-500">멤버</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">
+                          {items.length}
+                        </div>
+                        <div className="text-xs text-gray-500">상품</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-purple-600">
+                          {movements.length}
+                        </div>
+                        <div className="text-xs text-gray-500">활동</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 모든 워크스페이스 목록 */}
+                <div>
+                  <h4 className="text-md font-semibold text-gray-900 mb-3">
+                    모든 워크스페이스
+                  </h4>
+                  <div className="space-y-2">
+                    {workspaces.map((ws) => (
+                      <div
+                        key={ws.id}
+                        className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-blue-500 rounded-lg flex items-center justify-center">
+                            <Building2 className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {ws.name}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {ws.members.length}명 •{" "}
+                              {new Date(ws.createdAt).toLocaleDateString(
+                                "ko-KR"
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {currentId === ws.id && (
+                            <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                              현재
+                            </span>
+                          )}
+                          <button
+                            onClick={() => setCurrentId(ws.id)}
+                            disabled={currentId === ws.id}
+                            className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {currentId === ws.id ? "선택됨" : "선택"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* 워크스페이스 삭제 모달 */}
+          {showDeleteModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl max-w-md w-full p-6">
+                <div className="flex items-center mb-4">
+                  <AlertTriangle className="w-6 h-6 text-red-600 mr-2" />
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    워크스페이스 삭제
+                  </h3>
+                </div>
+
+                <p className="text-gray-600 mb-6">
+                  <strong>{workspace?.name}</strong> 워크스페이스를
+                  삭제하시겠습니까? 모든 데이터가 영구적으로 삭제되며 복구할 수
+                  없습니다.
+                </p>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    확인을 위해 워크스페이스 이름을 입력하세요:
+                  </label>
+                  <input
+                    type="text"
+                    value={deleteConfirmation}
+                    onChange={(e) => setDeleteConfirmation(e.target.value)}
+                    placeholder={workspace?.name}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={handleDeleteWorkspace}
+                    disabled={deleteConfirmation !== workspace?.name}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    삭제
+                  </button>
                 </div>
               </div>
             </div>
