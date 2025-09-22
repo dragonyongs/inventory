@@ -1,9 +1,8 @@
-// src/components/AuthGuard.tsx
-
+// src/components/AuthGuard.tsx (개선된 버전)
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
-import { Package } from "lucide-react";
+import { Package, Loader2 } from "lucide-react";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -19,18 +18,28 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
     }
   }, [isAuthenticated, navigate]);
 
-  // 로딩 중일 때 더 나은 UI
+  // 로딩 중일 때 개선된 UI
   if (!isAuthenticated || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4 animate-pulse">
-            <Package className="w-8 h-8 text-white" />
+        <div className="text-center space-y-4">
+          <div className="flex items-center justify-center w-16 h-16 mx-auto bg-blue-100 rounded-full">
+            {isAuthenticated ? (
+              <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+            ) : (
+              <Package className="w-8 h-8 text-blue-600" />
+            )}
           </div>
-          <div className="text-lg font-medium text-gray-900 mb-2">
-            로그인 확인 중...
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">
+              {isAuthenticated ? "사용자 정보 로드 중..." : "인증이 필요합니다"}
+            </h2>
+            <p className="text-gray-600">
+              {isAuthenticated
+                ? "잠시만 기다려주세요..."
+                : "로그인 페이지로 이동합니다..."}
+            </p>
           </div>
-          <div className="text-sm text-gray-500">잠시만 기다려주세요</div>
         </div>
       </div>
     );

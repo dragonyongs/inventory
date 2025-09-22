@@ -1,5 +1,5 @@
-// src/components/WorkspaceSelector.tsx
-import { useState, useRef, useEffect } from "react";
+// src/components/WorkspaceSelector.tsx (개선된 버전)
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   ChevronDown,
   Plus,
@@ -20,18 +20,22 @@ export const WorkspaceSelector = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const workspaces = useWorkspaceStore((s) => s.workspaces);
-  const currentId = useWorkspaceStore((s) => s.currentId);
+  const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
   const setCurrentWorkspaceId = useWorkspaceStore(
     (s) => s.setCurrentWorkspaceId
-  ); // ✅ 올바른 함수명
+  );
   const createWorkspace = useWorkspaceStore((s) => s.createWorkspace);
   const getUserRole = useWorkspaceStore((s) => s.getUserRole);
   const user = useAuthStore((s) => s.user);
 
-  const currentWorkspace = workspaces.find((ws) => ws.id === currentId);
+  // 현재 워크스페이스 메모이제이션
+  const currentWorkspace = useMemo(
+    () => workspaces.find((ws) => ws.id === currentWorkspaceId),
+    [workspaces, currentWorkspaceId]
+  );
 
   const handleWorkspaceSelect = (workspaceId: string) => {
-    setCurrentWorkspaceId(workspaceId); // ✅ 올바른 호출
+    setCurrentWorkspaceId(workspaceId);
     setIsOpen(false);
   };
 
@@ -73,12 +77,22 @@ export const WorkspaceSelector = () => {
     if (!user) return null;
     const role = getUserRole(workspaceId, user.id);
     return role === "owner" ? (
-      <Crown className="w-4 h-4 text-yellow-500" />
+      <Crown className="w-4 h-4 text-yellow-600" />
     ) : role === "admin" ? (
-      <Settings className="w-4 h-4 text-blue-500" />
+      <Settings className="w-4 h-4 text-blue-600" />
     ) : (
-      <Users className="w-4 h-4 text-gray-500" />
+      <Users className="w-4 h-4 text-gray-600" />
     );
+  };
+
+  const getDisplayText = () => {
+    if (!currentWorkspace) return "워크스페이스 선택";
+    return currentWorkspace.name;
+  };
+
+  const getCurrentRole = () => {
+    if (!currentWorkspace || !user) return null;
+    return getUserRole(currentWorkspace.id, user.id);
   };
 
   return (
@@ -87,19 +101,16 @@ export const WorkspaceSelector = () => {
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-blue-50 hover:from-gray-100 hover:to-blue-100 rounded-lg transition-colors group"
       >
-        <div className="flex items-center space-x-3 min-w-0 flex-1">
-          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-            <Building2 className="w-4 h-4 text-white" />
-          </div>
-          <div className="min-w-0 flex-1 text-left">
-            <p className="font-medium text-gray-900 truncate">
-              {currentWorkspace?.name || "워크스페이스 선택"}
-            </p>
-            <p className="text-xs text-gray-500 truncate">
-              {currentWorkspace &&
-                user &&
-                getUserRole(currentWorkspace.id, user.id)}
-            </p>
+        <div className="flex items-center space-x-3">
+          <Building2 className="w-5 h-5 text-blue-600" />
+          <div className="text-left">
+            <div className="font-medium text-gray-900">{getDisplayText()}</div>
+            {currentWorkspace && getCurrentRole() && (
+              <div className="text-xs text-gray-500 flex items-center space-x-1">
+                {getRoleIcon(currentWorkspace.id)}
+                <span>{getCurrentRole()}</span>
+              </div>
+            )}
           </div>
         </div>
         <ChevronDown
@@ -111,46 +122,41 @@ export const WorkspaceSelector = () => {
 
       {/* 드롭다운 메뉴 */}
       {isOpen && (
-        <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-xl shadow-xl border border-gray-200 z-50">
-          <div className="p-3 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900">
+        <div className="absolute right-0 left-0 bottom-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+          <div className="p-2">
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wider px-3 py-2">
               워크스페이스
-            </h3>
-          </div>
+            </div>
 
-          {/* 워크스페이스 목록 */}
-          <div className="max-h-60 overflow-y-auto">
+            {/* 워크스페이스 목록 */}
             {workspaces.map((workspace) => (
               <button
                 key={workspace.id}
                 onClick={() => handleWorkspaceSelect(workspace.id)}
-                className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition-colors"
+                className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition-colors rounded-lg"
               >
-                <div className="flex items-center space-x-3 min-w-0 flex-1">
-                  <div className="w-6 h-6 bg-gradient-to-r from-blue-400 to-blue-500 rounded flex items-center justify-center">
-                    <Building2 className="w-3 h-3 text-white" />
-                  </div>
-                  <div className="min-w-0 flex-1 text-left">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                <div className="flex items-center space-x-3">
+                  <Building2 className="w-4 h-4 text-gray-400" />
+                  <div className="text-left">
+                    <div className="font-medium text-gray-900">
                       {workspace.name}
-                    </p>
-                    <div className="flex items-center space-x-1">
+                    </div>
+                    <div className="text-xs text-gray-500 flex items-center space-x-2">
                       {getRoleIcon(workspace.id)}
-                      <span className="text-xs text-gray-500">
-                        {workspace.members.length}명
-                      </span>
+                      <span>{workspace.members.length}명</span>
                     </div>
                   </div>
                 </div>
-                {currentId === workspace.id && (
+                {currentWorkspaceId === workspace.id && (
                   <Check className="w-4 h-4 text-blue-600" />
                 )}
               </button>
             ))}
-          </div>
 
-          {/* 워크스페이스 생성 */}
-          <div className="border-t border-gray-100">
+            {/* 구분선 */}
+            <div className="border-t border-gray-200 my-2" />
+
+            {/* 워크스페이스 생성 */}
             {showCreateForm ? (
               <form onSubmit={handleCreateWorkspace} className="p-3 space-y-3">
                 <input
@@ -161,12 +167,12 @@ export const WorkspaceSelector = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   autoFocus
                 />
-                <input
-                  type="text"
+                <textarea
                   value={newWorkspaceDescription}
                   onChange={(e) => setNewWorkspaceDescription(e.target.value)}
                   placeholder="설명 (선택)"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  rows={2}
                 />
                 <div className="flex space-x-2">
                   <button
@@ -187,12 +193,10 @@ export const WorkspaceSelector = () => {
             ) : (
               <button
                 onClick={() => setShowCreateForm(true)}
-                className="w-full flex items-center space-x-3 p-3 hover:bg-gray-50 transition-colors text-left"
+                className="w-full flex items-center space-x-3 p-3 hover:bg-gray-50 transition-colors text-left rounded-lg"
               >
-                <div className="w-6 h-6 border-2 border-dashed border-gray-300 rounded flex items-center justify-center">
-                  <Plus className="w-3 h-3 text-gray-400" />
-                </div>
-                <span className="text-sm font-medium text-gray-700">
+                <Plus className="w-4 h-4 text-blue-600" />
+                <span className="font-medium text-gray-900">
                   새 워크스페이스
                 </span>
               </button>
