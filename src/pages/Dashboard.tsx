@@ -1,6 +1,5 @@
 // src/pages/Dashboard.tsx
-
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import {
   BarChart3,
   Package,
@@ -23,8 +22,9 @@ import {
   useAllStockByItems,
   useAllExpiringItems,
 } from "../stores/selectors";
-import { useWorkspaceInit } from "../hooks/useWorkspaceInit";
-import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
+// ⛔ 중복 생성 원인 제거
+// import { useWorkspaceInit } from "../hooks/useWorkspaceInit";
+// import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import type { Movement } from "../stores/movementsStore";
 import {
@@ -266,11 +266,32 @@ const EmptyState = ({ currentWorkspace }: { currentWorkspace: any }) => (
 );
 
 export default function Dashboard() {
-  // 워크스페이스 동기화 (워크스페이스 변경 감지)
-  useWorkspaceSync();
+  // ✅ 워크스페이스 초기화 로직 변경 - 중복 생성 방지
+  const {
+    currentWorkspaceId,
+    getCurrentWorkspace,
+    ensureDefaultWorkspace,
+    isInitialized,
+  } = useWorkspaceStore();
 
-  const { isLoading, isReady, currentWorkspace } = useWorkspaceInit();
-  const { currentWorkspaceId } = useWorkspaceStore();
+  const currentWorkspace = getCurrentWorkspace();
+
+  // ✅ 워크스페이스 초기화 - 단순화
+  useEffect(() => {
+    console.log("Dashboard useEffect:", { isInitialized, currentWorkspaceId });
+
+    // 이미 초기화되어있고 현재 워크스페이스가 있으면 추가 처리 안함
+    if (isInitialized && currentWorkspaceId) {
+      console.log("✅ Dashboard: 워크스페이스 이미 준비됨");
+      return;
+    }
+
+    // 초기화되지 않았을 때만 처리
+    if (!isInitialized) {
+      console.log("🎯 Dashboard: 워크스페이스 초기화 필요");
+      ensureDefaultWorkspace();
+    }
+  }, [isInitialized, currentWorkspaceId, ensureDefaultWorkspace]);
 
   // 🔧 데이터 훅들
   const items = useItemList();
@@ -286,16 +307,16 @@ export default function Dashboard() {
   console.log("movements:", movements?.length || 0, "개");
   console.log(
     "allStockByItems:",
+    typeof allStockByItems,
     Object.keys(allStockByItems || {}).length,
     "개"
   );
   console.log("expiringItemsSet:", expiringItemsSet?.size || 0, "개");
-  console.log("isLoading:", isLoading);
-  console.log("isReady:", isReady);
+  console.log("isInitialized:", isInitialized);
 
-  // 통계 계산
+  // ✅ 통계 계산 - reduce 에러 수정
   const stats = useMemo(() => {
-    if (!items || !movements || !allStockByItems) {
+    if (!items || !movements) {
       console.log("통계 계산 건너뛰기: 데이터 없음");
       return {
         totalItems: 0,
@@ -306,9 +327,29 @@ export default function Dashboard() {
     }
 
     const totalItems = items.length;
-    const lowStockItems = items.filter(
-      (item: any) => (allStockByItems[item.id] || 0) <= (item.minStock || 5)
-    ).length;
+
+    // ✅ stockByItems 배열/객체 처리 수정
+    let stockByItemsArray = [];
+    if (Array.isArray(allStockByItems)) {
+      stockByItemsArray = allStockByItems;
+    } else if (allStockByItems && typeof allStockByItems === "object") {
+      // 객체인 경우 값들을 배열로 변환하여 처리
+      stockByItemsArray = items.map((item) => ({
+        ...item,
+        stock: allStockByItems[item.id] || 0,
+      }));
+    } else {
+      stockByItemsArray = items.map((item) => ({
+        ...item,
+        stock: item.stock || 0,
+      }));
+    }
+
+    const lowStockItems = stockByItemsArray.filter((item: any) => {
+      const currentStock = item.stock || 0;
+      const minStock = item.minStock || 5;
+      return currentStock <= minStock;
+    }).length;
 
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -318,10 +359,21 @@ export default function Dashboard() {
       return movementDate >= sevenDaysAgo;
     }).length;
 
-    const totalStock = Object.values(allStockByItems).reduce(
-      (sum, stock) => sum + stock,
-      0
-    );
+    // ✅ totalStock 계산 수정
+    let totalStock = 0;
+    if (Array.isArray(allStockByItems)) {
+      totalStock = allStockByItems.reduce(
+        (sum, item: any) => sum + (item.stock || 0),
+        0
+      );
+    } else if (allStockByItems && typeof allStockByItems === "object") {
+      totalStock = Object.values(allStockByItems).reduce(
+        (sum: number, stock: any) => sum + (stock || 0),
+        0
+      );
+    } else {
+      totalStock = items.reduce((sum, item: any) => sum + (item.stock || 0), 0);
+    }
 
     const calculatedStats = {
       totalItems,
@@ -390,23 +442,36 @@ export default function Dashboard() {
 
   // 재고 부족 품목
   const lowStockItems = useMemo(() => {
-    if (!items || !allStockByItems) {
+    if (!items) {
       console.log("lowStockItems 계산 건너뛰기: 데이터 없음");
       return [];
     }
 
     const lowItems = items
-      .filter(
-        (item: any) => (allStockByItems[item.id] || 0) <= (item.minStock || 5)
-      )
+      .filter((item: any) => {
+        let currentStock = 0;
+        if (allStockByItems && typeof allStockByItems === "object") {
+          currentStock = allStockByItems[item.id] || item.stock || 0;
+        } else {
+          currentStock = item.stock || 0;
+        }
+        const minStock = item.minStock || 5;
+        return currentStock <= minStock;
+      })
       .slice(0, 5);
 
     console.log("lowStockItems 계산 결과:", lowItems.length, "개");
     return lowItems;
   }, [items, allStockByItems]);
 
+  // 🔧 로딩 상태 체크 개선
+  if (!isInitialized) {
+    console.log("Dashboard: 초기화 대기중");
+    return <DashboardSkeleton />;
+  }
+
   // 🔧 워크스페이스가 없을 때 처리
-  if (!currentWorkspace && !isLoading) {
+  if (!currentWorkspace) {
     return (
       <div className="p-6 text-center">
         <div className="max-w-md mx-auto">
@@ -432,6 +497,11 @@ export default function Dashboard() {
       </div>
     );
   }
+
+  console.log("Dashboard: 렌더링", {
+    workspaceName: currentWorkspace.name,
+    itemsCount: items?.length || 0,
+  });
 
   // 도우미 함수들
   const getMovementIcon = (type: string) => {
@@ -485,26 +555,6 @@ export default function Dashboard() {
     return labels[type as keyof typeof labels] || type;
   };
 
-  // 로딩 중일 때
-  if (isLoading) {
-    return <DashboardSkeleton />;
-  }
-
-  // 워크스페이스가 준비되지 않았을 때
-  if (!isReady) {
-    return (
-      <div className="p-6 lg:p-8 max-w-7xl mx-auto">
-        <div className="text-center py-12">
-          <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4 animate-pulse" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            워크스페이스 설정 중
-          </h2>
-          <p className="text-gray-600">잠시만 기다려주세요...</p>
-        </div>
-      </div>
-    );
-  }
-
   // 데이터가 없을 때 (빈 상태)
   if (stats.totalItems === 0) {
     return <EmptyState currentWorkspace={currentWorkspace} />;
@@ -514,7 +564,7 @@ export default function Dashboard() {
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       {/* 🔧 개발 모드에서 디버깅 정보 표시 */}
-      {process.env.NODE_ENV === "development" && (
+      {import.meta.env.DEV && (
         <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm">
           <strong>디버그 정보:</strong>
           <br />
@@ -733,31 +783,44 @@ export default function Dashboard() {
             <div className="p-6">
               {lowStockItems.length > 0 ? (
                 <div className="space-y-3">
-                  {lowStockItems.map((item: any, index) => (
-                    <div
-                      key={`${item.id}-${index}`}
-                      className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div className="p-1 bg-red-100 rounded">
-                          <Package className="w-4 h-4 text-red-600" />
-                        </div>
-                        <div>
-                          <span className="text-sm font-medium text-gray-900">
-                            {item.name}
-                          </span>
-                          <div className="text-xs text-gray-500">
-                            최소재고: {item.minStock || 5}개
+                  {lowStockItems.map((item: any, index) => {
+                    let currentStock = 0;
+                    if (
+                      allStockByItems &&
+                      typeof allStockByItems === "object"
+                    ) {
+                      currentStock =
+                        allStockByItems[item.id] || item.stock || 0;
+                    } else {
+                      currentStock = item.stock || 0;
+                    }
+
+                    return (
+                      <div
+                        key={`${item.id}-${index}`}
+                        className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="p-1 bg-red-100 rounded">
+                            <Package className="w-4 h-4 text-red-600" />
+                          </div>
+                          <div>
+                            <span className="text-sm font-medium text-gray-900">
+                              {item.name}
+                            </span>
+                            <div className="text-xs text-gray-500">
+                              최소재고: {item.minStock || 5}개
+                            </div>
                           </div>
                         </div>
+                        <div className="text-right">
+                          <span className="text-sm font-semibold text-red-600">
+                            {currentStock}개
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <span className="text-sm font-semibold text-red-600">
-                          {allStockByItems[item.id] || 0}개
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8">

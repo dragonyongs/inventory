@@ -7,9 +7,9 @@ export interface Item {
   name: string;
   sku?: string;
   barcode?: string;
-  stock: number;
+  stock: number; // ✅ 실제 재고 수량
   category?: string;
-  minStock?: number;
+  minStock?: number; // ✅ 알림 기준만 (재고에 합산 X)
   defaultPrice?: number;
   createdAt: string;
   workspaceId: string;
@@ -115,18 +115,20 @@ export const useItemsStore = create<ItemsStore>()(
           );
         }
 
+        // ✅ 수정: stock은 정확히 전달된 값만 사용
         const item: Item = {
           ...itemData,
           id: globalThis.crypto?.randomUUID?.() ?? `item_${Date.now()}`,
-          stock: itemData.stock ?? 0,
+          stock: itemData.stock ?? 0, // ✅ 전달된 값 그대로 사용 (Inventory에서 0 전달)
           createdAt: new Date().toISOString(),
           workspaceId: currentWorkspaceId,
         };
 
-        console.log("새 아이템 생성:", {
+        console.log("✅ 아이템 생성 (addItem):", {
           itemId: item.id,
-          workspaceId: currentWorkspaceId,
           name: item.name,
+          stock: item.stock, // ✅ 0이어야 정상
+          minStock: item.minStock,
         });
 
         set((state) => ({
@@ -161,8 +163,19 @@ export const useItemsStore = create<ItemsStore>()(
           if (!item) return state;
 
           const { workspaceId, ...allowedUpdates } = updates as any;
+
+          // ✅ 업데이트 시에도 stock과 minStock 분리 유지
+          const updatedItem = { ...item, ...allowedUpdates };
+
+          console.log("✅ 아이템 업데이트:", {
+            itemId: id,
+            oldStock: item.stock,
+            newStock: updatedItem.stock,
+            minStockAlert: updatedItem.minStock,
+          });
+
           return {
-            items: { ...state.items, [id]: { ...item, ...allowedUpdates } },
+            items: { ...state.items, [id]: updatedItem },
           };
         });
       },
@@ -180,10 +193,22 @@ export const useItemsStore = create<ItemsStore>()(
           const item = state.items[itemId];
           if (!item) return state;
 
+          const newStock = Math.max(0, item.stock + delta);
+
+          console.log("✅ 재고 조정:", {
+            itemId,
+            itemName: item.name,
+            oldStock: item.stock,
+            delta,
+            newStock,
+            minStockAlert: item.minStock,
+            isLowStock: newStock <= (item.minStock || 5),
+          });
+
           return {
             items: {
               ...state.items,
-              [itemId]: { ...item, stock: Math.max(0, item.stock + delta) },
+              [itemId]: { ...item, stock: newStock },
             },
           };
         });
@@ -194,10 +219,21 @@ export const useItemsStore = create<ItemsStore>()(
           const item = state.items[itemId];
           if (!item) return state;
 
+          const newStock = Math.max(0, stock);
+
+          console.log("✅ 재고 설정:", {
+            itemId,
+            itemName: item.name,
+            oldStock: item.stock,
+            newStock,
+            minStockAlert: item.minStock,
+            isLowStock: newStock <= (item.minStock || 5),
+          });
+
           return {
             items: {
               ...state.items,
-              [itemId]: { ...item, stock: Math.max(0, stock) },
+              [itemId]: { ...item, stock: newStock },
             },
           };
         });
@@ -216,20 +252,27 @@ export const useItemsStore = create<ItemsStore>()(
     {
       name: "inventory-items",
       storage: createJSONStorage(() => localStorage),
-      version: 5,
+      version: 6, // ✅ 버전 업그레이드로 기존 잘못된 데이터 정리
       partialize: (state) => ({ items: state.items }),
       onRehydrateStorage: () => (state) => {
         if (state) {
-          console.log("아이템 스토어 rehydrate 완료");
+          console.log("✅ 아이템 스토어 rehydrate 완료");
           const currentWorkspaceId = getCurrentWorkspaceId();
           const itemCount = Object.keys(state.items).length;
           const workspaceItems = Object.values(state.items).filter(
             (item) => item.workspaceId === currentWorkspaceId
-          ).length;
+          );
 
           console.log(
-            `총 아이템: ${itemCount}개, 현재 워크스페이스 아이템: ${workspaceItems}개`
+            `총 아이템: ${itemCount}개, 현재 워크스페이스 아이템: ${workspaceItems.length}개`
           );
+
+          // ✅ 각 아이템의 stock과 minStock 분리 확인
+          workspaceItems.forEach((item) => {
+            console.log(
+              `아이템 "${item.name}": 실제재고=${item.stock}, 알림기준=${item.minStock}`
+            );
+          });
         }
       },
     }
@@ -245,12 +288,23 @@ window.addEventListener("workspace-changed", (event: any) => {
   }
 });
 
-// 디버깅 도구
+// 디버깅 도구 (개선)
 if (typeof window !== "undefined" && import.meta.env.DEV) {
   (window as any).debugItemsStore = {
     getCurrentWorkspaceId,
     getItems: () => useItemsStore.getState().items,
     getWorkspaceItems: () => useItemsStore.getState().getWorkspaceItems(),
+    checkStockVsMinStock: () => {
+      const items = useItemsStore.getState().getWorkspaceItems();
+      console.table(
+        items.map((item) => ({
+          name: item.name,
+          actualStock: item.stock, // ✅ 실제 재고
+          minStockAlert: item.minStock || 5, // ✅ 알림 기준
+          isLowStock: item.stock <= (item.minStock || 5), // ✅ 부족 여부
+        }))
+      );
+    },
     checkWorkspaceStorage: () => {
       const storage = localStorage.getItem("inventory-workspaces");
       console.log(

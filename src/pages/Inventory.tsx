@@ -121,33 +121,43 @@ function AddItemForm({ onAdded }: { onAdded: (id: string) => void }) {
       setIsSubmitting(true);
 
       if (!f.name.trim()) {
-        setErr("상품명은 필수입니다");
+        setErr("상품명을 입력해주세요.");
         setIsSubmitting(false);
         return;
       }
 
       if (f.sku.trim() && hasSku(f.sku.trim())) {
-        setErr("이미 존재하는 SKU입니다");
+        setErr("이미 존재하는 SKU입니다.");
         setIsSubmitting(false);
         return;
       }
 
       try {
+        // ✅ 수정: 상품 생성 시 재고는 0으로 시작
         const item = addItem({
           name: f.name.trim(),
           sku: f.sku.trim() || undefined,
           barcode: f.barcode.trim() || undefined,
           minStock: typeof f.minStock === "number" ? f.minStock : 0,
           defaultPrice: typeof f.price === "number" ? f.price : undefined,
-          stock: typeof f.qty === "number" ? f.qty : 0,
+          stock: 0, // ✅ 항상 0으로 시작 (중복 방지)
           category: undefined,
           expiryDate: f.expiryDate || undefined,
           batchNumber: f.batchNumber.trim() || undefined,
           receivedDate: f.receivedDate || undefined,
         });
 
+        console.log("✅ 상품 생성 완료:", {
+          itemId: item.id,
+          name: item.name,
+          initialStock: item.stock, // 0이어야 함
+          inputQuantity: f.qty,
+        });
+
+        // ✅ 수정: 입력한 수량이 있을 때만 입고 움직임 생성
         const qty = typeof f.qty === "number" ? f.qty : 0;
         if (qty > 0) {
+          console.log("✅ 초기 입고 움직임 생성:", qty);
           await createMovement({
             type: "IN",
             itemId: item.id,
@@ -157,6 +167,8 @@ function AddItemForm({ onAdded }: { onAdded: (id: string) => void }) {
         }
 
         onAdded(item.id);
+
+        // 폼 초기화
         setF({
           name: "",
           sku: "",
@@ -166,12 +178,12 @@ function AddItemForm({ onAdded }: { onAdded: (id: string) => void }) {
           qty: "",
           expiryDate: "",
           batchNumber: "",
-          receivedDate: new Date().toISOString().split("T")[0], // 🔧 초기화시에도 오늘 날짜
+          receivedDate: new Date().toISOString().split("T")[0],
         });
         setShowAdvanced(false);
       } catch (error) {
         console.error("Movement creation failed:", error);
-        setErr("품목 추가 중 오류가 발생했습니다");
+        setErr("상품 등록 중 오류가 발생했습니다.");
       } finally {
         setIsSubmitting(false);
       }
