@@ -14,8 +14,8 @@ export const getActionLabels = (workspaceType: WorkspaceType): ActionLabels => {
   switch (workspaceType) {
     case "EVENT": // 뮤지컬 행사장
       return {
-        IN: "📦 입고 (본사→행사장)",
-        OUT: "🚚 출고 (행사장→다른곳)",
+        IN: "📦 입고 (업체→본사)",
+        OUT: "🚚 출고 (본사→행사장)",
         USE: "💰 판매",
         ADJUST: "📋 재고조정",
         TRANSFER: "🎁 증정",
