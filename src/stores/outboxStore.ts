@@ -2,7 +2,12 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type MovementKind = "IN" | "OUT" | "TRANSFER" | "ADJUST";
+export type MovementKind =
+  | "IN" // 재고 증가 (어디든 들어옴)
+  | "OUT" // 재고 감소 (어디든 나감)
+  | "USE" // 재고 감소 (현장에서 소모/사용)
+  | "ADJUST" // 재고 조정 (관리자)
+  | "TRANSFER"; // 위치 이동 (재고는 유지)
 
 export type MovementJobPayload = {
   movementId: string;

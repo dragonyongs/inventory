@@ -2,144 +2,243 @@
 
 import { useMemo } from "react";
 import { useItemsStore } from "./itemsStore";
-import { useMovementsStore, type Movement } from "./movementsStore";
-import { useLotsStore } from "./lotsStore";
+import { useMovementsStore } from "./movementsStore";
 import { useWorkspaceStore } from "./workspaceStore";
-
-const EMPTY_OBJ = {} as const;
-
-// 안정적인 셀렉터 상수 (모듈 스코프)
-const selectItemsMap = (s: any) => s.items || EMPTY_OBJ;
-const selectLotsMap = (s: any) => s.lots || EMPTY_OBJ;
-const selectMovementsById = (s: any) => s.byId || EMPTY_OBJ;
-
-export type UIMovement = Movement;
-
-export const useItemsMap = () =>
-  useItemsStore(selectItemsMap) as Record<string, any>;
+import { useLotsStore } from "./lotsStore";
 
 export const useItemList = () => {
-  const map = useItemsMap();
-  return useMemo(() => {
-    const values = Object.values(map);
-    return Array.isArray(values) ? values : [];
-  }, [map]);
-};
+  const items = useItemsStore((state) => state.items);
+  const query = useItemsStore((state) => state.query);
+  const currentWorkspaceId = useWorkspaceStore(
+    (state) => state.currentWorkspaceId
+  );
 
-export const useQuery = () => useItemsStore((s: any) => s.query);
-export const useSetQuery = () => useItemsStore((s: any) => s.setQuery);
-
-export const useVisibleItems = () => {
-  const items = useItemList();
-  const q = useQuery();
   return useMemo(() => {
-    const query = q?.trim().toLowerCase();
-    if (!query) return items;
-    return items.filter((it: any) =>
-      [it.name, it.sku, it.barcode].some((v) =>
-        v?.toLowerCase().includes(query)
-      )
+    const allItems = Object.values(items);
+    // 🔧 현재 워크스페이스의 아이템만 필터링
+    const workspaceItems = currentWorkspaceId
+      ? allItems.filter((item) => item.workspaceId === currentWorkspaceId)
+      : [];
+
+    console.log(
+      `useItemList: 전체 ${allItems.length}개 중 워크스페이스 ${workspaceItems.length}개`
     );
-  }, [items, q]);
+
+    if (!query) return workspaceItems;
+
+    const filtered = workspaceItems.filter(
+      (item) =>
+        item.name.toLowerCase().includes(query.toLowerCase()) ||
+        item.sku?.toLowerCase().includes(query.toLowerCase()) ||
+        item.barcode?.toLowerCase().includes(query.toLowerCase())
+    );
+
+    console.log(`검색 결과: ${filtered.length}개`);
+    return filtered;
+  }, [items, query, currentWorkspaceId]);
 };
 
-// 재고량 계산 - Items store 기반
-export const useStockByItem = (itemId: string) => {
-  const items = useItemsMap();
+export const useMovementList = () => {
+  // 🔧 getWorkspaceMovements 함수를 직접 호출하여 워크스페이스 필터링된 데이터 가져오기
+  const getWorkspaceMovements = useMovementsStore(
+    (state) => state.getWorkspaceMovements
+  );
+  const query = useMovementsStore((state) => state.query);
+  const currentWorkspaceId = useWorkspaceStore(
+    (state) => state.currentWorkspaceId
+  );
+
   return useMemo(() => {
-    return items[itemId]?.stock || 0;
+    if (!currentWorkspaceId) {
+      console.log("useMovementList: 워크스페이스 ID 없음");
+      return [];
+    }
+
+    // 🔧 직접 getWorkspaceMovements 호출
+    const workspaceMovements = getWorkspaceMovements();
+
+    console.log(
+      `🔍 useMovementList: 워크스페이스 ${currentWorkspaceId}의 이동 ${workspaceMovements.length}개`
+    );
+
+    if (!query) return workspaceMovements;
+
+    const filtered = workspaceMovements.filter(
+      (movement) =>
+        movement.itemId.toLowerCase().includes(query.toLowerCase()) ||
+        movement.type.toLowerCase().includes(query.toLowerCase()) ||
+        movement.note?.toLowerCase().includes(query.toLowerCase()) ||
+        movement.reason?.toLowerCase().includes(query.toLowerCase())
+    );
+
+    console.log(`검색된 이동: ${filtered.length}개`);
+    return filtered;
+  }, [getWorkspaceMovements, query, currentWorkspaceId]);
+};
+
+// 🔧 누락된 함수들 추가
+export const useVisibleItems = () => {
+  return useItemList(); // useItemList와 동일한 기능
+};
+
+export const useStockByItem = (itemId: string) => {
+  const items = useItemsStore((state) => state.items);
+
+  return useMemo(() => {
+    const item = items[itemId];
+    return item?.stock || 0;
   }, [items, itemId]);
 };
 
-// 만료 임박 확인
-export const useExpiringSoonByItem = (itemId: string, days = 30) => {
-  const lots = useLotsStore(selectLotsMap);
+export const useExpiringSoonByItem = (itemId: string, days: number = 30) => {
+  const lots = useLotsStore((state) => state.lots);
+
   return useMemo(() => {
-    return Object.values(lots).some((l: any) => {
-      if (l.itemId !== itemId || !l.expiresAt) return false;
-      const diff = new Date(l.expiresAt).getTime() - Date.now();
-      return diff > 0 && diff < days * 86400000;
+    const itemLots = Object.values(lots).filter((lot) => lot.itemId === itemId);
+    const thresholdDate = new Date();
+    thresholdDate.setDate(thresholdDate.getDate() + days);
+
+    const expiringSoon = itemLots.some((lot) => {
+      if (!lot.expiresAt) return false;
+      return new Date(lot.expiresAt) <= thresholdDate;
     });
+
+    return expiringSoon;
   }, [lots, itemId, days]);
 };
 
-// 모든 아이템의 재고량
+export const useSetQuery = () => {
+  const setQuery = useItemsStore((state) => state.setQuery);
+  return setQuery;
+};
+
+export const useQuery = () => {
+  const query = useItemsStore((state) => state.query);
+  return query;
+};
+
+// 🔧 Dashboard에서 사용하는 함수들 추가
 export const useAllStockByItems = () => {
-  const items = useItemsMap();
+  const items = useItemList(); // 이미 워크스페이스 필터링됨
+
   return useMemo(() => {
-    if (!items || typeof items !== "object") return {};
-    const stockMap: Record<string, number> = {};
-    Object.values(items).forEach((item: any) => {
-      if (item?.id) {
-        stockMap[item.id] = item.stock || 0;
-      }
-    });
-    return stockMap;
+    return items.reduce((acc, item) => {
+      acc[item.id] = item.stock;
+      return acc;
+    }, {} as Record<string, number>);
   }, [items]);
 };
 
-// 모든 만료 임박 아이템
-export const useAllExpiringItems = (days = 30) => {
-  const lots = useLotsStore(selectLotsMap);
+export const useAllExpiringItems = (days: number = 7) => {
+  const items = useItemList(); // 이미 워크스페이스 필터링됨
+  const lots = useLotsStore((state) => state.lots);
+
   return useMemo(() => {
-    if (!lots || typeof lots !== "object") return new Set<string>();
-    const expiringSet = new Set<string>();
-    const cutoffTime = Date.now() + days * 86400000;
-    Object.values(lots).forEach((l: any) => {
-      if (!l?.itemId || !l?.expiresAt) return;
-      const expiresTime = new Date(l.expiresAt).getTime();
-      if (expiresTime > Date.now() && expiresTime < cutoffTime) {
-        expiringSet.add(l.itemId);
-      }
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + days);
+
+    const expiringItems = items.filter((item) => {
+      const itemLots = Object.values(lots).filter(
+        (lot) => lot.itemId === item.id && lot.workspaceId === item.workspaceId
+      );
+
+      return itemLots.some((lot) => {
+        if (!lot.expiresAt) return false;
+        return new Date(lot.expiresAt) <= targetDate;
+      });
     });
-    return expiringSet;
-  }, [lots, days]);
+
+    // 🔧 Set으로 변환하여 .has() 메소드 사용 가능하게 수정
+    return new Set(expiringItems.map((item) => item.id));
+  }, [items, lots, days]);
 };
 
-// ✅ 수정된 useMovementList - 타입 안전성 강화
-export const useMovementList = (): Movement[] => {
-  const byId = useMovementsStore(selectMovementsById);
+export const useItemStats = () => {
+  const items = useItemList(); // 이미 워크스페이스 필터링됨
+
   return useMemo(() => {
-    const movements = Object.values(byId) as Movement[];
-    return movements.sort((a, b) => {
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    const totalItems = items.length;
+    const lowStockItems = items.filter((item) => {
+      const minStock = item.minStock || 0;
+      return item.stock <= minStock;
     });
-  }, [byId]);
+    const outOfStockItems = items.filter((item) => item.stock === 0);
+    const totalValue = items.reduce((sum, item) => {
+      const price = item.defaultPrice || 0;
+      return sum + price * item.stock;
+    }, 0);
+
+    console.log(
+      `아이템 통계: 총 ${totalItems}개, 부족 ${lowStockItems.length}개, 품절 ${outOfStockItems.length}개`
+    );
+
+    return {
+      totalItems,
+      lowStockItems: lowStockItems.length,
+      outOfStockItems: outOfStockItems.length,
+      totalValue,
+    };
+  }, [items]);
 };
 
-// ✅ 대안: getVisible 사용 (쿼리 필터링 포함)
-export const useFilteredMovementList = (): Movement[] => {
-  return useMovementsStore((s) => {
-    const result = s.getVisible?.();
-    return Array.isArray(result) ? (result as Movement[]) : [];
-  });
-};
+export const useMovementStats = () => {
+  const movements = useMovementList(); // 이미 워크스페이스 필터링됨
 
-// ✅ 수정된 useSortedMovements - 이제 타입 에러 없음
-export const useSortedMovements = (): Movement[] => {
-  const movements = useMovementList();
   return useMemo(() => {
-    // movements가 이미 Movement[] 타입이므로 추가 타입 캐스팅 불필요
-    return [...movements].sort((a, b) => {
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
+    const today = new Date().toDateString();
+    const todayMovements = movements.filter(
+      (movement) => new Date(movement.createdAt).toDateString() === today
+    );
+
+    const recentMovements = movements
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+      .slice(0, 10);
+
+    console.log(
+      `이동 통계: 총 ${movements.length}개, 오늘 ${todayMovements.length}개`
+    );
+
+    return {
+      totalMovements: movements.length,
+      todayMovements: todayMovements.length,
+      recentMovements,
+    };
   }, [movements]);
 };
 
-// 워크스페이스 관련 selectors
-export const useCurrentWorkspace = () => {
-  const workspaces = useWorkspaceStore((s) => s.workspaces);
-  const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
+export const useLowStockItems = () => {
+  const items = useItemList(); // 이미 워크스페이스 필터링됨
+
   return useMemo(() => {
-    return workspaces.find((ws) => ws.id === currentWorkspaceId) || null;
-  }, [workspaces, currentWorkspaceId]);
+    return items
+      .filter((item) => {
+        const minStock = item.minStock || 0;
+        return item.stock <= minStock;
+      })
+      .sort((a, b) => a.stock - b.stock);
+  }, [items]);
 };
 
-export const useCurrentWorkspaceId = () => {
-  return useWorkspaceStore((s) => s.currentWorkspaceId);
-};
+export const useExpiringItems = (days: number = 30) => {
+  const items = useItemList(); // 이미 워크스페이스 필터링됨
+  const lots = useLotsStore((state) => state.lots);
 
-// 하위 호환성을 위한 별칭
-export const useCurrentId = () => {
-  return useWorkspaceStore((s) => s.currentWorkspaceId);
+  return useMemo(() => {
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + days);
+
+    return items.filter((item) => {
+      const itemLots = Object.values(lots).filter(
+        (lot) => lot.itemId === item.id && lot.workspaceId === item.workspaceId
+      );
+
+      return itemLots.some((lot) => {
+        if (!lot.expiresAt) return false;
+        return new Date(lot.expiresAt) <= targetDate;
+      });
+    });
+  }, [items, lots, days]);
 };

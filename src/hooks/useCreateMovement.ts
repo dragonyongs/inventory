@@ -1,54 +1,37 @@
 // src/hooks/useCreateMovement.ts
+
 import { useCallback } from "react";
 import { useMovementsStore, type MovementKind } from "../stores/movementsStore";
 import { useItemsStore } from "../stores/itemsStore";
 
 export const useCreateMovement = () => {
-  const createMovement = useMovementsStore((s) => s.create);
-  const adjustStock = useItemsStore((s) => s.adjustStock);
+  const createMovement = useMovementsStore((state) => state.create);
+  const adjustStock = useItemsStore((state) => state.adjustStock);
 
   return useCallback(
-    async ({
-      itemId,
-      type,
-      qty,
-      reason,
-    }: {
+    (params: {
       itemId: string;
       type: MovementKind;
       qty: number;
       reason?: string;
+      note?: string;
     }) => {
-      // Movement 생성
-      const movement = createMovement({ itemId, type, qty, reason });
+      console.log("🔄 이동 생성:", params);
 
-      // 재고 조정
-      let delta = 0;
-      switch (type) {
-        case "IN":
-          delta = qty;
-          break;
-        case "OUT":
-          delta = -qty;
-          break;
-        case "ADJUST":
-          // ADJUST의 경우 qty가 최종 재고량
-          const currentItem = useItemsStore.getState().items[itemId];
-          if (currentItem) {
-            delta = qty - currentItem.stock;
-          }
-          break;
-        case "TRANSFER":
-        case "USE":
-          delta = -qty;
-          break;
+      try {
+        // 이동 기록 생성 (워크스페이스 ID는 내부에서 자동 할당)
+        const movement = createMovement(params);
+
+        // 재고 조정
+        const delta = params.type === "IN" ? params.qty : -params.qty;
+        adjustStock(params.itemId, delta);
+
+        console.log("✅ 이동 생성 완료:", movement.id, `재고 변화: ${delta}`);
+        return movement;
+      } catch (error) {
+        console.error("❌ 이동 생성 실패:", error);
+        throw error;
       }
-
-      if (delta !== 0) {
-        adjustStock(itemId, delta);
-      }
-
-      return movement;
     },
     [createMovement, adjustStock]
   );

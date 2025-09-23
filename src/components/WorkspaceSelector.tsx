@@ -1,209 +1,301 @@
-// src/components/WorkspaceSelector.tsx (개선된 버전)
-import { useState, useRef, useEffect, useMemo } from "react";
+// src/components/WorkspaceSelector.tsx
+
+import React, { useState } from "react";
 import {
-  ChevronDown,
-  Plus,
   Building2,
+  Plus,
   Check,
-  Settings,
   Users,
-  Crown,
+  Settings,
+  ChevronDown,
+  X,
 } from "lucide-react";
 import { useWorkspaceStore } from "../stores/workspaceStore";
+import type { WorkspaceType } from "../stores/workspaceStore";
 import { useAuthStore } from "../stores/authStore";
+import {
+  getWorkspaceTypeOptions,
+  getWorkspaceTypeLabel,
+} from "../utils/workspaceLabels";
 
-export const WorkspaceSelector = () => {
+export default function WorkspaceSelector() {
   const [isOpen, setIsOpen] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newWorkspaceName, setNewWorkspaceName] = useState("");
-  const [newWorkspaceDescription, setNewWorkspaceDescription] = useState("");
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const workspaces = useWorkspaceStore((s) => s.workspaces);
-  const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
-  const setCurrentWorkspaceId = useWorkspaceStore(
-    (s) => s.setCurrentWorkspaceId
-  );
-  const createWorkspace = useWorkspaceStore((s) => s.createWorkspace);
-  const getUserRole = useWorkspaceStore((s) => s.getUserRole);
-  const user = useAuthStore((s) => s.user);
+  const {
+    workspaces,
+    currentWorkspaceId,
+    setCurrentWorkspaceId,
+    createWorkspace,
+    getCurrentWorkspace,
+  } = useWorkspaceStore();
+  const user = useAuthStore((state) => state.user);
 
-  // 현재 워크스페이스 메모이제이션
-  const currentWorkspace = useMemo(
-    () => workspaces.find((ws) => ws.id === currentWorkspaceId),
-    [workspaces, currentWorkspaceId]
-  );
+  const currentWorkspace = getCurrentWorkspace();
 
-  const handleWorkspaceSelect = (workspaceId: string) => {
+  const [newWorkspace, setNewWorkspace] = useState({
+    name: "",
+    description: "",
+    type: "DEFAULT" as WorkspaceType,
+  });
+
+  const handleCreateWorkspace = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newWorkspace.name.trim() || !user) return;
+
+    createWorkspace({
+      name: newWorkspace.name.trim(),
+      description: newWorkspace.description.trim(),
+      type: newWorkspace.type,
+      ownerId: user.id,
+      members: [
+        {
+          userId: user.id,
+          email: user.email,
+          name: user.name,
+          role: "owner",
+          joinedAt: new Date().toISOString(),
+          invitedBy: user.id,
+        },
+      ],
+      settings: {
+        allowMemberInvite: true,
+        defaultRole: "member",
+      },
+    });
+
+    setNewWorkspace({ name: "", description: "", type: "DEFAULT" });
+    setShowCreateForm(false);
+    setIsOpen(false);
+  };
+
+  const handleSelectWorkspace = (workspaceId: string) => {
     setCurrentWorkspaceId(workspaceId);
     setIsOpen(false);
   };
 
-  // 외부 클릭시 드롭다운 닫기
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-        setShowCreateForm(false);
-      }
-    };
+  const typeOptions = getWorkspaceTypeOptions();
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  if (showCreateForm) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-xl max-w-md w-full p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+              <Plus className="w-5 h-5 mr-2" />새 워크스페이스
+            </h2>
+            <button
+              onClick={() => setShowCreateForm(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
-  const handleCreateWorkspace = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newWorkspaceName.trim()) return;
+          <form onSubmit={handleCreateWorkspace} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                워크스페이스 이름 *
+              </label>
+              <input
+                type="text"
+                value={newWorkspace.name}
+                onChange={(e) =>
+                  setNewWorkspace({ ...newWorkspace, name: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="예: 마케팅팀 재고"
+                required
+              />
+            </div>
 
-    try {
-      createWorkspace(
-        newWorkspaceName.trim(),
-        newWorkspaceDescription.trim() || undefined
-      );
-      setNewWorkspaceName("");
-      setNewWorkspaceDescription("");
-      setShowCreateForm(false);
-      setIsOpen(false);
-    } catch (error) {
-      console.error("Failed to create workspace:", error);
-    }
-  };
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                워크스페이스 타입 *
+              </label>
+              <select
+                value={newWorkspace.type}
+                onChange={(e) =>
+                  setNewWorkspace({
+                    ...newWorkspace,
+                    type: e.target.value as WorkspaceType,
+                  })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                {typeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label} - {option.description}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                워크스페이스 타입에 따라 재고 관리 방식이 달라집니다
+              </p>
+            </div>
 
-  const getRoleIcon = (workspaceId: string) => {
-    if (!user) return null;
-    const role = getUserRole(workspaceId, user.id);
-    return role === "owner" ? (
-      <Crown className="w-4 h-4 text-yellow-600" />
-    ) : role === "admin" ? (
-      <Settings className="w-4 h-4 text-blue-600" />
-    ) : (
-      <Users className="w-4 h-4 text-gray-600" />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                설명 (선택)
+              </label>
+              <textarea
+                value={newWorkspace.description}
+                onChange={(e) =>
+                  setNewWorkspace({
+                    ...newWorkspace,
+                    description: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="워크스페이스에 대한 간단한 설명을 입력하세요"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex space-x-3 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowCreateForm(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                취소
+              </button>
+              <button
+                type="submit"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                생성
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     );
-  };
-
-  const getDisplayText = () => {
-    if (!currentWorkspace) return "워크스페이스 선택";
-    return currentWorkspace.name;
-  };
-
-  const getCurrentRole = () => {
-    if (!currentWorkspace || !user) return null;
-    return getUserRole(currentWorkspace.id, user.id);
-  };
+  }
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-blue-50 hover:from-gray-100 hover:to-blue-100 rounded-lg transition-colors group"
+        className="flex items-center space-x-3 w-full p-3 rounded-lg hover:bg-gray-50 transition-colors"
       >
-        <div className="flex items-center space-x-3">
+        <div className="p-2 bg-blue-100 rounded-lg">
           <Building2 className="w-5 h-5 text-blue-600" />
-          <div className="text-left">
-            <div className="font-medium text-gray-900">{getDisplayText()}</div>
-            {currentWorkspace && getCurrentRole() && (
-              <div className="text-xs text-gray-500 flex items-center space-x-1">
-                {getRoleIcon(currentWorkspace.id)}
-                <span>{getCurrentRole()}</span>
-              </div>
+        </div>
+        <div className="flex-1 text-left">
+          <div className="font-medium text-gray-900 flex items-center">
+            {currentWorkspace ? (
+              <>
+                {/* {getWorkspaceTypeLabel(currentWorkspace.type || "DEFAULT")} */}
+                <span className="text-sm">{currentWorkspace.name}</span>
+              </>
+            ) : (
+              "워크스페이스 선택"
             )}
+          </div>
+          <div className="text-xs text-gray-500">
+            {currentWorkspace?.description || "워크스페이스를 선택하세요"}
           </div>
         </div>
         <ChevronDown
-          className={`w-4 h-4 text-gray-500 transition-transform ${
+          className={`w-4 h-4 text-gray-400 transition-transform ${
             isOpen ? "rotate-180" : ""
           }`}
         />
       </button>
 
-      {/* 드롭다운 메뉴 */}
       {isOpen && (
-        <div className="absolute right-0 left-0 bottom-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+        <div className="absolute bottom-0 left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-80 overflow-y-auto">
           <div className="p-2">
-            <div className="text-xs font-medium text-gray-500 uppercase tracking-wider px-3 py-2">
-              워크스페이스
+            <button
+              onClick={() => {
+                setShowCreateForm(true);
+                setIsOpen(false);
+              }}
+              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 text-blue-600"
+            >
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Plus className="w-4 h-4" />
+              </div>
+              <div className="text-left">
+                <div className="font-medium">새 워크스페이스 만들기</div>
+                <div className="text-sm text-gray-500">
+                  새로운 공간을 생성하세요
+                </div>
+              </div>
+            </button>
+          </div>
+
+          <div className="border-t border-gray-200">
+            <div className="p-2">
+              {!workspaces || workspaces.length === 0 ? (
+                <div className="p-4 text-center text-gray-500">
+                  <Building2 className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm">워크스페이스가 없습니다</p>
+                  <p className="text-xs text-gray-400">새로 만들어보세요</p>
+                </div>
+              ) : (
+                workspaces.map((workspace) => {
+                  // 🔧 안전하게 members 배열 처리
+                  const memberCount = Array.isArray(workspace.members)
+                    ? workspace.members.length
+                    : 0;
+
+                  return (
+                    <button
+                      key={workspace.id}
+                      onClick={() => handleSelectWorkspace(workspace.id)}
+                      className={`w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 ${
+                        currentWorkspaceId === workspace.id
+                          ? "bg-blue-50 border border-blue-200"
+                          : ""
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div
+                          className={`p-2 rounded-lg ${
+                            currentWorkspaceId === workspace.id
+                              ? "bg-blue-100"
+                              : "bg-gray-100"
+                          }`}
+                        >
+                          <Building2
+                            className={`w-4 h-4 ${
+                              currentWorkspaceId === workspace.id
+                                ? "text-blue-600"
+                                : "text-gray-600"
+                            }`}
+                          />
+                        </div>
+                        <div className="text-left">
+                          <div className="font-medium text-gray-900 flex items-center">
+                            {/* {getWorkspaceTypeLabel(workspace.type || "DEFAULT")} */}
+                            <span>{workspace.name}</span>
+                          </div>
+                          {workspace.description && (
+                            <div className="text-sm text-gray-500">
+                              {workspace.description}
+                            </div>
+                          )}
+                          <div className="flex items-center space-x-4 mt-1">
+                            <div className="flex items-center text-xs text-gray-400">
+                              <Users className="w-3 h-3 mr-1" />
+                              {memberCount}명
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {currentWorkspaceId === workspace.id && (
+                        <Check className="w-4 h-4 text-blue-600" />
+                      )}
+                    </button>
+                  );
+                })
+              )}
             </div>
-
-            {/* 워크스페이스 목록 */}
-            {workspaces.map((workspace) => (
-              <button
-                key={workspace.id}
-                onClick={() => handleWorkspaceSelect(workspace.id)}
-                className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition-colors rounded-lg"
-              >
-                <div className="flex items-center space-x-3">
-                  <Building2 className="w-4 h-4 text-gray-400" />
-                  <div className="text-left">
-                    <div className="font-medium text-gray-900">
-                      {workspace.name}
-                    </div>
-                    <div className="text-xs text-gray-500 flex items-center space-x-2">
-                      {getRoleIcon(workspace.id)}
-                      <span>{workspace.members.length}명</span>
-                    </div>
-                  </div>
-                </div>
-                {currentWorkspaceId === workspace.id && (
-                  <Check className="w-4 h-4 text-blue-600" />
-                )}
-              </button>
-            ))}
-
-            {/* 구분선 */}
-            <div className="border-t border-gray-200 my-2" />
-
-            {/* 워크스페이스 생성 */}
-            {showCreateForm ? (
-              <form onSubmit={handleCreateWorkspace} className="p-3 space-y-3">
-                <input
-                  type="text"
-                  value={newWorkspaceName}
-                  onChange={(e) => setNewWorkspaceName(e.target.value)}
-                  placeholder="워크스페이스 이름"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  autoFocus
-                />
-                <textarea
-                  value={newWorkspaceDescription}
-                  onChange={(e) => setNewWorkspaceDescription(e.target.value)}
-                  placeholder="설명 (선택)"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  rows={2}
-                />
-                <div className="flex space-x-2">
-                  <button
-                    type="submit"
-                    className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors"
-                  >
-                    생성
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateForm(false)}
-                    className="flex-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm hover:bg-gray-200 transition-colors"
-                  >
-                    취소
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <button
-                onClick={() => setShowCreateForm(true)}
-                className="w-full flex items-center space-x-3 p-3 hover:bg-gray-50 transition-colors text-left rounded-lg"
-              >
-                <Plus className="w-4 h-4 text-blue-600" />
-                <span className="font-medium text-gray-900">
-                  새 워크스페이스
-                </span>
-              </button>
-            )}
           </div>
         </div>
       )}
     </div>
   );
-};
+}

@@ -11,7 +11,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { DevTools } from "./DevTools";
-import { WorkspaceSelector } from "./WorkspaceSelector";
+import WorkspaceSelector from "./WorkspaceSelector";
 import { UserProfile } from "./UserProfile";
 
 export function RootLayout({ children }: { children?: React.ReactNode }) {
@@ -53,6 +53,7 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* 🔧 DevTools를 항상 렌더링 (개발 환경에서만 표시하도록 DevTools 내부에서 처리) */}
       <DevTools />
 
       {/* Mobile Header */}

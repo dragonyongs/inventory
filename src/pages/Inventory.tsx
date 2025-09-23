@@ -1,4 +1,5 @@
 // src/pages/Inventory.tsx
+
 import { useMemo, useState, useCallback } from "react";
 import {
   Plus,
@@ -23,6 +24,8 @@ import {
   useSetQuery,
   useQuery,
 } from "../stores/selectors";
+import { getActionLabels } from "../utils/workspaceLabels";
+import { useWorkspaceStore } from "../stores/workspaceStore";
 import { useItemsStore, type Item } from "../stores/itemsStore";
 import { useCreateMovement } from "../hooks/useCreateMovement";
 
@@ -226,7 +229,9 @@ function AdjustStockModal({
   onClose: () => void;
 }) {
   const createMovement = useCreateMovement();
-  const [mode, setMode] = useState<"IN" | "OUT" | "ADJUST">("IN");
+  const [adjustmentType, setAdjustmentType] = useState<
+    "IN" | "OUT" | "USE" | "ADJUST"
+  >("IN"); // 🔧 수정
   const [qty, setQty] = useState<number | "">("");
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -237,28 +242,12 @@ function AdjustStockModal({
 
     setIsSubmitting(true);
     try {
-      if (mode === "IN") {
-        await createMovement({
-          type: "IN",
-          itemId,
-          qty: n,
-          reason: reason || "조정-입고",
-        });
-      } else if (mode === "OUT") {
-        await createMovement({
-          type: "OUT",
-          itemId,
-          qty: n,
-          reason: reason || "조정-출고",
-        });
-      } else {
-        await createMovement({
-          type: "ADJUST",
-          itemId,
-          qty: n,
-          reason: reason || "재고조정",
-        });
-      }
+      await createMovement({
+        type: adjustmentType, // 🔧 수정: mode → adjustmentType
+        itemId,
+        qty: n,
+        reason: reason || `${adjustmentType} 처리`,
+      });
       onClose();
     } catch (error) {
       console.error("Adjust movement failed:", error);
@@ -266,7 +255,11 @@ function AdjustStockModal({
     } finally {
       setIsSubmitting(false);
     }
-  }, [mode, qty, reason, itemId, createMovement, onClose]);
+  }, [adjustmentType, qty, reason, itemId, createMovement, onClose]);
+
+  const getCurrentWorkspace = useWorkspaceStore((s) => s.getCurrentWorkspace);
+  const currentWorkspace = getCurrentWorkspace();
+  const actionLabels = getActionLabels(currentWorkspace?.type || "DEFAULT");
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -289,28 +282,51 @@ function AdjustStockModal({
             <label className="block text-sm font-medium text-gray-700 mb-2">
               조정 유형
             </label>
-            <div className="flex space-x-2">
-              {(
-                [
-                  ["IN", "입고", ArrowUp],
-                  ["OUT", "출고", ArrowDown],
-                  ["ADJUST", "조정", RotateCcw],
-                ] as const
-              ).map(([t, label, Icon]) => (
-                <button
-                  key={t}
-                  onClick={() => setMode(t)}
-                  type="button"
-                  className={`flex-1 flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    mode === t
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  <Icon className="w-4 h-4 mr-1" />
-                  {label}
-                </button>
-              ))}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setAdjustmentType("IN")}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  adjustmentType === "IN"
+                    ? "bg-green-100 text-green-800 border border-green-200"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {actionLabels.IN}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAdjustmentType("OUT")}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  adjustmentType === "OUT"
+                    ? "bg-red-100 text-red-800 border border-red-200"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {actionLabels.OUT}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAdjustmentType("USE")}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  adjustmentType === "USE"
+                    ? "bg-blue-100 text-blue-800 border border-blue-200"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {actionLabels.USE}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAdjustmentType("ADJUST")}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  adjustmentType === "ADJUST"
+                    ? "bg-orange-100 text-orange-800 border border-orange-200"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {actionLabels.ADJUST}
+              </button>
             </div>
           </div>
 
