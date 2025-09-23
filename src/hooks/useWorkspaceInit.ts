@@ -10,6 +10,7 @@ interface UseWorkspaceInitReturn {
   isReady: boolean;
   currentWorkspace: any;
   error: string | null;
+  needsWorkspaceSetup?: boolean;
 }
 
 export const useWorkspaceInit = (): UseWorkspaceInitReturn => {
@@ -28,6 +29,15 @@ export const useWorkspaceInit = (): UseWorkspaceInitReturn => {
 
   const currentWorkspace = getCurrentWorkspace();
 
+  // 👈 여기에 userWorkspaces 추가
+  const userWorkspaces = user?.id
+    ? workspaces.filter(
+        (ws) =>
+          ws.ownerId === user.id ||
+          (ws.members && ws.members.some((m) => m.userId === user.id))
+      )
+    : [];
+
   useEffect(() => {
     // 🔧 개발 모드에서도 forceRefresh 호출하지 않음 (무한 루프 방지)
     console.log("앱 시작 - temp 키만 정리");
@@ -41,12 +51,6 @@ export const useWorkspaceInit = (): UseWorkspaceInitReturn => {
     const initializeWorkspace = async () => {
       try {
         console.log(`🔧 워크스페이스 초기화 시작`);
-
-        const userWorkspaces = workspaces.filter(
-          (ws) =>
-            ws.ownerId === user.id ||
-            (ws.members && ws.members.some((m) => m.userId === user.id))
-        );
 
         if (userWorkspaces.length === 0) {
           console.log("🆕 기본 워크스페이스 생성 중...");
@@ -110,5 +114,7 @@ export const useWorkspaceInit = (): UseWorkspaceInitReturn => {
     isReady,
     currentWorkspace,
     error,
+    needsWorkspaceSetup:
+      userWorkspaces.length === 0 && !isLoading && !!user?.id,
   };
 };

@@ -6,16 +6,21 @@ import { useLotsStore } from "../stores/lotsStore";
 import {
   useMovementsStore,
   type Movement,
-  type MovementKind,
+  type MovementType,
 } from "../stores/movementsStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import type { Item as DomainItem } from "../types/domain";
+
+// DomainItem을 확장하여 workspaceId 포함
+interface ExtendedDomainItem extends DomainItem {
+  workspaceId?: string;
+}
 
 interface DomainMovement {
   id: string;
   workspaceId?: string;
   itemId: string;
-  type: MovementKind;
+  type: MovementType;
   qty: number;
   reason?: string;
   createdAt?: string;
@@ -45,11 +50,14 @@ export function useBootstrapInventory() {
         if (cancelRef.current) return;
 
         // 도메인 Item을 스토어 Item으로 변환 (stock 필드 추가)
-        const storeItems: StoreItem[] = domainItems.map((item: DomainItem) => ({
-          ...item,
-          stock: item.stock ?? 0,
-          createdAt: item.createdAt || new Date().toISOString(),
-        }));
+        const storeItems: StoreItem[] = domainItems.map(
+          (item: ExtendedDomainItem) => ({
+            ...item,
+            workspaceId: item.workspaceId || wsId,
+            stock: item.stock ?? 0,
+            createdAt: item.createdAt || new Date().toISOString(),
+          })
+        );
 
         // 도메인 Movement를 스토어 Movement로 변환
         const storeMovements: Movement[] = domainMovements.map(

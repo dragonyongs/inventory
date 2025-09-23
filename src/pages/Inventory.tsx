@@ -272,6 +272,7 @@ function AddItemForm({ onAdded }: { onAdded: (id: string) => void }) {
                 value={f.receivedDate}
                 onChange={(v) => setF((s) => ({ ...s, receivedDate: v }))}
                 type="date"
+                placeholder="수량 입력"
                 required={true}
               />
             </div>

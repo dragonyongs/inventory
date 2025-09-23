@@ -7,7 +7,6 @@ import {
   Eye,
   EyeOff,
   RefreshCw,
-  Database,
   Settings,
   AlertTriangle,
   CheckCircle,

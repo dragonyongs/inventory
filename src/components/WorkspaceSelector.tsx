@@ -1,14 +1,6 @@
 // src/components/WorkspaceSelector.tsx
 import React, { useState, useEffect } from "react";
-import {
-  Building2,
-  Plus,
-  Check,
-  Users,
-  Settings,
-  ChevronDown,
-  X,
-} from "lucide-react";
+import { Building2, Plus, Check, Settings, ChevronDown, X } from "lucide-react";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import type { WorkspaceType } from "../stores/workspaceStore";
 import { useAuthStore } from "../stores/authStore";

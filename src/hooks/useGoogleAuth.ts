@@ -19,11 +19,28 @@ export const useGoogleAuth = () => {
 
   const createUserWorkspace = useCallback(
     (user: GoogleUser) => {
-      // 사용자 이름에서 워크스페이스 이름 생성
-      const userName = user.name.split(" ")[0]; // 첫 번째 이름만 사용
+      const userName = user.name.split(" ")[0];
       const workspaceName = `${userName}의 워크스페이스`;
-
-      const workspace = createWorkspace(workspaceName, "개인 재고 관리");
+      const workspace = createWorkspace({
+        name: workspaceName,
+        description: "개인 재고 관리",
+        type: "DEFAULT",
+        ownerId: user.id,
+        members: [
+          {
+            userId: user.id,
+            email: user.email,
+            name: user.name,
+            role: "owner",
+            joinedAt: new Date().toISOString(),
+            invitedBy: user.id,
+          },
+        ],
+        settings: {
+          allowMemberInvite: true,
+          defaultRole: "member",
+        },
+      });
       return workspace;
     },
     [createWorkspace]
