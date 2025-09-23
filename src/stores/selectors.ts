@@ -1,11 +1,11 @@
 // src/stores/selectors.ts
-
 import { useMemo } from "react";
 import { useItemsStore } from "./itemsStore";
 import { useMovementsStore } from "./movementsStore";
 import { useWorkspaceStore } from "./workspaceStore";
 import { useLotsStore } from "./lotsStore";
 
+// ✅ 아이템 목록 (삭제되지 않은 것만)
 export const useItemList = () => {
   const items = useItemsStore((state) => state.items);
   const query = useItemsStore((state) => state.query);
@@ -14,15 +14,15 @@ export const useItemList = () => {
   );
 
   return useMemo(() => {
-    const allItems = Object.values(items);
-    // 🔧 현재 워크스페이스의 아이템만 필터링
-    const workspaceItems = currentWorkspaceId
-      ? allItems.filter((item) => item.workspaceId === currentWorkspaceId)
-      : [];
+    if (!currentWorkspaceId) return [];
 
-    console.log(
-      `useItemList: 전체 ${allItems.length}개 중 워크스페이스 ${workspaceItems.length}개`
+    const allItems = Object.values(items);
+    const workspaceItems = allItems.filter(
+      (item) =>
+        item && item.workspaceId === currentWorkspaceId && !item.isDeleted
     );
+
+    console.log("useItemList:", allItems.length, "->", workspaceItems.length);
 
     if (!query) return workspaceItems;
 
@@ -33,267 +33,144 @@ export const useItemList = () => {
         item.barcode?.toLowerCase().includes(query.toLowerCase())
     );
 
-    console.log(`검색 결과: ${filtered.length}개`);
     return filtered;
   }, [items, query, currentWorkspaceId]);
 };
 
-export const useMovementList = () => {
-  // 🔧 getWorkspaceMovements 함수를 직접 호출하여 워크스페이스 필터링된 데이터 가져오기
-  const getWorkspaceMovements = useMovementsStore(
-    (state) => state.getWorkspaceMovements
-  );
-  const query = useMovementsStore((state) => state.query);
-  const currentWorkspaceId = useWorkspaceStore(
-    (state) => state.currentWorkspaceId
-  );
-
-  return useMemo(() => {
-    if (!currentWorkspaceId) {
-      console.log("useMovementList: 워크스페이스 ID 없음");
-      return [];
-    }
-
-    // 🔧 직접 getWorkspaceMovements 호출
-    const workspaceMovements = getWorkspaceMovements();
-    console.log(
-      `🔍 useMovementList: 워크스페이스 ${currentWorkspaceId}의 이동 ${workspaceMovements.length}개`
-    );
-
-    if (!query) return workspaceMovements;
-
-    const filtered = workspaceMovements.filter(
-      (movement) =>
-        movement.itemId.toLowerCase().includes(query.toLowerCase()) ||
-        movement.type.toLowerCase().includes(query.toLowerCase()) ||
-        movement.note?.toLowerCase().includes(query.toLowerCase()) ||
-        movement.reason?.toLowerCase().includes(query.toLowerCase())
-    );
-
-    console.log(`검색된 이동: ${filtered.length}개`);
-    return filtered;
-  }, [getWorkspaceMovements, query, currentWorkspaceId]);
-};
-
-// 🔧 로트 관련 셀렉터 수정
-export const useLotList = () => {
-  const getWorkspaceLots = useLotsStore((state) => state.getWorkspaceLots);
-  const query = useLotsStore((state) => state.query);
-  const currentWorkspaceId = useWorkspaceStore(
-    (state) => state.currentWorkspaceId
-  );
-
-  return useMemo(() => {
-    if (!currentWorkspaceId) {
-      console.log("useLotList: 워크스페이스 ID 없음");
-      return [];
-    }
-
-    const workspaceLots = getWorkspaceLots();
-    console.log(
-      `🔍 useLotList: 워크스페이스 ${currentWorkspaceId}의 로트 ${workspaceLots.length}개`
-    );
-
-    if (!query) return workspaceLots;
-
-    const filtered = workspaceLots.filter(
-      (lot) =>
-        lot.batchNumber?.toLowerCase().includes(query.toLowerCase()) ||
-        lot.supplier?.toLowerCase().includes(query.toLowerCase()) ||
-        lot.notes?.toLowerCase().includes(query.toLowerCase())
-    );
-
-    console.log(`검색된 로트: ${filtered.length}개`);
-    return filtered;
-  }, [getWorkspaceLots, query, currentWorkspaceId]);
-};
-
-// 🔧 기존 함수들 수정
-export const useVisibleItems = () => {
-  return useItemList(); // useItemList와 동일한 기능
-};
-
-export const useStockByItem = (itemId: string) => {
+// ✅ 모든 워크스페이스 아이템 (삭제된 것 포함)
+export const useAllWorkspaceItems = () => {
   const items = useItemsStore((state) => state.items);
-  return useMemo(() => {
-    const item = items[itemId];
-    return item?.stock || 0;
-  }, [items, itemId]);
-};
-
-// 🔧 로트 필드명 수정 (expiresAt → expiryDate)
-export const useExpiringSoonByItem = (itemId: string, days: number = 30) => {
-  const getWorkspaceLots = useLotsStore((state) => state.getWorkspaceLots);
   const currentWorkspaceId = useWorkspaceStore(
     (state) => state.currentWorkspaceId
   );
 
   return useMemo(() => {
-    if (!currentWorkspaceId) return false;
+    if (!currentWorkspaceId) return [];
 
-    const workspaceLots = getWorkspaceLots();
-    const itemLots = workspaceLots.filter((lot) => lot.itemId === itemId);
+    const allItems = Object.values(items);
+    return allItems.filter(
+      (item) => item && item.workspaceId === currentWorkspaceId
+    );
+  }, [items, currentWorkspaceId]);
+};
 
-    const thresholdDate = new Date();
-    thresholdDate.setDate(thresholdDate.getDate() + days);
+// ✅ 움직임 목록 (수정된 버전)
+export const useMovementList = () => {
+  const byId = useMovementsStore((state) => state.byId);
+  const allWorkspaceItems = useAllWorkspaceItems();
 
-    const expiringSoon = itemLots.some((lot) => {
-      if (!lot.expiryDate) return false; // 🔧 expiresAt → expiryDate
-      return new Date(lot.expiryDate) <= thresholdDate;
+  return useMemo(() => {
+    const movements = Object.values(byId).sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    const itemsMap = new Map(allWorkspaceItems.map((item) => [item.id, item]));
+
+    const enrichedMovements = movements.map((movement) => {
+      const item = itemsMap.get(movement.itemId);
+
+      return {
+        ...movement,
+        itemName:
+          item?.name || movement.itemSnapshot?.name || "알 수 없는 상품",
+        itemSku: item?.sku || movement.itemSnapshot?.sku,
+        isItemDeleted: item?.isDeleted || false,
+      };
     });
 
-    return expiringSoon;
-  }, [getWorkspaceLots, itemId, days, currentWorkspaceId]);
+    const workspaceMovements = enrichedMovements.filter((movement) => {
+      const item = itemsMap.get(movement.itemId);
+      return !!item;
+    });
+
+    console.log(
+      "useMovementList:",
+      movements.length,
+      "->",
+      workspaceMovements.length
+    );
+    return workspaceMovements;
+  }, [byId, allWorkspaceItems]);
 };
 
+// ✅ **핵심 수정**: 올바른 재고 계산 - itemsStore의 stock만 사용
+export const useAllStockByItems = () => {
+  const items = useItemList();
+
+  return useMemo(() => {
+    console.log("useAllStockByItems 계산 시작");
+
+    const stockMap: Record<string, number> = {};
+
+    // ✅ 수정: itemsStore의 stock만 사용 (이미 움직임이 반영됨)
+    items.forEach((item) => {
+      stockMap[item.id] = item.stock || 0;
+    });
+
+    console.log("useAllStockByItems 계산 완료:", Object.keys(stockMap).length);
+    console.log("stockMap:", stockMap);
+    return stockMap;
+  }, [items]);
+};
+
+// ✅ 개별 재고 조회
+export const useStockByItem = (itemId: string) => {
+  const stockByItems = useAllStockByItems();
+  return stockByItems[itemId] || 0;
+};
+
+// ✅ 유통기한 임박 아이템 (개별)
+export const useExpiringSoonByItem = (itemId: string, days = 30) => {
+  const items = useItemList();
+
+  return useMemo(() => {
+    const item = items.find((i) => i.id === itemId);
+    if (!item?.expiryDate) return false;
+
+    const expiryDate = new Date(item.expiryDate);
+    const now = new Date();
+    const diffTime = expiryDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    return diffDays <= days && diffDays >= 0;
+  }, [items, itemId, days]);
+};
+
+// ✅ 유통기한 임박 아이템 (전체)
+export const useAllExpiringItems = (days = 30) => {
+  const items = useItemList();
+
+  return useMemo(() => {
+    const expiringItems = new Set<string>();
+    const now = new Date();
+
+    items.forEach((item) => {
+      if (!item.expiryDate) return;
+
+      const expiryDate = new Date(item.expiryDate);
+      const diffTime = expiryDate.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays <= days && diffDays >= 0) {
+        expiringItems.add(item.id);
+      }
+    });
+
+    console.log("useAllExpiringItems 계산 완료:", expiringItems.size);
+    return expiringItems;
+  }, [items, days]);
+};
+
+// 기타 유틸 훅들
 export const useSetQuery = () => {
-  const setQuery = useItemsStore((state) => state.setQuery);
-  return setQuery;
+  return useItemsStore((state) => state.setQuery);
 };
 
 export const useQuery = () => {
-  const query = useItemsStore((state) => state.query);
-  return query;
+  return useItemsStore((state) => state.query);
 };
 
-// 🔧 Dashboard에서 사용하는 함수들 수정
-export const useAllStockByItems = () => {
-  const items = useItemList(); // 이미 워크스페이스 필터링됨
-  return useMemo(() => {
-    return items.reduce((acc, item) => {
-      acc[item.id] = item.stock;
-      return acc;
-    }, {} as Record<string, number>);
-  }, [items]);
-};
-
-// 🔧 로트 워크스페이스 필터링 수정
-export const useAllExpiringItems = (days: number = 7) => {
-  const items = useItemList(); // 이미 워크스페이스 필터링됨
-  const getWorkspaceLots = useLotsStore((state) => state.getWorkspaceLots);
-
-  return useMemo(() => {
-    const targetDate = new Date();
-    targetDate.setDate(targetDate.getDate() + days);
-
-    const workspaceLots = getWorkspaceLots(); // 워크스페이스 필터링된 로트
-
-    const expiringItems = items.filter((item) => {
-      const itemLots = workspaceLots.filter((lot) => lot.itemId === item.id);
-
-      return itemLots.some((lot) => {
-        if (!lot.expiryDate) return false; // 🔧 expiresAt → expiryDate
-        return new Date(lot.expiryDate) <= targetDate;
-      });
-    });
-
-    // 🔧 Set으로 변환하여 .has() 메소드 사용 가능하게 수정
-    return new Set(expiringItems.map((item) => item.id));
-  }, [items, getWorkspaceLots, days]);
-};
-
-export const useItemStats = () => {
-  const items = useItemList(); // 이미 워크스페이스 필터링됨
-  return useMemo(() => {
-    const totalItems = items.length;
-    const lowStockItems = items.filter((item) => {
-      const minStock = item.minStock || 0;
-      return item.stock <= minStock;
-    });
-    const outOfStockItems = items.filter((item) => item.stock === 0);
-    const totalValue = items.reduce((sum, item) => {
-      const price = item.defaultPrice || 0;
-      return sum + price * item.stock;
-    }, 0);
-
-    console.log(
-      `아이템 통계: 총 ${totalItems}개, 부족 ${lowStockItems.length}개, 품절 ${outOfStockItems.length}개`
-    );
-
-    return {
-      totalItems,
-      lowStockItems: lowStockItems.length,
-      outOfStockItems: outOfStockItems.length,
-      totalValue,
-    };
-  }, [items]);
-};
-
-export const useMovementStats = () => {
-  const movements = useMovementList(); // 이미 워크스페이스 필터링됨
-  return useMemo(() => {
-    const today = new Date().toDateString();
-    const todayMovements = movements.filter(
-      (movement) => new Date(movement.createdAt).toDateString() === today
-    );
-
-    const recentMovements = movements
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-      .slice(0, 10);
-
-    console.log(
-      `이동 통계: 총 ${movements.length}개, 오늘 ${todayMovements.length}개`
-    );
-
-    return {
-      totalMovements: movements.length,
-      todayMovements: todayMovements.length,
-      recentMovements,
-    };
-  }, [movements]);
-};
-
-export const useLowStockItems = () => {
-  const items = useItemList(); // 이미 워크스페이스 필터링됨
-  return useMemo(() => {
-    return items
-      .filter((item) => {
-        const minStock = item.minStock || 0;
-        return item.stock <= minStock;
-      })
-      .sort((a, b) => a.stock - b.stock);
-  }, [items]);
-};
-
-// 🔧 로트 워크스페이스 필터링 수정
-export const useExpiringItems = (days: number = 30) => {
-  const items = useItemList(); // 이미 워크스페이스 필터링됨
-  const getWorkspaceLots = useLotsStore((state) => state.getWorkspaceLots);
-
-  return useMemo(() => {
-    const targetDate = new Date();
-    targetDate.setDate(targetDate.getDate() + days);
-
-    const workspaceLots = getWorkspaceLots(); // 워크스페이스 필터링된 로트
-
-    return items.filter((item) => {
-      const itemLots = workspaceLots.filter((lot) => lot.itemId === item.id);
-
-      return itemLots.some((lot) => {
-        if (!lot.expiryDate) return false; // 🔧 expiresAt → expiryDate
-        return new Date(lot.expiryDate) <= targetDate;
-      });
-    });
-  }, [items, getWorkspaceLots, days]);
-};
-
-// 🆕 워크스페이스별 통계
-export const useWorkspaceStats = () => {
-  const itemStats = useItemStats();
-  const movementStats = useMovementStats();
-  const currentWorkspace = useWorkspaceStore((state) =>
-    state.getCurrentWorkspace()
-  );
-
-  return useMemo(() => {
-    return {
-      workspaceName: currentWorkspace?.name || "워크스페이스 없음",
-      workspaceType: currentWorkspace?.type || "DEFAULT",
-      ...itemStats,
-      ...movementStats,
-    };
-  }, [itemStats, movementStats, currentWorkspace]);
+export const useVisibleItems = () => {
+  return useItemList();
 };

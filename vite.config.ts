@@ -1,73 +1,109 @@
-// vite.config.ts
+// vite.config.ts - TailwindCSS v4 완전 대응
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
+import tailwindcss from "@tailwindcss/vite"; // ✅ v4 전용 플러그인
 import { VitePWA } from "vite-plugin-pwa";
-import { fileURLToPath, URL } from "node:url";
 
 export default defineConfig({
   plugins: [
     react(),
-    tailwindcss(),
+    tailwindcss(), // ✅ TailwindCSS v4 플러그인 추가
     VitePWA({
-      registerType: "autoUpdate",
-      includeAssets: ["/icon-192x192.png", "robots.txt"],
-      devOptions: {
-        enabled: true,
-        navigateFallbackAllowlist: [/^\/$/],
-      },
-      manifest: {
-        name: "Inventory PWA",
-        short_name: "Inventory",
-        start_url: "/",
-        display: "standalone",
-        theme_color: "#2563eb",
-        background_color: "#0b1120",
-        icons: [
-          { src: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
-          { src: "/icon-512x512.png", sizes: "512x512", type: "image/png" },
-        ],
-      },
+      registerType: "prompt",
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest}"],
-        skipWaiting: true,
-        clientsClaim: true,
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2,ttf}"],
         runtimeCaching: [
           {
-            urlPattern: ({ url }) => url.pathname.startsWith("/api/"),
+            urlPattern: /^\/src\/.*\.(ts|tsx|js|jsx)$/,
             handler: "NetworkFirst",
             options: {
-              cacheName: "api-cache",
-              networkTimeoutSeconds: 3,
-              cacheableResponse: { statuses: [0, 200] },
+              cacheName: "dev-source-cache",
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24,
+              },
             },
           },
+        ],
+        skipWaiting: false,
+        clientsClaim: false,
+      },
+      devOptions: {
+        enabled: true,
+        type: "module",
+      },
+      manifest: {
+        name: "재고관리 - Smart Inventory",
+        short_name: "재고관리",
+        description: "효율적인 재고관리를 위한 PWA 애플리케이션",
+        theme_color: "#3b82f6",
+        background_color: "#ffffff",
+        display: "standalone",
+        start_url: "/",
+        scope: "/",
+        icons: [
           {
-            urlPattern: ({ request }) => request.destination === "image",
-            handler: "StaleWhileRevalidate",
-            options: {
-              cacheName: "image-cache",
-              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 7 },
-            },
+            src: "/icon-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
           },
           {
-            urlPattern: ({ request }) =>
-              ["style", "script", "font"].includes(request.destination),
-            handler: "CacheFirst",
-            options: {
-              cacheName: "static-assets",
-              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
-            },
+            src: "/icon-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
           },
         ],
       },
     }),
   ],
-  resolve: {
-    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
-  },
   server: {
-    host: true, // 네트워크에서 접근 가능하도록 설정
     port: 5200,
+    host: true,
+    hmr: {
+      port: 5201,
+    },
+    headers: {
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom"],
+          router: ["react-router-dom"],
+          ui: ["lucide-react"],
+          stores: ["zustand"],
+        },
+      },
+    },
+    target: "esnext",
+    minify: "terser",
+  },
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom",
+      "react-router-dom",
+      "zustand",
+      "zustand/middleware",
+      "lucide-react",
+    ],
+    exclude: ["fsevents"],
+    force: true,
+    esbuildOptions: {
+      external: ["*.node"],
+      define: {
+        global: "globalThis",
+      },
+    },
+  },
+  define: {
+    global: "globalThis",
+    "process.env.NODE_ENV": JSON.stringify(
+      process.env.NODE_ENV || "development"
+    ),
   },
 });

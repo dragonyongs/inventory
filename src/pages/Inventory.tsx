@@ -420,23 +420,40 @@ function AdjustStockModal({
   const createMovement = useCreateMovement();
   const [adjustmentType, setAdjustmentType] = useState<
     "IN" | "OUT" | "USE" | "ADJUST"
-  >("IN");
-  const [qty, setQty] = useState<number | "">("");
+  >("ADJUST"); // ✅ 기본값을 ADJUST로 변경
+  const [qty, setQty] = useState<number | "">(0);
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // ✅ 현재 아이템 정보 가져오기
+  const items = useVisibleItems();
+  const currentItem = items.find((item) => item.id === itemId);
+  const currentStock = currentItem?.stock || 0;
+
   const submit = useCallback(async () => {
     const n = typeof qty === "number" ? qty : 0;
-    if (n <= 0) return onClose();
+    if (n <= 0 && adjustmentType !== "ADJUST") return onClose();
 
     setIsSubmitting(true);
     try {
-      await createMovement({
-        type: adjustmentType,
-        itemId,
-        qty: n,
-        reason: reason || `${adjustmentType} 처리`,
-      });
+      if (adjustmentType === "ADJUST") {
+        // ✅ 핵심 수정: ADJUST 타입일 때 절대값 모드 사용
+        await createMovement({
+          type: "ADJUST",
+          itemId,
+          qty: n,
+          reason: reason || `재고조정: ${currentStock}개 → ${n}개`,
+          isAbsoluteValue: true, // ✅ 절대값 모드 활성화
+        });
+      } else {
+        // ✅ 기존 IN, OUT, USE 로직 유지
+        await createMovement({
+          type: adjustmentType,
+          itemId,
+          qty: n,
+          reason: reason || adjustmentType,
+        });
+      }
       onClose();
     } catch (error) {
       console.error("Adjust movement failed:", error);
@@ -444,7 +461,15 @@ function AdjustStockModal({
     } finally {
       setIsSubmitting(false);
     }
-  }, [adjustmentType, qty, reason, itemId, createMovement, onClose]);
+  }, [
+    adjustmentType,
+    qty,
+    reason,
+    itemId,
+    currentStock,
+    createMovement,
+    onClose,
+  ]);
 
   const getCurrentWorkspace = useWorkspaceStore((s) => s.getCurrentWorkspace);
   const currentWorkspace = getCurrentWorkspace();
@@ -466,7 +491,15 @@ function AdjustStockModal({
           </button>
         </div>
 
-        <div className="space-y-4">
+        {/* ✅ 현재 재고 표시 추가 */}
+        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+          <div className="text-sm text-gray-600">현재 재고</div>
+          <div className="text-2xl font-bold text-gray-900">
+            {currentStock.toLocaleString()}개
+          </div>
+        </div>
+
+        <div className="gap-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               조정 유형
@@ -521,17 +554,35 @@ function AdjustStockModal({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              수량
+              {adjustmentType === "ADJUST" ? "최종 재고 수량" : "수량"}
             </label>
             <input
               type="number"
               value={qty}
               onChange={(e) =>
-                setQty(e.target.value === "" ? "" : Number(e.target.value))
+                setQty(e.target.value ? Number(e.target.value) : "")
               }
-              min={0}
+              min="0"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder={
+                adjustmentType === "ADJUST"
+                  ? "최종 재고 수량 입력"
+                  : "수량 입력"
+              }
             />
+            {/* ✅ ADJUST 모드일 때 변화량 표시 */}
+            {adjustmentType === "ADJUST" &&
+              typeof qty === "number" &&
+              qty !== currentStock && (
+                <p
+                  className={`text-sm mt-1 ${
+                    qty > currentStock ? "text-green-600" : "text-red-600"
+                  }`}
+                >
+                  {qty > currentStock ? "+" : ""}
+                  {qty - currentStock}개 변화
+                </p>
+              )}
           </div>
 
           <div>
@@ -922,7 +973,7 @@ export default function Inventory() {
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">인벤토리</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">인벤토리</h1>
         <p className="text-gray-600">
           상품을 등록하고 재고를 효율적으로 관리하세요
         </p>

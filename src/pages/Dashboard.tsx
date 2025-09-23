@@ -580,7 +580,7 @@ export default function Dashboard() {
       <div className="mb-8">
         <div className="flex items-center space-x-3 mb-2">
           <Building2 className="w-6 h-6 text-blue-600" />
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-gray-900">
             {currentWorkspace?.name || "워크스페이스"} 대시보드
           </h1>
         </div>

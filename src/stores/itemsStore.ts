@@ -1,4 +1,4 @@
-// src/stores/itemsStore.ts
+// src/stores/itemsStore.ts (전체 파일)
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
@@ -7,15 +7,20 @@ export interface Item {
   name: string;
   sku?: string;
   barcode?: string;
-  stock: number; // ✅ 실제 재고 수량
+  stock: number;
   category?: string;
-  minStock?: number; // ✅ 알림 기준만 (재고에 합산 X)
+  minStock?: number;
   defaultPrice?: number;
   createdAt: string;
   workspaceId: string;
   expiryDate?: string;
   batchNumber?: string;
   receivedDate?: string;
+  // ✅ Soft Delete 필드들
+  deletedAt?: string;
+  deletedBy?: string;
+  deletedReason?: string;
+  isDeleted?: boolean;
 }
 
 interface ItemsState {
@@ -35,7 +40,9 @@ interface ItemsActions {
     id: string,
     updates: Partial<Omit<Item, "id" | "workspaceId">>
   ) => void;
-  removeItem: (id: string) => void;
+  removeItem: (id: string, reason?: string) => void;
+  hardDeleteItem: (id: string) => void;
+  restoreItem: (id: string) => void;
   adjustStock: (itemId: string, delta: number) => void;
   setStock: (itemId: string, stock: number) => void;
   reset: () => void;
@@ -51,20 +58,20 @@ const getCurrentWorkspaceId = (): string | null => {
     const workspaceStorage = localStorage.getItem("inventory-workspaces");
     if (!workspaceStorage) {
       console.warn("워크스페이스 스토리지를 찾을 수 없습니다");
-      return "default-workspace"; // 기본값 반환
+      return "default-workspace";
     }
 
     const parsed = JSON.parse(workspaceStorage);
     const currentWorkspaceId = parsed.state?.currentWorkspaceId;
     if (!currentWorkspaceId) {
       console.warn("현재 워크스페이스 ID가 없습니다");
-      return "default-workspace"; // 기본값 반환
+      return "default-workspace";
     }
 
     return currentWorkspaceId;
   } catch (e) {
     console.error("워크스페이스 ID 가져오기 실패:", e);
-    return "default-workspace"; // 기본값 반환
+    return "default-workspace";
   }
 };
 
@@ -82,13 +89,14 @@ export const useItemsStore = create<ItemsStore>()(
         }
 
         const allItems = get().items;
+        // ✅ 삭제되지 않은 아이템만 반환
         const workspaceItems = Object.values(allItems).filter(
           (item): item is Item =>
-            item && item.workspaceId === currentWorkspaceId
+            item && item.workspaceId === currentWorkspaceId && !item.isDeleted
         );
 
         console.log(
-          `워크스페이스 ${currentWorkspaceId}의 아이템:`,
+          `워크스페이스 ${currentWorkspaceId}의 활성 아이템:`,
           workspaceItems.length
         );
         return workspaceItems;
@@ -115,20 +123,20 @@ export const useItemsStore = create<ItemsStore>()(
           );
         }
 
-        // ✅ 수정: stock은 정확히 전달된 값만 사용
         const item: Item = {
           ...itemData,
           id: globalThis.crypto?.randomUUID?.() ?? `item_${Date.now()}`,
-          stock: itemData.stock ?? 0, // ✅ 전달된 값 그대로 사용 (Inventory에서 0 전달)
+          stock: itemData.stock ?? 0,
           createdAt: new Date().toISOString(),
           workspaceId: currentWorkspaceId,
         };
 
-        console.log("✅ 아이템 생성 (addItem):", {
+        console.log("✅ 새 아이템 생성:", {
           itemId: item.id,
+          workspaceId: currentWorkspaceId,
           name: item.name,
-          stock: item.stock, // ✅ 0이어야 정상
-          minStock: item.minStock,
+          actualStock: item.stock,
+          minStockAlert: item.minStock,
         });
 
         set((state) => ({
@@ -163,8 +171,6 @@ export const useItemsStore = create<ItemsStore>()(
           if (!item) return state;
 
           const { workspaceId, ...allowedUpdates } = updates as any;
-
-          // ✅ 업데이트 시에도 stock과 minStock 분리 유지
           const updatedItem = { ...item, ...allowedUpdates };
 
           console.log("✅ 아이템 업데이트:", {
@@ -180,11 +186,118 @@ export const useItemsStore = create<ItemsStore>()(
         });
       },
 
-      removeItem: (id) => {
+      // ✅ 수정: Soft Delete + 움직임 기록
+      removeItem: (id, reason = "사용자 삭제") => {
+        const state = get();
+        const item = state.items[id];
+        if (!item) {
+          console.warn("삭제할 아이템을 찾을 수 없습니다:", id);
+          return;
+        }
+
+        // ✅ Soft Delete: 실제 삭제 대신 삭제 표시
+        const deletedItem = {
+          ...item,
+          isDeleted: true,
+          deletedAt: new Date().toISOString(),
+          deletedBy: "current-user",
+          deletedReason: reason,
+          stock: 0, // 재고를 0으로 설정하여 계산에서 제외
+        };
+
+        console.log("✅ 아이템 소프트 삭제:", {
+          itemId: id,
+          itemName: item.name,
+          reason,
+          deletedAt: deletedItem.deletedAt,
+        });
+
+        set({
+          items: { ...state.items, [id]: deletedItem },
+        });
+
+        // ✅ 삭제 움직임 기록 (동적 import로 순환 의존성 방지)
+        const movementId =
+          globalThis.crypto?.randomUUID?.() ?? `movement_${Date.now()}`;
+
+        // 움직임 스토어에 직접 접근하여 추가
+        const movementsStorage = localStorage.getItem("inventory-movements");
+        let movements = {};
+
+        if (movementsStorage) {
+          try {
+            const parsed = JSON.parse(movementsStorage);
+            movements = parsed.state?.byId || {};
+          } catch (e) {
+            console.error("움직임 스토리지 파싱 실패:", e);
+          }
+        }
+
+        const deleteMovement = {
+          id: movementId,
+          type: "DELETE" as const,
+          itemId: id,
+          qty: 0,
+          reason: `상품 삭제: ${reason}`,
+          createdAt: new Date().toISOString(),
+          // ✅ 아이템 스냅샷 저장
+          itemSnapshot: {
+            name: item.name,
+            sku: item.sku,
+            category: item.category,
+          },
+        };
+
+        movements[movementId] = deleteMovement;
+
+        // localStorage에 직접 저장
+        try {
+          const updatedMovementsStorage = {
+            state: { byId: movements },
+            version: 2,
+          };
+          localStorage.setItem(
+            "inventory-movements",
+            JSON.stringify(updatedMovementsStorage)
+          );
+          console.log("✅ 삭제 움직임 기록 완료:", movementId);
+        } catch (e) {
+          console.error("삭제 움직임 기록 실패:", e);
+        }
+      },
+
+      // ✅ 새로 추가: 완전 삭제 (관리자용)
+      hardDeleteItem: (id) => {
         set((state) => {
           const newItems = { ...state.items };
           delete newItems[id];
+          console.log("❌ 아이템 완전 삭제:", id);
           return { items: newItems };
+        });
+      },
+
+      // ✅ 새로 추가: 삭제 복구
+      restoreItem: (id) => {
+        set((state) => {
+          const item = state.items[id];
+          if (!item || !item.isDeleted) return state;
+
+          const restoredItem = {
+            ...item,
+            isDeleted: false,
+            deletedAt: undefined,
+            deletedBy: undefined,
+            deletedReason: undefined,
+          };
+
+          console.log("✅ 아이템 복구:", {
+            itemId: id,
+            itemName: item.name,
+          });
+
+          return {
+            items: { ...state.items, [id]: restoredItem },
+          };
         });
       },
 
@@ -245,14 +358,13 @@ export const useItemsStore = create<ItemsStore>()(
 
       initializeWorkspace: (workspaceId) => {
         console.log("아이템 스토어 초기화 (워크스페이스):", workspaceId);
-        // 워크스페이스 변경 시 쿼리만 초기화 (아이템은 유지)
         set((state) => ({ ...state, query: "" }));
       },
     }),
     {
       name: "inventory-items",
       storage: createJSONStorage(() => localStorage),
-      version: 6, // ✅ 버전 업그레이드로 기존 잘못된 데이터 정리
+      version: 8, // ✅ 버전 업그레이드
       partialize: (state) => ({ items: state.items }),
       onRehydrateStorage: () => (state) => {
         if (state) {
@@ -260,19 +372,15 @@ export const useItemsStore = create<ItemsStore>()(
           const currentWorkspaceId = getCurrentWorkspaceId();
           const itemCount = Object.keys(state.items).length;
           const workspaceItems = Object.values(state.items).filter(
-            (item) => item.workspaceId === currentWorkspaceId
+            (item) => item.workspaceId === currentWorkspaceId && !item.isDeleted
+          );
+          const deletedItems = Object.values(state.items).filter(
+            (item) => item.workspaceId === currentWorkspaceId && item.isDeleted
           );
 
           console.log(
-            `총 아이템: ${itemCount}개, 현재 워크스페이스 아이템: ${workspaceItems.length}개`
+            `총 아이템: ${itemCount}개, 활성: ${workspaceItems.length}개, 삭제: ${deletedItems.length}개`
           );
-
-          // ✅ 각 아이템의 stock과 minStock 분리 확인
-          workspaceItems.forEach((item) => {
-            console.log(
-              `아이템 "${item.name}": 실제재고=${item.stock}, 알림기준=${item.minStock}`
-            );
-          });
         }
       },
     }
@@ -287,30 +395,3 @@ window.addEventListener("workspace-changed", (event: any) => {
     useItemsStore.getState().initializeWorkspace(newWorkspaceId);
   }
 });
-
-// 디버깅 도구 (개선)
-if (typeof window !== "undefined" && import.meta.env.DEV) {
-  (window as any).debugItemsStore = {
-    getCurrentWorkspaceId,
-    getItems: () => useItemsStore.getState().items,
-    getWorkspaceItems: () => useItemsStore.getState().getWorkspaceItems(),
-    checkStockVsMinStock: () => {
-      const items = useItemsStore.getState().getWorkspaceItems();
-      console.table(
-        items.map((item) => ({
-          name: item.name,
-          actualStock: item.stock, // ✅ 실제 재고
-          minStockAlert: item.minStock || 5, // ✅ 알림 기준
-          isLowStock: item.stock <= (item.minStock || 5), // ✅ 부족 여부
-        }))
-      );
-    },
-    checkWorkspaceStorage: () => {
-      const storage = localStorage.getItem("inventory-workspaces");
-      console.log(
-        "워크스페이스 스토리지:",
-        storage ? JSON.parse(storage) : null
-      );
-    },
-  };
-}

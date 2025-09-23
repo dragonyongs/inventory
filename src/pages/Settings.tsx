@@ -560,7 +560,7 @@ export default function Settings() {
   );
 
   return (
-    <div className="p-6">
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">설정</h1>
         <p className="text-gray-600 mt-1">애플리케이션 설정을 관리하세요</p>

@@ -121,7 +121,7 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
         <aside className="hidden lg:flex lg:flex-col lg:w-72 lg:fixed lg:inset-y-0 lg:z-50">
           <div className="flex flex-col flex-1 bg-white shadow-xl">
             {/* Logo */}
-            <div className="flex items-center h-16 px-6 bg-gradient-to-r from-blue-500 to-blue-600">
+            <div className="flex space-x-2 items-center h-16 px-6 bg-gradient-to-r from-blue-500 to-blue-600">
               <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mr-3">
                 <Package className="w-6 h-6 text-white" />
               </div>
@@ -146,7 +146,7 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
                         to={item.to}
                         className={navLinkClass}
                       >
-                        <div className="flex items-center min-w-0 flex-1">
+                        <div className="flex items-center min-w-0 flex-1 space-x-2">
                           <Icon className="w-5 h-5 mr-3 flex-shrink-0" />
                           <div className="min-w-0 flex-1">
                             <div className="font-medium">{item.label}</div>

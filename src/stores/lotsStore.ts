@@ -1,12 +1,11 @@
-// src/stores/lotsStore.ts
-
+// src/stores/lotsStore.ts - 수정된 버전
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { makeNsName } from "../utils/persistNamespace";
 
 export interface Lot {
   id: string;
-  workspaceId: string; // 🔧 필수 필드로 변경
+  workspaceId: string;
   itemId: string;
   quantity: number;
   expiryDate?: string;
@@ -23,149 +22,125 @@ interface LotsState {
 }
 
 interface LotsActions {
-  addLot: (lot: Omit<Lot, "id" | "createdAt" | "workspaceId">) => Lot;
-  updateLot: (
-    id: string,
-    updates: Partial<Omit<Lot, "id" | "workspaceId">>
-  ) => void;
-  removeLot: (id: string) => void;
+  // 로트 관리
+  addLot: (lot: Omit<Lot, "id" | "createdAt">) => void;
+  updateLot: (id: string, updates: Partial<Lot>) => void;
+  deleteLot: (id: string) => void;
+
+  // 조회
   getLotsByItem: (itemId: string) => Lot[];
-  getExpiringLots: (days: number) => Lot[];
+  getLotsByWorkspace: (workspaceId: string) => Lot[];
+
+  // 검색
   setQuery: (query: string) => void;
-  bulk: (lots: Lot[]) => void;
-  reset: () => void;
-  getWorkspaceLots: () => Lot[];
+
+  // 정리
+  clearAllLots: () => void;
 }
 
 type LotsStore = LotsState & LotsActions;
 
-// 🔧 워크스페이스 ID 가져오기 함수
-const getCurrentWorkspaceId = (): string | null => {
-  try {
-    const workspaceStorage = localStorage.getItem("inventory-workspaces");
-    if (workspaceStorage) {
-      const parsed = JSON.parse(workspaceStorage);
-      const workspaceId = parsed?.state?.currentWorkspaceId;
-      console.log("LotsStore getCurrentWorkspaceId:", workspaceId);
-      return workspaceId;
-    }
-  } catch (e) {
-    console.error("워크스페이스 ID 가져오기 실패:", e);
-  }
-  return null;
-};
-
 export const useLotsStore = create<LotsStore>()(
   persist(
     (set, get) => ({
+      // 초기 상태
       lots: {},
       query: "",
 
+      // 로트 추가
       addLot: (lotData) => {
-        const currentWorkspaceId = getCurrentWorkspaceId();
-        if (!currentWorkspaceId) {
-          console.error("현재 워크스페이스를 찾을 수 없습니다!");
-          throw new Error("워크스페이스를 선택해주세요.");
-        }
-
+        const id = globalThis.crypto?.randomUUID?.() ?? `lot_${Date.now()}`;
         const lot: Lot = {
           ...lotData,
-          id: globalThis.crypto?.randomUUID?.() ?? `lot_${Date.now()}`,
-          workspaceId: currentWorkspaceId,
+          id,
           createdAt: new Date().toISOString(),
         };
 
-        console.log(
-          "새 로트 생성:",
-          lot.id,
-          "워크스페이스:",
-          currentWorkspaceId
-        );
-        set((state) => ({ lots: { ...state.lots, [lot.id]: lot } }));
-        return lot;
+        set((state) => ({
+          lots: {
+            ...state.lots,
+            [id]: lot,
+          },
+        }));
+
+        console.log("✅ 로트 추가:", lot);
       },
 
+      // 로트 업데이트
       updateLot: (id, updates) => {
         set((state) => {
-          const lot = state.lots[id];
-          if (!lot) return state;
+          if (!state.lots[id]) {
+            console.warn("❌ 존재하지 않는 로트:", id);
+            return state;
+          }
+
+          const updatedLot = { ...state.lots[id], ...updates };
+          console.log("✅ 로트 업데이트:", { id, updates, updatedLot });
 
           return {
-            lots: { ...state.lots, [id]: { ...lot, ...updates } },
+            lots: {
+              ...state.lots,
+              [id]: updatedLot,
+            },
           };
         });
       },
 
-      removeLot: (id) => {
+      // 로트 삭제
+      deleteLot: (id) => {
         set((state) => {
-          const newLots = { ...state.lots };
-          delete newLots[id];
-          return { lots: newLots };
+          if (!state.lots[id]) {
+            console.warn("❌ 존재하지 않는 로트:", id);
+            return state;
+          }
+
+          const { [id]: deleted, ...remainingLots } = state.lots;
+          console.log("✅ 로트 삭제:", deleted);
+
+          return { lots: remainingLots };
         });
       },
 
-      getWorkspaceLots: () => {
-        const currentWorkspaceId = getCurrentWorkspaceId();
-        if (!currentWorkspaceId) {
-          console.log("현재 워크스페이스 ID가 없어서 빈 배열 반환");
-          return [];
-        }
-
-        const allLots = get().lots;
-        const workspaceLots = Object.values(allLots).filter(
-          (lot) => lot.workspaceId === currentWorkspaceId
-        );
-
-        console.log(
-          `현재 워크스페이스(${currentWorkspaceId})의 로트: ${workspaceLots.length}개`
-        );
-        return workspaceLots;
-      },
-
+      // 아이템별 로트 조회
       getLotsByItem: (itemId) => {
-        const workspaceLots = get().getWorkspaceLots();
-        return workspaceLots.filter((lot) => lot.itemId === itemId);
+        const { lots } = get();
+        return Object.values(lots).filter((lot) => lot.itemId === itemId);
       },
 
-      getExpiringLots: (days) => {
-        const workspaceLots = get().getWorkspaceLots();
-        const futureDate = new Date();
-        futureDate.setDate(futureDate.getDate() + days);
-
-        return workspaceLots.filter((lot) => {
-          if (!lot.expiryDate) return false;
-          const expiryDate = new Date(lot.expiryDate);
-          return expiryDate <= futureDate && expiryDate >= new Date();
-        });
+      // 워크스페이스별 로트 조회
+      getLotsByWorkspace: (workspaceId) => {
+        const { lots } = get();
+        return Object.values(lots).filter(
+          (lot) => lot.workspaceId === workspaceId
+        );
       },
 
-      setQuery: (query) => set({ query }),
-
-      bulk: (lots) => {
-        const validLots = lots.filter((lot) => lot.workspaceId);
-        console.log("로트 bulk:", validLots.length, "개");
-        set(() => ({
-          lots: Object.fromEntries(validLots.map((lot) => [lot.id, lot])),
-        }));
+      // 검색 쿼리 설정
+      setQuery: (query) => {
+        set({ query });
       },
 
-      reset: () => set({ lots: {}, query: "" }),
+      // 모든 로트 정리
+      clearAllLots: () => {
+        console.log("🗑️ 모든 로트 정리");
+        set({ lots: {}, query: "" });
+      },
     }),
     {
       name: makeNsName("lots"),
       storage: createJSONStorage(() => localStorage),
-      version: 3,
-      partialize: (state) => ({ lots: state.lots }),
+      version: 1,
+      onRehydrateStorage: () => (state, error) => {
+        if (error) {
+          console.error("❌ 로트 스토어 복원 실패:", error);
+        } else {
+          console.log(
+            "✅ 로트 스토어 복원 완료:",
+            state?.lots ? Object.keys(state.lots).length : 0,
+            "개"
+          );
+        }
+      },
     }
   )
 );
-
-// 🔧 워크스페이스 변경 이벤트 리스너
-window.addEventListener("workspace-changed", (event: any) => {
-  console.log("로트 스토어: 워크스페이스 변경 감지", event.detail);
-  const newWorkspaceId = event.detail?.workspaceId;
-  if (newWorkspaceId) {
-    const lots = useLotsStore.getState().getWorkspaceLots();
-    console.log("워크스페이스 변경 후 로트 데이터:", lots.length, "개");
-  }
-});
