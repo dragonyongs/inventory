@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuthStore } from "../stores/authStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
-import { cleanupTempKeys } from "../stores/persistNamespace";
+import { cleanupTempKeys } from "../utils/persistNamespace";
 
 interface UseWorkspaceInitReturn {
   isLoading: boolean;

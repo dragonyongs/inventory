@@ -12,9 +12,11 @@ import {
   Settings,
   CheckCircle,
   X,
-  ArrowUp,
-  ArrowDown,
-  RotateCcw,
+  Calendar,
+  Hash,
+  Barcode,
+  DollarSign,
+  TrendingUp,
 } from "lucide-react";
 
 import {
@@ -28,6 +30,10 @@ import { getActionLabels } from "../utils/workspaceLabels";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { useItemsStore, type Item } from "../stores/itemsStore";
 import { useCreateMovement } from "../hooks/useCreateMovement";
+import {
+  calculateDaysUntilExpiry,
+  getExpiryStatus,
+} from "../utils/expiryUtils";
 
 type FormState = {
   name: string;
@@ -36,6 +42,9 @@ type FormState = {
   minStock: number | "";
   price: number | "";
   qty: number | "";
+  expiryDate: string;
+  batchNumber: string;
+  receivedDate: string;
 };
 
 function Input({
@@ -46,6 +55,7 @@ function Input({
   min,
   step,
   className = "",
+  required = false,
 }: {
   value: any;
   onChange: (v: any) => void;
@@ -54,25 +64,34 @@ function Input({
   min?: number;
   step?: number | string;
   className?: string;
+  required?: boolean;
 }) {
   return (
-    <input
-      value={value}
-      onChange={(e) =>
-        onChange(
-          type === "number"
-            ? e.target.value === ""
-              ? ""
-              : Number(e.target.value)
-            : e.target.value
-        )
-      }
-      placeholder={placeholder}
-      type={type}
-      min={min as any}
-      step={step as any}
-      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${className}`}
-    />
+    <div className="relative">
+      <input
+        value={value}
+        onChange={(e) =>
+          onChange(
+            type === "number"
+              ? e.target.value === ""
+                ? ""
+                : Number(e.target.value)
+              : e.target.value
+          )
+        }
+        placeholder={placeholder}
+        type={type}
+        min={min as any}
+        step={step as any}
+        required={required}
+        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+          required ? "border-blue-200 bg-blue-50/30" : ""
+        } ${className}`}
+      />
+      {required && (
+        <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full"></span>
+      )}
+    </div>
   );
 }
 
@@ -87,9 +106,13 @@ function AddItemForm({ onAdded }: { onAdded: (id: string) => void }) {
     minStock: "",
     price: "",
     qty: "",
+    expiryDate: "",
+    batchNumber: "",
+    receivedDate: new Date().toISOString().split("T")[0], // 🔧 기본값을 오늘로 설정
   });
   const [err, setErr] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const onSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -98,13 +121,13 @@ function AddItemForm({ onAdded }: { onAdded: (id: string) => void }) {
       setIsSubmitting(true);
 
       if (!f.name.trim()) {
-        setErr("이름은 필수입니다");
+        setErr("상품명은 필수입니다");
         setIsSubmitting(false);
         return;
       }
 
       if (f.sku.trim() && hasSku(f.sku.trim())) {
-        setErr("이미 존재하는 SKU 입니다");
+        setErr("이미 존재하는 SKU입니다");
         setIsSubmitting(false);
         return;
       }
@@ -116,6 +139,11 @@ function AddItemForm({ onAdded }: { onAdded: (id: string) => void }) {
           barcode: f.barcode.trim() || undefined,
           minStock: typeof f.minStock === "number" ? f.minStock : 0,
           defaultPrice: typeof f.price === "number" ? f.price : undefined,
+          stock: typeof f.qty === "number" ? f.qty : 0,
+          category: undefined,
+          expiryDate: f.expiryDate || undefined,
+          batchNumber: f.batchNumber.trim() || undefined,
+          receivedDate: f.receivedDate || undefined,
         });
 
         const qty = typeof f.qty === "number" ? f.qty : 0;
@@ -136,7 +164,11 @@ function AddItemForm({ onAdded }: { onAdded: (id: string) => void }) {
           minStock: "",
           price: "",
           qty: "",
+          expiryDate: "",
+          batchNumber: "",
+          receivedDate: new Date().toISOString().split("T")[0], // 🔧 초기화시에도 오늘 날짜
         });
+        setShowAdvanced(false);
       } catch (error) {
         console.error("Movement creation failed:", error);
         setErr("품목 추가 중 오류가 발생했습니다");
@@ -149,52 +181,197 @@ function AddItemForm({ onAdded }: { onAdded: (id: string) => void }) {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+      <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
         <Plus className="w-5 h-5 mr-2 text-blue-600" />새 품목 추가
       </h3>
 
-      <form onSubmit={onSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Input
-            value={f.name}
-            onChange={(v) => setF((s) => ({ ...s, name: v }))}
-            placeholder="상품명 *"
-          />
-          <Input
-            value={f.sku}
-            onChange={(v) => setF((s) => ({ ...s, sku: v }))}
-            placeholder="SKU (선택)"
-          />
-          <Input
-            value={f.barcode}
-            onChange={(v) => setF((s) => ({ ...s, barcode: v }))}
-            placeholder="바코드"
-          />
-          <Input
-            value={f.minStock}
-            onChange={(v) => setF((s) => ({ ...s, minStock: v }))}
-            placeholder="최소 재고"
-            type="number"
-            min={0}
-          />
-          <Input
-            value={f.price}
-            onChange={(v) => setF((s) => ({ ...s, price: v }))}
-            placeholder="가격 (선택)"
-            type="number"
-            step="0.01"
-            min={0}
-          />
-          <Input
-            value={f.qty}
-            onChange={(v) => setF((s) => ({ ...s, qty: v }))}
-            placeholder="초기 수량 (선택)"
-            type="number"
-            min={0}
-          />
+      <form onSubmit={onSubmit} className="space-y-6">
+        {/* 🎯 필수/기본 정보 섹션 */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold text-gray-900 flex items-center">
+              <Package className="w-4 h-4 mr-2 text-blue-600" />
+              기본 정보
+            </h4>
+            <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+              ⭐ 중요
+            </span>
+          </div>
+
+          {/* 상품명 (필수) */}
+          <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                상품명 <span className="text-red-500">*</span>
+              </label>
+              <Input
+                value={f.name}
+                onChange={(v) => setF((s) => ({ ...s, name: v }))}
+                placeholder="예: 사과, 노트북, 세제..."
+                required={true}
+              />
+            </div>
+          </div>
+
+          {/* 재고/가격 정보 */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                최소 재고
+              </label>
+              <Input
+                value={f.minStock}
+                onChange={(v) => setF((s) => ({ ...s, minStock: v }))}
+                placeholder="10"
+                type="number"
+                min={0}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                가격
+              </label>
+              <Input
+                value={f.price}
+                onChange={(v) => setF((s) => ({ ...s, price: v }))}
+                placeholder="1000"
+                type="number"
+                step="0.01"
+                min={0}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                초기 수량
+              </label>
+              <Input
+                value={f.qty}
+                onChange={(v) => setF((s) => ({ ...s, qty: v }))}
+                placeholder="100"
+                type="number"
+                min={0}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                입고일 <span className="text-blue-500 text-xs">(중요)</span>
+              </label>
+              <Input
+                value={f.receivedDate}
+                onChange={(v) => setF((s) => ({ ...s, receivedDate: v }))}
+                type="date"
+                required={true}
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center justify-between">
+        {/* 🏷️ 추가 옵션 토글 버튼 */}
+        <div className="border-t border-gray-200 pt-4">
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            추가 옵션 {showAdvanced ? "숨기기" : "보기"}
+            <span className="ml-2 text-xs text-gray-400">
+              (식별정보, 품질관리)
+            </span>
+            {showAdvanced ? (
+              <X className="w-4 h-4 ml-auto" />
+            ) : (
+              <Plus className="w-4 h-4 ml-auto" />
+            )}
+          </button>
+        </div>
+
+        {/* 🔧 고급 옵션 (조건부 표시) */}
+        {showAdvanced && (
+          <div className="space-y-6 bg-gray-50 rounded-lg p-4">
+            {/* 식별 정보 섹션 */}
+            <div className="space-y-4">
+              <div className="flex items-center">
+                <h4 className="text-sm font-medium text-gray-700 flex items-center">
+                  <Hash className="w-4 h-4 mr-2 text-gray-500" />
+                  식별 정보
+                </h4>
+                <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-full ml-2">
+                  선택
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-2">
+                    SKU (제품코드)
+                  </label>
+                  <Input
+                    value={f.sku}
+                    onChange={(v) => setF((s) => ({ ...s, sku: v }))}
+                    placeholder="예: APP-001"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-2">
+                    바코드
+                  </label>
+                  <Input
+                    value={f.barcode}
+                    onChange={(v) => setF((s) => ({ ...s, barcode: v }))}
+                    placeholder="예: 8801234567890"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 품질 관리 섹션 */}
+            <div className="space-y-4">
+              <div className="flex items-center">
+                <h4 className="text-sm font-medium text-gray-700 flex items-center">
+                  <Calendar className="w-4 h-4 mr-2 text-orange-500" />
+                  품질 관리
+                </h4>
+                <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-full ml-2">
+                  선택
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-2">
+                    유통기한
+                  </label>
+                  <Input
+                    value={f.expiryDate}
+                    onChange={(v) => setF((s) => ({ ...s, expiryDate: v }))}
+                    type="date"
+                    placeholder="예: 2024-12-31"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-2">
+                    로트번호
+                  </label>
+                  <Input
+                    value={f.batchNumber}
+                    onChange={(v) => setF((s) => ({ ...s, batchNumber: v }))}
+                    placeholder="예: LOT-20250923"
+                  />
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-500 flex items-start">
+                <AlertTriangle className="w-3 h-3 mr-1 mt-0.5 flex-shrink-0 text-orange-400" />
+                유통기한은 만료 알림에 사용되며, 로트번호는 품질 추적에
+                활용됩니다.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* 제출 버튼 영역 */}
+        <div className="flex items-center justify-between pt-4 border-t border-gray-200">
           <div className="flex-1">
             {err && (
               <div className="flex items-center text-red-600 text-sm">
@@ -205,7 +382,7 @@ function AddItemForm({ onAdded }: { onAdded: (id: string) => void }) {
           </div>
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !f.name.trim()}
             className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isSubmitting ? (
@@ -231,7 +408,7 @@ function AdjustStockModal({
   const createMovement = useCreateMovement();
   const [adjustmentType, setAdjustmentType] = useState<
     "IN" | "OUT" | "USE" | "ADJUST"
-  >("IN"); // 🔧 수정
+  >("IN");
   const [qty, setQty] = useState<number | "">("");
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -243,7 +420,7 @@ function AdjustStockModal({
     setIsSubmitting(true);
     try {
       await createMovement({
-        type: adjustmentType, // 🔧 수정: mode → adjustmentType
+        type: adjustmentType,
         itemId,
         qty: n,
         reason: reason || `${adjustmentType} 처리`,
@@ -379,6 +556,7 @@ function AdjustStockModal({
   );
 }
 
+// 🔧 개선된 ItemRow 컴포넌트
 function ItemRow({
   item,
   onEdit,
@@ -398,7 +576,15 @@ function ItemRow({
     sku: item.sku ?? "",
     barcode: item.barcode ?? "",
     minStock: item.minStock ?? 0,
+    defaultPrice: item.defaultPrice ?? "",
+    expiryDate: item.expiryDate ?? "",
+    batchNumber: item.batchNumber ?? "",
+    receivedDate: item.receivedDate ?? "",
   });
+
+  const expiryStatus = useMemo(() => {
+    return item.expiryDate ? getExpiryStatus(item.expiryDate) : null;
+  }, [item.expiryDate]);
 
   const save = useCallback(() => {
     onEdit({
@@ -406,6 +592,11 @@ function ItemRow({
       sku: form.sku || undefined,
       barcode: form.barcode || undefined,
       minStock: typeof form.minStock === "number" ? form.minStock : 0,
+      defaultPrice:
+        typeof form.defaultPrice === "number" ? form.defaultPrice : undefined,
+      expiryDate: form.expiryDate || undefined,
+      batchNumber: form.batchNumber || undefined,
+      receivedDate: form.receivedDate || undefined,
     });
     setEditing(false);
   }, [onEdit, form]);
@@ -414,25 +605,86 @@ function ItemRow({
 
   return (
     <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+      {/* 🎯 상품 정보 (간소화) */}
       <td className="px-6 py-4">
         {editing ? (
-          <input
-            value={form.name}
-            onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
-            className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-          />
+          <div className="space-y-2">
+            <input
+              value={form.name}
+              onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium"
+              placeholder="상품명"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                value={form.sku}
+                onChange={(e) =>
+                  setForm((s) => ({ ...s, sku: e.target.value }))
+                }
+                className="px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="SKU"
+              />
+              <input
+                value={form.barcode}
+                onChange={(e) =>
+                  setForm((s) => ({ ...s, barcode: e.target.value }))
+                }
+                className="px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="바코드"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                value={form.minStock}
+                onChange={(e) =>
+                  setForm((s) => ({
+                    ...s,
+                    minStock: Number(e.target.value) || 0,
+                  }))
+                }
+                className="px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="최소재고"
+                type="number"
+                min="0"
+              />
+              <input
+                value={form.defaultPrice}
+                onChange={(e) =>
+                  setForm((s) => ({ ...s, defaultPrice: e.target.value }))
+                }
+                className="px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="가격"
+                type="number"
+                step="0.01"
+              />
+            </div>
+          </div>
         ) : (
           <div>
-            <div className="font-medium text-gray-900">{item.name}</div>
-            <div className="text-sm text-gray-500">
+            <div className="font-medium text-gray-900 text-sm">{item.name}</div>
+            <div className="text-xs text-gray-500 mt-1">
               {item.sku && `SKU: ${item.sku}`}
               {item.sku && item.barcode && " • "}
               {item.barcode && `바코드: ${item.barcode}`}
             </div>
+            {(item.minStock || item.defaultPrice) && (
+              <div className="text-xs text-gray-600 mt-1 space-y-1">
+                {item.minStock && <div>최소: {item.minStock}개</div>}
+                {item.defaultPrice && (
+                  <div>가격: {item.defaultPrice.toLocaleString()}원</div>
+                )}
+              </div>
+            )}
+            {item.batchNumber && (
+              <div className="text-xs text-orange-600 mt-1">
+                로트: {item.batchNumber}
+              </div>
+            )}
           </div>
         )}
       </td>
 
+      {/* 📊 재고량 */}
       <td className="px-6 py-4">
         <div className="flex items-center space-x-2">
           <span
@@ -444,23 +696,110 @@ function ItemRow({
           </span>
           <span className="text-sm text-gray-500">개</span>
         </div>
+        {item.minStock && item.minStock > 0 && (
+          <div className="text-xs text-gray-400 mt-1">
+            최소: {item.minStock}개
+          </div>
+        )}
       </td>
 
+      {/* 📦 입고일 */}
+      <td className="px-6 py-4">
+        {editing ? (
+          <input
+            value={form.receivedDate}
+            onChange={(e) =>
+              setForm((s) => ({ ...s, receivedDate: e.target.value }))
+            }
+            className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
+            type="date"
+          />
+        ) : (
+          <div>
+            {item.receivedDate ? (
+              <div className="text-sm text-gray-900">
+                {new Date(item.receivedDate).toLocaleDateString("ko-KR")}
+              </div>
+            ) : (
+              <div className="text-sm text-gray-400">-</div>
+            )}
+          </div>
+        )}
+      </td>
+
+      {/* 📅 유통기한 */}
+      <td className="px-6 py-4">
+        {editing ? (
+          <div className="space-y-1">
+            <input
+              value={form.expiryDate}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, expiryDate: e.target.value }))
+              }
+              className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
+              type="date"
+            />
+            <input
+              value={form.batchNumber}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, batchNumber: e.target.value }))
+              }
+              className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
+              placeholder="로트번호"
+            />
+          </div>
+        ) : (
+          <div>
+            {item.expiryDate ? (
+              <div
+                className={`text-sm ${
+                  expiryStatus?.status !== "safe"
+                    ? expiryStatus?.color.includes("red")
+                      ? "text-red-600 font-medium"
+                      : expiryStatus?.color.includes("orange")
+                      ? "text-orange-600"
+                      : "text-gray-900"
+                    : "text-gray-900"
+                }`}
+              >
+                {new Date(item.expiryDate).toLocaleDateString("ko-KR")}
+              </div>
+            ) : (
+              <div className="text-sm text-gray-400">-</div>
+            )}
+            {expiryStatus && expiryStatus.status !== "safe" && (
+              <div className="text-xs text-gray-500 mt-1">
+                {expiryStatus.message}
+              </div>
+            )}
+          </div>
+        )}
+      </td>
+
+      {/* ⚡ 상태 */}
       <td className="px-6 py-4">
         <div className="flex flex-wrap gap-1">
           {isLowStock && (
             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
               <AlertTriangle className="w-3 h-3 mr-1" />
-              재고 부족
+              재고부족
             </span>
           )}
-          {expSoon && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+          {expiryStatus && expiryStatus.status !== "safe" && (
+            <span
+              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${expiryStatus.color}`}
+            >
               <Clock className="w-3 h-3 mr-1" />
-              유통기한 임박
+              {expiryStatus.status === "expired"
+                ? "기한만료"
+                : expiryStatus.status === "critical"
+                ? "위험"
+                : expiryStatus.status === "warning"
+                ? "주의"
+                : "임박"}
             </span>
           )}
-          {!isLowStock && !expSoon && (
+          {!isLowStock && (!expiryStatus || expiryStatus.status === "safe") && (
             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
               <CheckCircle className="w-3 h-3 mr-1" />
               정상
@@ -469,6 +808,7 @@ function ItemRow({
         </div>
       </td>
 
+      {/* 🔧 작업 */}
       <td className="px-6 py-4">
         {editing ? (
           <div className="flex items-center space-x-2">
@@ -558,18 +898,22 @@ export default function Inventory() {
   }, []);
 
   // 성공 알림 자동 숨김
-  useState(() => {
+  const hideSuccessNotification = useCallback(() => {
     if (addedId) {
       const timer = setTimeout(() => setAddedId(null), 3000);
       return () => clearTimeout(timer);
     }
-  });
+  }, [addedId]);
+
+  useState(hideSuccessNotification);
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">인벤토리</h1>
-        <p className="text-gray-600">상품을 등록하고 재고를 관리하세요</p>
+        <p className="text-gray-600">
+          상품을 등록하고 재고를 효율적으로 관리하세요
+        </p>
       </div>
 
       {/* 성공 알림 */}
@@ -578,12 +922,12 @@ export default function Inventory() {
           <div className="flex items-center">
             <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
             <span className="text-green-800 font-medium">
-              품목이 성공적으로 추가되었습니다!
+              품목이 성공적으로 추가되었습니다! 🎉
             </span>
           </div>
           <button
             onClick={() => setAddedId(null)}
-            className="text-green-600 hover:text-green-800"
+            className="text-green-600 hover:text-green-800 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -633,6 +977,12 @@ export default function Inventory() {
                     재고량
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+                    입고일
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+                    유통기한
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
                     상태
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
@@ -659,8 +1009,11 @@ export default function Inventory() {
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               등록된 품목이 없습니다
             </h3>
-            <p className="text-gray-500">
-              새 품목을 추가하여 재고 관리를 시작하세요.
+            <p className="text-gray-500 mb-4">
+              새 품목을 추가하여 재고 관리를 시작해보세요.
+            </p>
+            <p className="text-xs text-gray-400">
+              💡 체계적인 재고 관리로 효율성을 높여보세요
             </p>
           </div>
         )}

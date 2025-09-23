@@ -1,5 +1,4 @@
-// src/stores/settingsStore.ts (완전 수정 버전)
-
+// src/stores/settingsStore.ts
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -9,12 +8,22 @@ interface SettingsState {
   expiringDays: number;
   pageSize: number;
   updateMode: UpdateMode;
+  theme: "light" | "dark" | "auto";
+  notifications: {
+    lowStock: boolean;
+    expiry: boolean;
+    newMovements: boolean;
+  };
 }
 
 interface SettingsActions {
   setExpiringDays: (days: number) => void;
   setPageSize: (size: number) => void;
   setUpdateMode: (mode: UpdateMode) => void;
+  setTheme: (theme: "light" | "dark" | "auto") => void;
+  setNotifications: (
+    notifications: Partial<SettingsState["notifications"]>
+  ) => void;
   reset: () => void;
 }
 
@@ -24,20 +33,53 @@ const initialState: SettingsState = {
   expiringDays: 30,
   pageSize: 20,
   updateMode: "auto",
+  theme: "auto",
+  notifications: {
+    lowStock: true,
+    expiry: true,
+    newMovements: false,
+  },
 };
 
 export const useSettingsStore = create<SettingsStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initialState,
 
-      setExpiringDays: (expiringDays) => set({ expiringDays }),
-      setPageSize: (pageSize) => set({ pageSize }),
-      setUpdateMode: (updateMode) => set({ updateMode }),
-      reset: () => set(initialState),
+      setExpiringDays: (expiringDays: number) => {
+        set({ expiringDays });
+      },
+
+      setPageSize: (pageSize: number) => {
+        set({ pageSize });
+      },
+
+      setUpdateMode: (updateMode: UpdateMode) => {
+        set({ updateMode });
+      },
+
+      setTheme: (theme: "light" | "dark" | "auto") => {
+        set({ theme });
+      },
+
+      setNotifications: (
+        newNotifications: Partial<SettingsState["notifications"]>
+      ) => {
+        set((state) => ({
+          notifications: {
+            ...state.notifications,
+            ...newNotifications,
+          },
+        }));
+      },
+
+      reset: () => {
+        set(initialState);
+      },
     }),
     {
       name: "settings-storage",
+      version: 1,
     }
   )
 );

@@ -1,8 +1,6 @@
 // src/stores/itemsStore.ts
-
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { makeNsName } from "./persistNamespace";
 
 export interface Item {
   id: string;
@@ -15,6 +13,9 @@ export interface Item {
   defaultPrice?: number;
   createdAt: string;
   workspaceId: string;
+  expiryDate?: string;
+  batchNumber?: string;
+  receivedDate?: string;
 }
 
 interface ItemsState {
@@ -39,22 +40,31 @@ interface ItemsActions {
   setStock: (itemId: string, stock: number) => void;
   reset: () => void;
   getWorkspaceItems: () => Item[];
-  // 🔧 워크스페이스별 초기화 함수 추가
   initializeWorkspace: (workspaceId: string) => void;
 }
 
 type ItemsStore = ItemsState & ItemsActions;
 
-// 🔧 워크스페이스별 현재 ID를 가져오는 유틸리티 함수
+// 워크스페이스 ID 가져오기 함수 (안정성 개선)
 const getCurrentWorkspaceId = (): string | null => {
   try {
-    const workspaceStorage = localStorage.getItem("workspace-storage");
-    return workspaceStorage
-      ? JSON.parse(workspaceStorage).state?.currentWorkspaceId ?? null
-      : null;
+    const workspaceStorage = localStorage.getItem("inventory-workspaces");
+    if (!workspaceStorage) {
+      console.warn("워크스페이스 스토리지를 찾을 수 없습니다");
+      return "default-workspace"; // 기본값 반환
+    }
+
+    const parsed = JSON.parse(workspaceStorage);
+    const currentWorkspaceId = parsed.state?.currentWorkspaceId;
+    if (!currentWorkspaceId) {
+      console.warn("현재 워크스페이스 ID가 없습니다");
+      return "default-workspace"; // 기본값 반환
+    }
+
+    return currentWorkspaceId;
   } catch (e) {
     console.error("워크스페이스 ID 가져오기 실패:", e);
-    return null;
+    return "default-workspace"; // 기본값 반환
   }
 };
 
@@ -64,18 +74,24 @@ export const useItemsStore = create<ItemsStore>()(
       items: {},
       query: "",
 
-      // ✅ `getWorkspaceItems`에 타입 가드 추가
       getWorkspaceItems: () => {
         const currentWorkspaceId = getCurrentWorkspaceId();
         if (!currentWorkspaceId) {
+          console.warn("현재 워크스페이스가 없어 빈 배열을 반환합니다");
           return [];
         }
+
         const allItems = get().items;
-        // Object.values의 타입을 Item[]으로 명확하게 해주는 것이 핵심
-        return Object.values(allItems).filter(
+        const workspaceItems = Object.values(allItems).filter(
           (item): item is Item =>
             item && item.workspaceId === currentWorkspaceId
         );
+
+        console.log(
+          `워크스페이스 ${currentWorkspaceId}의 아이템:`,
+          workspaceItems.length
+        );
+        return workspaceItems;
       },
 
       upsert: (item) => {
@@ -83,14 +99,22 @@ export const useItemsStore = create<ItemsStore>()(
           console.error("❌ 워크스페이스 ID가 없는 아이템:", item);
           return;
         }
-        set((state) => ({ items: { ...state.items, [item.id]: item } }));
+        set((state) => ({
+          items: { ...state.items, [item.id]: item },
+        }));
       },
 
       addItem: (itemData) => {
         const currentWorkspaceId = getCurrentWorkspaceId();
         if (!currentWorkspaceId) {
-          throw new Error("워크스페이스를 선택해주세요.");
+          console.error(
+            "현재 워크스페이스를 찾을 수 없습니다. 워크스페이스를 먼저 선택해주세요."
+          );
+          throw new Error(
+            "워크스페이스를 선택해주세요. 사이드바에서 워크스페이스를 선택하거나 새로 생성하세요."
+          );
         }
+
         const item: Item = {
           ...itemData,
           id: globalThis.crypto?.randomUUID?.() ?? `item_${Date.now()}`,
@@ -98,11 +122,18 @@ export const useItemsStore = create<ItemsStore>()(
           createdAt: new Date().toISOString(),
           workspaceId: currentWorkspaceId,
         };
-        set((state) => ({ items: { ...state.items, [item.id]: item } }));
+
+        console.log("새 아이템 생성:", {
+          itemId: item.id,
+          workspaceId: currentWorkspaceId,
+          name: item.name,
+        });
+
+        set((state) => ({
+          items: { ...state.items, [item.id]: item },
+        }));
         return item;
       },
-
-      // ... 다른 액션들은 그대로 유지 ...
 
       hasSku: (sku) => {
         return get()
@@ -112,8 +143,13 @@ export const useItemsStore = create<ItemsStore>()(
 
       bulk: (items) => {
         const validItems = items.filter((item) => item.workspaceId);
-        set(() => ({
-          items: Object.fromEntries(validItems.map((item) => [item.id, item])),
+        const itemsRecord = validItems.reduce((acc, item) => {
+          acc[item.id] = item;
+          return acc;
+        }, {} as Record<string, Item>);
+
+        set((state) => ({
+          items: { ...state.items, ...itemsRecord },
         }));
       },
 
@@ -123,6 +159,7 @@ export const useItemsStore = create<ItemsStore>()(
         set((state) => {
           const item = state.items[id];
           if (!item) return state;
+
           const { workspaceId, ...allowedUpdates } = updates as any;
           return {
             items: { ...state.items, [id]: { ...item, ...allowedUpdates } },
@@ -142,6 +179,7 @@ export const useItemsStore = create<ItemsStore>()(
         set((state) => {
           const item = state.items[itemId];
           if (!item) return state;
+
           return {
             items: {
               ...state.items,
@@ -155,6 +193,7 @@ export const useItemsStore = create<ItemsStore>()(
         set((state) => {
           const item = state.items[itemId];
           if (!item) return state;
+
           return {
             items: {
               ...state.items,
@@ -170,26 +209,54 @@ export const useItemsStore = create<ItemsStore>()(
 
       initializeWorkspace: (workspaceId) => {
         console.log("아이템 스토어 초기화 (워크스페이스):", workspaceId);
+        // 워크스페이스 변경 시 쿼리만 초기화 (아이템은 유지)
+        set((state) => ({ ...state, query: "" }));
       },
     }),
     {
-      name: makeNsName("items"), // 동적 이름 설정
+      name: "inventory-items",
       storage: createJSONStorage(() => localStorage),
-      version: 2, // 마이그레이션 버전
-      // 필요한 상태만 저장
+      version: 5,
       partialize: (state) => ({ items: state.items }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          console.log("아이템 스토어 rehydrate 완료");
+          const currentWorkspaceId = getCurrentWorkspaceId();
+          const itemCount = Object.keys(state.items).length;
+          const workspaceItems = Object.values(state.items).filter(
+            (item) => item.workspaceId === currentWorkspaceId
+          ).length;
+
+          console.log(
+            `총 아이템: ${itemCount}개, 현재 워크스페이스 아이템: ${workspaceItems}개`
+          );
+        }
+      },
     }
   )
 );
 
-// 🔧 워크스페이스 변경 이벤트 리스너 강화
+// 워크스페이스 변경 이벤트 리스너
 window.addEventListener("workspace-changed", (event: any) => {
   console.log("아이템 스토어: 워크스페이스 변경 감지", event.detail);
-
-  // 새 워크스페이스로 전환 시 강제 리프레시
   const newWorkspaceId = event.detail?.workspaceId;
   if (newWorkspaceId) {
     useItemsStore.getState().initializeWorkspace(newWorkspaceId);
-    useItemsStore.getState().getWorkspaceItems();
   }
 });
+
+// 디버깅 도구
+if (typeof window !== "undefined" && import.meta.env.DEV) {
+  (window as any).debugItemsStore = {
+    getCurrentWorkspaceId,
+    getItems: () => useItemsStore.getState().items,
+    getWorkspaceItems: () => useItemsStore.getState().getWorkspaceItems(),
+    checkWorkspaceStorage: () => {
+      const storage = localStorage.getItem("inventory-workspaces");
+      console.log(
+        "워크스페이스 스토리지:",
+        storage ? JSON.parse(storage) : null
+      );
+    },
+  };
+}

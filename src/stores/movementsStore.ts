@@ -1,7 +1,8 @@
 // src/stores/movementsStore.ts
 
 import { create } from "zustand";
-import { createWorkspacePersist } from "./persistNamespace";
+import { persist, createJSONStorage } from "zustand/middleware";
+import { makeNsName } from "../utils/persistNamespace";
 
 export type MovementKind =
   | "IN" // 재고 증가 (어디든 들어옴)
@@ -47,13 +48,16 @@ type Actions = {
 
 type Store = State & Actions;
 
-// 🔧 워크스페이스별 현재 ID를 가져오는 유틸리티 함수
+// 🔧 워크스페이스별 현재 ID를 가져오는 유틸리티 함수 - 올바른 키 사용
 const getCurrentWorkspaceId = (): string | null => {
   try {
-    const workspaceStorage = localStorage.getItem("workspace-storage");
+    // 🚨 수정: 올바른 키 사용
+    const workspaceStorage = localStorage.getItem("inventory-workspaces");
     if (workspaceStorage) {
       const parsed = JSON.parse(workspaceStorage);
-      return parsed?.state?.currentWorkspaceId;
+      const workspaceId = parsed?.state?.currentWorkspaceId;
+      console.log("MovementsStore getCurrentWorkspaceId:", workspaceId);
+      return workspaceId;
     }
   } catch (e) {
     console.error("워크스페이스 ID 가져오기 실패:", e);
@@ -62,152 +66,153 @@ const getCurrentWorkspaceId = (): string | null => {
 };
 
 export const useMovementsStore = create<Store>()(
-  createWorkspacePersist<Store>("movements")((set, get) => ({
-    byId: {},
-    query: "",
+  persist(
+    (set, get) => ({
+      byId: {},
+      query: "",
 
-    add: (m: Movement) => {
-      // 🔧 워크스페이스 ID 검증
-      if (!m.workspaceId) {
-        console.error("❌ 워크스페이스 ID가 없는 이동:", m);
-        return;
-      }
+      add: (m: Movement) => {
+        // 🔧 워크스페이스 ID 검증
+        if (!m.workspaceId) {
+          console.error("❌ 워크스페이스 ID가 없는 이동:", m);
+          return;
+        }
 
-      console.log(
-        "✅ 이동 추가:",
-        m.type,
-        m.qty,
-        "워크스페이스:",
-        m.workspaceId
-      );
-      set((s) => ({
-        byId: { ...s.byId, [m.id]: m },
-      }));
-    },
+        console.log(
+          "이동 추가:",
+          m.type,
+          m.qty,
+          "워크스페이스:",
+          m.workspaceId
+        );
+        set((s) => ({
+          ...s,
+          byId: { ...s.byId, [m.id]: m },
+        }));
+      },
 
-    addMany: (ms: Movement[]) => {
-      // 🔧 워크스페이스 ID가 있는 이동만 필터링
-      const validMovements = ms.filter((m) => m.workspaceId);
-      console.log("이동 addMany:", validMovements.length, "개");
+      addMany: (ms: Movement[]) => {
+        // 🔧 워크스페이스 ID가 있는 이동만 필터링
+        const validMovements = ms.filter((m) => m.workspaceId);
+        console.log("이동 addMany:", validMovements.length, "개");
+        set((s) => ({
+          ...s,
+          byId: {
+            ...s.byId,
+            ...Object.fromEntries(validMovements.map((m) => [m.id, m])),
+          },
+        }));
+      },
 
-      const movementsMap = Object.fromEntries(
-        validMovements.map((m) => [m.id, m])
-      );
-      set((s) => ({
-        byId: { ...s.byId, ...movementsMap },
-      }));
-    },
+      bulk: (ms: Movement[]) => {
+        // 🔧 워크스페이스 ID가 있는 이동만 필터링
+        const validMovements = ms.filter((m) => m.workspaceId);
+        console.log("이동 bulk:", validMovements.length, "개");
+        set(() => ({
+          byId: Object.fromEntries(validMovements.map((m) => [m.id, m])),
+          query: "",
+        }));
+      },
 
-    bulk: (ms: Movement[]) => {
-      // 🔧 워크스페이스 ID가 있는 이동만 필터링
-      const validMovements = ms.filter((m) => m.workspaceId);
-      console.log("이동 bulk:", validMovements.length, "개");
+      create: ({ itemId, type, qty, reason, note }) => {
+        const currentWorkspaceId = getCurrentWorkspaceId();
+        if (!currentWorkspaceId) {
+          console.error("현재 워크스페이스 ID를 찾을 수 없습니다!");
+          throw new Error("워크스페이스를 선택해주세요.");
+        }
 
-      set(() => ({
-        byId: Object.fromEntries(validMovements.map((m) => [m.id, m])),
-        query: "",
-      }));
-    },
+        const movement: Movement = {
+          id:
+            globalThis.crypto?.randomUUID?.() ??
+            `mov_${Date.now()}_${Math.random()}`,
+          workspaceId: currentWorkspaceId, // 🔧 현재 워크스페이스 ID 할당
+          itemId,
+          type,
+          qty,
+          reason,
+          note,
+          actor: "user",
+          createdAt: new Date().toISOString(),
+        };
 
-    create: ({ itemId, type, qty, reason, note }) => {
-      const currentWorkspaceId = getCurrentWorkspaceId();
+        console.log(
+          "✅ 이동 생성:",
+          movement.type,
+          movement.qty,
+          "워크스페이스:",
+          currentWorkspaceId
+        );
 
-      if (!currentWorkspaceId) {
-        console.error("현재 워크스페이스 ID를 찾을 수 없습니다!");
-        throw new Error("워크스페이스를 선택해주세요.");
-      }
+        set((s) => ({
+          ...s,
+          byId: { ...s.byId, [movement.id]: movement },
+        }));
 
-      const movement: Movement = {
-        id:
-          globalThis.crypto?.randomUUID?.() ??
-          `mov_${Date.now()}_${Math.random()}`,
-        workspaceId: currentWorkspaceId, // 🔧 현재 워크스페이스 ID 할당
-        itemId,
-        type,
-        qty,
-        reason,
-        note,
-        actor: "user",
-        createdAt: new Date().toISOString(),
-      };
+        return movement;
+      },
 
-      console.log(
-        "✅ 이동 생성:",
-        movement.type,
-        movement.qty,
-        "워크스페이스:",
-        currentWorkspaceId,
-        "아이템:",
-        itemId
-      );
+      remove: (id) =>
+        set((s) => {
+          const next = { ...s.byId };
+          delete next[id];
+          return { ...s, byId: next };
+        }),
 
-      set((s) => ({
-        byId: { ...s.byId, [movement.id]: movement },
-      }));
+      reset: () => set((s) => ({ ...s, byId: {}, query: "" })),
 
-      return movement;
-    },
+      setQuery: (q) => set((s) => ({ ...s, query: q })),
 
-    remove: (id) =>
-      set((s) => {
-        const next = { ...s.byId };
-        delete next[id];
-        return { byId: next, query: s.query };
-      }),
+      // 🔧 현재 워크스페이스의 이동만 반환
+      getWorkspaceMovements: () => {
+        const currentWorkspaceId = getCurrentWorkspaceId();
+        if (!currentWorkspaceId) {
+          console.log("현재 워크스페이스 ID가 없어서 빈 배열 반환");
+          return [];
+        }
 
-    reset: () => set({ byId: {}, query: "" }),
+        const allMovements = get().byId;
+        const workspaceMovements = Object.values(allMovements).filter(
+          (movement) => movement.workspaceId === currentWorkspaceId
+        );
 
-    setQuery: (q) => set((s) => ({ ...s, query: q })),
+        console.log(
+          `현재 워크스페이스(${currentWorkspaceId})의 이동: ${workspaceMovements.length}개`
+        );
+        return workspaceMovements;
+      },
 
-    // 🔧 현재 워크스페이스의 이동만 반환
-    getWorkspaceMovements: () => {
-      const currentWorkspaceId = getCurrentWorkspaceId();
+      getVisible: (): Movement[] => {
+        const state = get();
+        const q = state.query.trim().toLowerCase();
+        const workspaceMovements = get().getWorkspaceMovements(); // 🔧 워크스페이스 필터링된 이동만 사용
 
-      if (!currentWorkspaceId) {
-        console.log("현재 워크스페이스 ID가 없어서 빈 배열 반환");
-        return [];
-      }
+        const sorted = workspaceMovements.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
 
-      const allMovements = get().byId;
-      const workspaceMovements = Object.values(allMovements).filter(
-        (movement) => movement.workspaceId === currentWorkspaceId
-      );
-
-      console.log(
-        `🔍 현재 워크스페이스(${currentWorkspaceId})의 이동: ${workspaceMovements.length}개`,
-        "전체:",
-        Object.values(allMovements).length,
-        "개"
-      );
-      return workspaceMovements;
-    },
-
-    getVisible: (): Movement[] => {
-      const state = get();
-      const q = state.query.trim().toLowerCase();
-      const workspaceMovements = get().getWorkspaceMovements(); // 🔧 워크스페이스 필터링된 이동만 사용
-
-      const sorted = workspaceMovements.sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-
-      return q
-        ? sorted.filter(
-            (m) =>
-              m.reason?.toLowerCase().includes(q) ||
-              m.note?.toLowerCase().includes(q) ||
-              m.type.toLowerCase().includes(q)
-          )
-        : sorted;
-    },
-  }))
+        return q
+          ? sorted.filter(
+              (m) =>
+                m.reason?.toLowerCase().includes(q) ||
+                m.note?.toLowerCase().includes(q) ||
+                m.type.toLowerCase().includes(q)
+            )
+          : sorted;
+      },
+    }),
+    {
+      name: makeNsName("movements"),
+      storage: createJSONStorage(() => localStorage),
+      version: 3,
+      partialize: (state) => ({ byId: state.byId }),
+    }
+  )
 );
 
 // 🔧 워크스페이스 변경 이벤트 리스너
 window.addEventListener("workspace-changed", (event: any) => {
   console.log("이동 스토어: 워크스페이스 변경 감지", event.detail);
-
   // 새 워크스페이스로 전환 시 강제 리프레시
   const newWorkspaceId = event.detail?.workspaceId;
   if (newWorkspaceId) {
