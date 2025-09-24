@@ -568,27 +568,32 @@ export default function Dashboard() {
 
   // 최근 활동 내역
   const recentActivity = useMemo(() => {
-    if (!movements) {
-      console.log("recentActivity 계산 건너뛰기: movements 없음");
+    if (!movements || !Array.isArray(movements)) {
+      console.log("recentActivity: movements가 배열이 아님", typeof movements);
       return [];
     }
 
-    const sorted = [...movements]
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-      .slice(0, 8);
+    try {
+      const sorted = [...movements]
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+        .slice(0, 8);
 
-    // 안전한 방식으로 접근
-    const enriched = sorted.map((m: any) => ({
-      ...m,
-      itemName: m.itemName || "알 수 없는 상품",
-      isItemDeleted: m.isItemDeleted || false,
-    }));
+      // 안전한 타입 변환
+      const enriched = sorted.map((m: any) => ({
+        ...m,
+        itemName: m.itemName || "삭제된 품목",
+        isItemDeleted: m.isItemDeleted || false,
+      }));
 
-    console.log("recentActivity 계산 결과:", enriched.length, "개");
-    return enriched;
+      console.log("recentActivity 결과:", enriched.length);
+      return enriched;
+    } catch (error) {
+      console.error("recentActivity 처리 중 오류:", error);
+      return [];
+    }
   }, [movements]);
 
   // 유통기한 임박 품목
@@ -596,35 +601,77 @@ export default function Dashboard() {
     if (!expiringItemsSet || !items) return [];
 
     let expiringIds: string[] = [];
-    if (expiringItemsSet instanceof Set) {
-      expiringIds = Array.from(expiringItemsSet);
-    } else if (Array.isArray(expiringItemsSet)) {
-      expiringIds = expiringItemsSet.map((item: any) => item.id);
-    } else {
+
+    try {
+      // Set인 경우
+      if (expiringItemsSet instanceof Set) {
+        expiringIds = Array.from(expiringItemsSet);
+      }
+      // 배열인 경우 - 타입 단언으로 안전하게 처리
+      else if (Array.isArray(expiringItemsSet)) {
+        expiringIds = (expiringItemsSet as Array<{ id: string }>).map(
+          (item) => item.id
+        );
+      }
+      // 객체 배열이 아닌 경우 처리
+      else if (
+        typeof expiringItemsSet === "object" &&
+        expiringItemsSet !== null
+      ) {
+        // 객체를 배열로 변환 시도
+        const entries = Object.entries(expiringItemsSet);
+        if (entries.length > 0) {
+          expiringIds = entries.map(([key]) => key);
+        }
+      } else {
+        console.warn(
+          "expiringItemsSet 타입을 인식할 수 없습니다:",
+          typeof expiringItemsSet
+        );
+        return [];
+      }
+    } catch (error) {
+      console.error("expiringItems 처리 중 오류:", error);
+      return [];
+    }
+
+    // items가 배열인지 확인 후 필터링
+    if (!Array.isArray(items)) {
+      console.warn("items가 배열이 아닙니다:", typeof items);
       return [];
     }
 
     return items
-      .filter((item: any) => expiringIds.includes(item.id))
+      .filter((item: any) => item && item.id && expiringIds.includes(item.id))
       .slice(0, 5);
   }, [expiringItemsSet, items]);
 
   // 재고 부족 품목
   const lowStockItems = useMemo(() => {
-    if (!items) return [];
+    if (!items || !Array.isArray(items)) {
+      console.log("lowStockItems: items가 배열이 아님", typeof items);
+      return [];
+    }
 
-    return items
-      .filter((item: any) => {
-        let currentStock = 0;
-        if (allStockByItems && typeof allStockByItems === "object") {
-          currentStock = allStockByItems[item.id] || item.stock || 0;
-        } else {
-          currentStock = item.stock || 0;
-        }
-        const minStock = item.minStock || 5;
-        return currentStock <= minStock;
-      })
-      .slice(0, 5);
+    try {
+      return items
+        .filter((item: any) => {
+          if (!item || typeof item !== "object") return false;
+
+          let currentStock = 0;
+          if (allStockByItems && typeof allStockByItems === "object") {
+            currentStock = allStockByItems[item.id] || item.stock || 0;
+          } else {
+            currentStock = item.stock || 0;
+          }
+          const minStock = item.minStock || 5;
+          return currentStock <= minStock;
+        })
+        .slice(0, 5);
+    } catch (error) {
+      console.error("lowStockItems 처리 중 오류:", error);
+      return [];
+    }
   }, [items, allStockByItems]);
 
   // 헬퍼 함수들 (기존 유지)

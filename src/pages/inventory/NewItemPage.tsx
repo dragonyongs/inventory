@@ -24,7 +24,7 @@ type FormData = z.infer<typeof schema>;
 export const NewItemPage: React.FC = () => {
   const navigate = useNavigate();
   const addItem = useItemsStore((s) => s.addItem);
-  const hasSku = useItemsStore((s) => s.hasSku);
+  // const hasSku = useItemsStore((s) => s.hasSku);
   const createMovement = useCreateMovement();
 
   const [data, setData] = useState<FormData>({

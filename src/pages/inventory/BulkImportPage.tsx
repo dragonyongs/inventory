@@ -9,7 +9,6 @@ import {
   Download,
   AlertTriangle,
   X,
-  FileText,
   Info,
   Package,
 } from "lucide-react";

@@ -105,7 +105,7 @@ export const applyUpdate = async (): Promise<void> => {
     return;
   }
 
-  const waitingWorker = swRegistration.waiting;
+  const waitingWorker: ServiceWorker | null = swRegistration.waiting;
   if (!waitingWorker) {
     console.warn("대기 중인 Service Worker가 없습니다");
     return;
@@ -204,44 +204,18 @@ export const clearAllStorage = () => {
 };
 
 // 🔧 개발 모드용 캐시 클리어 (Settings.tsx용)
-export const clearDevCache = async () => {
-  if (import.meta.env.DEV !== "development") {
+export const clearDevCache = async (): Promise<void> => {
+  if (!import.meta.env.DEV) {
     console.warn("Cache clear is only available in development mode");
     return;
   }
 
   try {
-    // 브라우저 캐시 삭제
-    if ("caches" in window) {
-      const cacheNames = await caches.keys();
-      await Promise.all(
-        cacheNames.map((cacheName) => caches.delete(cacheName))
-      );
-      console.log("Browser caches cleared");
-    }
-
-    // 로컬스토리지 삭제 (선택적)
-    const shouldClearStorage = confirm("로컬 스토리지도 삭제하시겠습니까?");
-    if (shouldClearStorage) {
-      localStorage.clear();
-      sessionStorage.clear();
-      console.log("Storage cleared");
-    }
-
-    // 서비스 워커 등록 해제
-    if ("serviceWorker" in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      for (let registration of registrations) {
-        await registration.unregister();
-      }
-      console.log("Service workers unregistered");
-    }
-
-    // 페이지 새로고침
-    window.location.reload();
+    const cacheNames = await caches.keys();
+    await Promise.all(cacheNames.map((name) => caches.delete(name)));
+    console.log("개발 캐시가 삭제되었습니다");
   } catch (error) {
-    console.error("Failed to clear cache:", error);
-    alert("캐시 삭제 중 오류가 발생했습니다.");
+    console.error("캐시 삭제 실패:", error);
   }
 };
 

@@ -627,7 +627,7 @@ function ItemRow({
   onAdjust: () => void;
 }) {
   const stock = useStockByItem(item.id);
-  const expSoon = useExpiringSoonByItem(item.id, 30);
+  // const expSoon = useExpiringSoonByItem(item.id, 30);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     name: item.name,
