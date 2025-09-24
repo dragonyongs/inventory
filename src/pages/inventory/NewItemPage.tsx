@@ -55,98 +55,168 @@ export const NewItemPage: React.FC = () => {
   );
 
   // Inventory AddItemForm과 정확히 동일한 로직
+  // const handleSave = useCallback(
+  //   async (e: React.FormEvent) => {
+  //     e.preventDefault();
+  //     setError(null);
+  //     setSaving(true);
+
+  //     console.log("📝 저장 시작:", data);
+
+  //     // 유효성 검증
+  //     if (!data.name.trim()) {
+  //       setError("상품명을 입력하세요.");
+  //       setSaving(false);
+  //       return;
+  //     }
+
+  //     if (data.sku?.trim() && hasSku(data.sku.trim())) {
+  //       setError("이미 사용 중인 SKU입니다.");
+  //       setSaving(false);
+  //       return;
+  //     }
+
+  //     try {
+  //       // 1. 아이템 생성
+  //       console.log("🔄 addItem 호출 중...");
+  //       const item = addItem({
+  //         name: data.name.trim(),
+  //         sku: data.sku?.trim() || undefined,
+  //         barcode: data.barcode?.trim() || undefined,
+  //         minStock:
+  //           typeof data.minStock === "number"
+  //             ? data.minStock
+  //             : Number(data.minStock) || 0,
+  //         defaultPrice:
+  //           typeof data.price === "number"
+  //             ? data.price
+  //             : Number(data.price) || undefined,
+  //         stock: 0, // 초기값 0으로 설정
+  //         category: undefined,
+  //         expiryDate: data.expiryDate || undefined,
+  //         batchNumber: data.batchNumber?.trim() || undefined,
+  //         receivedDate: data.receivedDate || undefined,
+  //       });
+
+  //       console.log("✅ 아이템 생성 완료:", {
+  //         itemId: item.id,
+  //         name: item.name,
+  //         initialStock: item.stock,
+  //         inputQuantity: data.qty,
+  //       });
+
+  //       // 2. 초기 수량이 있으면 입고 이동 생성 - 수정된 부분
+  //       const qty = Number(data.qty) || 0; // 문자열을 숫자로 변환
+  //       console.log("🔍 수량 변환 확인:", {
+  //         originalQty: data.qty,
+  //         convertedQty: qty,
+  //         type: typeof qty,
+  //       });
+
+  //       if (qty > 0) {
+  //         console.log("🔄 createMovement 호출 중:", {
+  //           type: "IN",
+  //           itemId: item.id,
+  //           qty,
+  //           reason: "초기 재고",
+  //         });
+
+  //         try {
+  //           const result = await createMovement({
+  //             type: "IN",
+  //             itemId: item.id,
+  //             qty,
+  //             reason: "초기 재고",
+  //           });
+
+  //           console.log("✅ createMovement 완료:", result);
+  //         } catch (movementError) {
+  //           console.error("❌ createMovement 실패:", movementError);
+  //           setError(
+  //             `아이템은 생성되었지만 재고 이동 생성에 실패했습니다: ${movementError}`
+  //           );
+  //           setSaving(false);
+  //           return;
+  //         }
+  //       } else {
+  //         console.log(
+  //           "ℹ️  초기 수량이 0이므로 createMovement 건너뜀 (변환된 수량:",
+  //           qty,
+  //           ")"
+  //         );
+  //       }
+
+  //       console.log("🎉 전체 과정 완료, 페이지 이동");
+
+  //       // 성공 후 인벤토리로 이동
+  //       navigate("/inventory", { replace: true });
+  //     } catch (error) {
+  //       console.error("❌ 전체 과정 실패:", error);
+  //       setError(
+  //         `저장 중 오류가 발생했습니다: ${
+  //           error instanceof Error ? error.message : String(error)
+  //         }`
+  //       );
+  //     } finally {
+  //       setSaving(false);
+  //     }
+  //   },
+  //   [data, addItem, hasSku, createMovement, navigate]
+  // );
+
+  // handleSave에서 검증 후 사용 (zod가 이미 숫자로 변환해줌)
   const handleSave = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
       setError(null);
       setSaving(true);
 
-      console.log("📝 저장 시작:", data);
-
-      // 유효성 검증
-      if (!data.name.trim()) {
-        setError("상품명을 입력하세요.");
-        setSaving(false);
-        return;
-      }
-
-      if (data.sku?.trim() && hasSku(data.sku.trim())) {
-        setError("이미 사용 중인 SKU입니다.");
+      // zod 검증 (이미 coerce로 숫자 변환됨)
+      const parsed = schema.safeParse(data);
+      if (!parsed.success) {
+        setError(parsed.error.issues[0]?.message ?? "입력값을 확인하세요");
         setSaving(false);
         return;
       }
 
       try {
-        // 1. 아이템 생성
-        console.log("🔄 addItem 호출 중...");
+        // parsed.data는 이미 정확한 타입 (숫자는 숫자로)
+        const { qty, minStock, price, ...otherData } = parsed.data;
+
+        console.log("🔍 타입 확인:", {
+          qty,
+          qtyType: typeof qty,
+          minStock,
+          minStockType: typeof minStock,
+        });
+
+        // 아이템 생성
         const item = addItem({
-          name: data.name.trim(),
-          sku: data.sku?.trim() || undefined,
-          barcode: data.barcode?.trim() || undefined,
-          minStock: typeof data.minStock === "number" ? data.minStock : 0,
-          defaultPrice: typeof data.price === "number" ? data.price : undefined,
-          stock: 0, // 초기값 0으로 설정
-          category: undefined,
-          expiryDate: data.expiryDate || undefined,
-          batchNumber: data.batchNumber?.trim() || undefined,
-          receivedDate: data.receivedDate || undefined,
+          ...otherData,
+          minStock,
+          defaultPrice: price,
+          stock: 0,
         });
 
-        console.log("✅ 아이템 생성 완료:", {
-          itemId: item.id,
-          name: item.name,
-          initialStock: item.stock,
-          inputQuantity: data.qty,
-        });
-
-        // 2. 초기 수량이 있으면 입고 이동 생성
-        const qty = typeof data.qty === "number" ? data.qty : 0;
+        // qty는 이미 숫자이므로 바로 사용 가능
         if (qty > 0) {
-          console.log("🔄 createMovement 호출 중:", {
+          await createMovement({
             type: "IN",
             itemId: item.id,
-            qty,
+            qty, // 이미 숫자
             reason: "초기 재고",
           });
-
-          try {
-            const result = await createMovement({
-              type: "IN",
-              itemId: item.id,
-              qty,
-              reason: "초기 재고",
-            });
-
-            console.log("✅ createMovement 완료:", result);
-          } catch (movementError) {
-            console.error("❌ createMovement 실패:", movementError);
-            // 이동 생성 실패해도 아이템은 이미 생성됨을 알림
-            setError(
-              `아이템은 생성되었지만 재고 이동 생성에 실패했습니다: ${movementError}`
-            );
-            setSaving(false);
-            return;
-          }
-        } else {
-          console.log("ℹ️  초기 수량이 0이므로 createMovement 건너뜀");
         }
 
-        console.log("🎉 전체 과정 완료, 페이지 이동");
-
-        // 성공 후 인벤토리로 이동
         navigate("/inventory", { replace: true });
       } catch (error) {
-        console.error("❌ 전체 과정 실패:", error);
-        setError(
-          `저장 중 오류가 발생했습니다: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
+        console.error("❌ 저장 실패:", error);
+        setError(`저장 중 오류가 발생했습니다: ${error}`);
       } finally {
         setSaving(false);
       }
     },
-    [data, addItem, hasSku, createMovement, navigate]
+    [data, addItem, createMovement, navigate]
   );
 
   return (
@@ -218,7 +288,9 @@ export const NewItemPage: React.FC = () => {
                 </label>
                 <input
                   value={data.minStock}
-                  onChange={(e) => onChange("minStock", e.target.value as any)}
+                  onChange={(e) =>
+                    onChange("minStock", Number(e.target.value) || 0)
+                  }
                   placeholder="10"
                   type="number"
                   min={0}
@@ -231,7 +303,9 @@ export const NewItemPage: React.FC = () => {
                 </label>
                 <input
                   value={data.price ?? ""}
-                  onChange={(e) => onChange("price", e.target.value as any)}
+                  onChange={(e) =>
+                    onChange("price", Number(e.target.value) || undefined)
+                  }
                   placeholder="1000"
                   type="number"
                   step={0.01}
@@ -245,7 +319,7 @@ export const NewItemPage: React.FC = () => {
                 </label>
                 <input
                   value={data.qty}
-                  onChange={(e) => onChange("qty", e.target.value as any)}
+                  onChange={(e) => onChange("qty", Number(e.target.value) || 0)}
                   placeholder="100"
                   type="number"
                   min={0}

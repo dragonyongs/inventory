@@ -13,7 +13,6 @@ import {
   Package2,
   Calendar,
   Plus,
-  ArrowRight,
   Building2,
   PackagePlus,
   Upload,
@@ -28,10 +27,7 @@ import {
 } from "../stores/selectors";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import type { Movement } from "../stores/movementsStore";
-import {
-  getActionLabels,
-  getActionDescription,
-} from "../utils/workspaceLabels";
+import { getActionLabels } from "../utils/workspaceLabels";
 
 // OnboardingCard 컴포넌트 (기존 유지 + 새 라우트 연결)
 const OnboardingCard: React.FC<{
@@ -572,7 +568,10 @@ export default function Dashboard() {
 
   // 최근 활동 내역
   const recentActivity = useMemo(() => {
-    if (!movements || !items) return [];
+    if (!movements) {
+      console.log("recentActivity 계산 건너뛰기: movements 없음");
+      return [];
+    }
 
     const sorted = [...movements]
       .sort(
@@ -581,14 +580,16 @@ export default function Dashboard() {
       )
       .slice(0, 8);
 
-    return sorted.map((m: Movement) => {
-      const item = items.find((i: any) => i.id === m.itemId);
-      return {
-        ...m,
-        itemName: item?.name || "알 수 없는 상품",
-      };
-    });
-  }, [movements, items]);
+    // 안전한 방식으로 접근
+    const enriched = sorted.map((m: any) => ({
+      ...m,
+      itemName: m.itemName || "알 수 없는 상품",
+      isItemDeleted: m.isItemDeleted || false,
+    }));
+
+    console.log("recentActivity 계산 결과:", enriched.length, "개");
+    return enriched;
+  }, [movements]);
 
   // 유통기한 임박 품목
   const expiringItems = useMemo(() => {
@@ -844,6 +845,7 @@ export default function Dashboard() {
               최근 활동
             </h3>
           </div>
+          {/* 최근 활동 렌더링 부분 */}
           <div className="p-6">
             {recentActivity.length > 0 ? (
               <div className="space-y-4">
@@ -861,8 +863,19 @@ export default function Dashboard() {
                         {getMovementIcon(activity.type)}
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">
+                        <p
+                          className={`font-medium ${
+                            activity.itemName === "알 수 없는 상품"
+                              ? "text-gray-500 italic"
+                              : "text-gray-900"
+                          }`}
+                        >
                           {activity.itemName}
+                          {activity.itemName === "알 수 없는 상품" && (
+                            <span className="text-xs ml-2 text-red-500 bg-red-100 px-2 py-0.5 rounded-full">
+                              삭제됨
+                            </span>
+                          )}
                         </p>
                         <div className="flex items-center space-x-2 mt-1">
                           <span
