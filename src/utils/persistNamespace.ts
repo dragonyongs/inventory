@@ -16,7 +16,7 @@ export function createWorkspacePersist<T>(base: string) {
       storage: createJSONStorage(() => localStorage),
       version: 1,
       onRehydrateStorage: () => (state, error) => {
-        if (error) console.error(`${base} 복원 실패`, error);
+        if (error) console.error(`${base} 복원 실패`, error, state);
       },
     }) as StateCreator<T, [], [], T>;
   };

@@ -1,76 +1,62 @@
-// src/stores/authStore.ts - migration 경고 해결
+// src/stores/authStore.ts
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export interface User {
+export interface AuthUser {
   id: string;
   email: string;
-  name: string;
-  avatar?: string;
+  name?: string;
+  avatarUrl?: string;
 }
 
 interface AuthState {
-  user: User | null;
+  user: AuthUser | null;
   isAuthenticated: boolean;
 }
 
 interface AuthActions {
-  login: (user: User) => void;
+  login: (u: AuthUser) => void;
   logout: () => void;
-  updateUser: (updates: Partial<User>) => void;
+  updateProfile: (patch: Partial<AuthUser>) => void;
 }
 
-type AuthStore = AuthState & AuthActions;
+export type AuthStore = AuthState & AuthActions;
 
 export const useAuthStore = create<AuthStore>()(
   persist(
-    (set) => ({
-      // 초기 상태
+    (set, get) => ({
       user: null,
       isAuthenticated: false,
 
-      // 로그인
-      login: (user) => {
-        console.log("✅ 사용자 로그인:", user);
-        set({
-          user,
-          isAuthenticated: true,
-        });
+      login: (u) => {
+        console.log("✅ 사용자 로그인:", u);
+        set({ user: u, isAuthenticated: true });
       },
 
-      // 로그아웃
       logout: () => {
         console.log("👋 사용자 로그아웃");
-        set({
-          user: null,
-          isAuthenticated: false,
-        });
+        set({ user: null, isAuthenticated: false });
       },
 
-      // 사용자 정보 업데이트
-      updateUser: (updates) => {
-        set((state) => ({
-          user: state.user ? { ...state.user, ...updates } : null,
-        }));
+      updateProfile: (patch) => {
+        const cur = get().user;
+        if (!cur) return;
+        set({ user: { ...cur, ...patch } });
       },
     }),
     {
       name: "auth-storage",
-      version: 2, // ✅ 버전 증가로 migration 경고 해결
-      // ✅ migration 함수 추가
-      migrate: (persistedState: any, version: number) => {
-        console.log("🔄 AuthStore migration:", { version, persistedState });
-
-        if (version === 0) {
-          // 이전 버전에서의 데이터 변환 로직
-          return {
-            user: persistedState.user || null,
-            isAuthenticated: persistedState.isAuthenticated || false,
-          };
+      version: 2,
+      // 이전 구조 → 현재 구조로의 안전한 마이그레이션
+      migrate: (persisted: any, fromVersion: number) => {
+        console.log("🔄 AuthStore migrate", { fromVersion, persisted });
+        if (!persisted || typeof persisted !== "object") {
+          return { user: null, isAuthenticated: false };
         }
-
-        // 현재 버전이면 그대로 반환
-        return persistedState;
+        // v1 형태 호환 처리
+        const user = persisted.user ?? null;
+        const isAuthenticated = Boolean(persisted.isAuthenticated && user);
+        return { user, isAuthenticated };
       },
       onRehydrateStorage: () => (state, error) => {
         if (error) {

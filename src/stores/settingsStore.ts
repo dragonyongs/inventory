@@ -43,7 +43,7 @@ const initialState: SettingsState = {
 
 export const useSettingsStore = create<SettingsStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       ...initialState,
 
       setExpiringDays: (expiringDays: number) => {

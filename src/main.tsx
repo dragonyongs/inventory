@@ -1,5 +1,4 @@
 // src/main.tsx - 기존 App.tsx 구조 유지
-import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App"; // ✅ 기존 App.tsx 사용
 import "./index.css";

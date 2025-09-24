@@ -1,5 +1,5 @@
 // src/pages/Movements.tsx
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import {
   ArrowUpRight,
   ArrowDownLeft,

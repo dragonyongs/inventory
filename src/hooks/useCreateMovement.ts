@@ -1,4 +1,4 @@
-// src/hooks/useCreateMovement.ts
+// src/hooks/useCreateMovement.ts - 수정된 버전
 import { useCallback } from "react";
 import { useMovementsStore, type MovementType } from "../stores/movementsStore";
 import { useItemsStore } from "../stores/itemsStore";
@@ -10,32 +10,33 @@ export interface CreateMovementParams {
   qty: number;
   reason?: string;
   note?: string;
-  // ✅ 새로 추가: ADJUST 타입을 위한 절대값 설정 모드
   isAbsoluteValue?: boolean;
 }
 
 export const useCreateMovement = () => {
-  const { addMovement } = useMovementsStore();
-  const { adjustStock, setStock } = useItemsStore(); // ✅ setStock 추가
-  const { getCurrentWorkspace } = useWorkspaceStore();
+  const addMovement = useMovementsStore((s) => s.addMovement);
+  const adjustStock = useItemsStore((s) => s.adjustStock);
+  const setStock = useItemsStore((s) => s.setStock);
+  // getCurrentWorkspace를 의존성에서 빼기 위해 직접 스토어를 구독
+  const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
 
   return useCallback(
     async (params: CreateMovementParams) => {
-      console.log("✅ createMovement 시작:", params);
+      console.log("🔧 createMovement 시작:", params);
 
-      const currentWorkspace = getCurrentWorkspace();
-      if (!currentWorkspace) {
-        throw new Error("워크스페이스가 선택되지 않았습니다.");
+      // getCurrentWorkspace 함수 호출 대신 직접 체크
+      if (!currentWorkspaceId) {
+        throw new Error("활성 워크스페이스가 없습니다");
       }
 
       if (!params.itemId || !params.type || params.qty <= 0) {
-        throw new Error("필수 매개변수가 누락되었습니다.");
+        throw new Error("필수 파라미터가 누락되었거나 잘못되었습니다");
       }
 
       try {
+        // 1. 이동 기록 생성
         const movementId =
-          globalThis.crypto?.randomUUID?.() ?? `movement_${Date.now()}`;
-
+          globalThis.crypto?.randomUUID?.() ?? `movement-${Date.now()}`;
         const movement = {
           id: movementId,
           itemId: params.itemId,
@@ -43,47 +44,45 @@ export const useCreateMovement = () => {
           qty: params.qty,
           reason:
             params.reason ||
-            `${
-              params.type === "IN"
-                ? "입고"
-                : params.type === "OUT"
-                ? "출고"
-                : "조정"
-            }`,
+            (params.type === "IN"
+              ? "입고"
+              : params.type === "OUT"
+              ? "출고"
+              : "조정"),
+          note: params.note,
           createdAt: new Date().toISOString(),
-          ...(params.note && { note: params.note }),
+          workspaceId: currentWorkspaceId, // 함수 호출 대신 직접 사용
         };
 
-        // ✅ 움직임 저장
+        console.log("🔄 addMovement 호출:", movement);
         addMovement(movement);
+        console.log("✅ 움직임 추가 완료");
 
-        // ✅ 핵심 수정: ADJUST 타입이면서 절대값 모드인 경우 setStock 사용
+        // 2. 재고 조정
         if (params.type === "ADJUST" && params.isAbsoluteValue) {
-          console.log("✅ 절대값 재고 설정:", {
-            itemId: params.itemId,
-            newStock: params.qty,
-          });
+          console.log(`🔄 setStock 호출: ${params.itemId} → ${params.qty}`);
           setStock(params.itemId, params.qty);
         } else {
-          // ✅ 기존 로직: 델타 값 적용
           const delta = params.type === "IN" ? params.qty : -params.qty;
+          console.log(`🔄 adjustStock 호출: ${params.itemId} + ${delta}`);
           adjustStock(params.itemId, delta);
         }
 
-        console.log("✅ 움직임 생성 완료:", {
-          movementId: movement.id,
+        console.log("✅ 재고 조정 완료");
+
+        return {
+          movementId,
           itemId: params.itemId,
           type: params.type,
           qty: params.qty,
           isAbsoluteValue: params.isAbsoluteValue,
-        });
-
-        return movement;
+        };
       } catch (error) {
-        console.error("❌ 움직임 생성 실패:", error);
+        console.error("❌ createMovement 내부 오류:", error);
         throw error;
       }
     },
-    [addMovement, adjustStock, setStock, getCurrentWorkspace]
+    [addMovement, adjustStock, setStock, currentWorkspaceId]
+    // getCurrentWorkspace 함수는 의존성에서 제거
   );
 };

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { DevTools } from "./DevTools";
 import WorkspaceSelector from "./WorkspaceSelector";
-import { UserProfile } from "./UserProfile";
+import { UserProfile } from "./profile/UserProfile";
 
 export function RootLayout({ children }: { children?: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

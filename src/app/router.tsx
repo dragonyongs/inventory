@@ -11,6 +11,8 @@ import Dashboard from "../pages/Dashboard";
 import Inventory from "../pages/Inventory";
 import Movements from "../pages/Movements";
 import Settings from "../pages/Settings";
+import { NewItemPage } from "@/pages/inventory/NewItemPage";
+import { BulkImportPage } from "@/pages/inventory/BulkImportPage";
 
 // 강화된 Error Boundary
 class RouteErrorBoundary extends Component<
@@ -71,7 +73,7 @@ class RouteErrorBoundary extends Component<
               </p>
             </div>
 
-            <div className="gap-y-3">
+            <div className="space-y-3">
               <button
                 onClick={this.handleReload}
                 className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
@@ -132,7 +134,7 @@ function NotFound({ error }: { error?: any }) {
             ? "페이지에서 오류가 발생했습니다"
             : "페이지를 찾을 수 없습니다"}
         </p>
-        <div className="mt-6 gap-x-4">
+        <div className="mt-6 space-x-4">
           <button
             onClick={() => (window.location.href = "/dashboard")}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -188,6 +190,8 @@ const appRouter = createBrowserRouter([
       { path: "inventory", element: <Inventory /> },
       { path: "movements", element: <Movements /> },
       { path: "settings", element: <Settings /> },
+      { path: "/inventory/new", element: <NewItemPage /> },
+      { path: "/inventory/bulk", element: <BulkImportPage /> },
     ],
   },
 

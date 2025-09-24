@@ -220,7 +220,6 @@ export default function WorkspaceSelector() {
     getCurrentWorkspace,
   } = useWorkspaceStore();
 
-  const { user } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -317,7 +316,7 @@ export default function WorkspaceSelector() {
           </button>
 
           {isOpen && (
-            <div className="absolute bottom-24 left-0 right-0 z-10 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg">
+            <div className="absolute bottom-16 left-0 right-0 z-10 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg">
               <div className="py-2">
                 {/* 워크스페이스 목록 */}
                 <div className="max-h-60 overflow-y-auto">

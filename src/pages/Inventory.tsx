@@ -14,9 +14,6 @@ import {
   X,
   Calendar,
   Hash,
-  Barcode,
-  DollarSign,
-  TrendingUp,
 } from "lucide-react";
 
 import {
@@ -30,10 +27,7 @@ import { getActionLabels } from "../utils/workspaceLabels";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { useItemsStore, type Item } from "../stores/itemsStore";
 import { useCreateMovement } from "../hooks/useCreateMovement";
-import {
-  calculateDaysUntilExpiry,
-  getExpiryStatus,
-} from "../utils/expiryUtils";
+import { getExpiryStatus } from "../utils/expiryUtils";
 
 type FormState = {
   name: string;

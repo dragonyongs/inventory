@@ -6,7 +6,6 @@ import {
   Bell,
   Database,
   Building2,
-  User,
   ChevronDown,
   Check,
   X,
@@ -23,8 +22,8 @@ import { useWorkspaceStore } from "../stores/workspaceStore";
 import { WorkspaceModal } from "../components/WorkspaceSelector";
 import { getWorkspaceTypeLabel } from "../utils/workspaceLabels";
 import {
-  registerSW,
-  getNeedRefresh,
+  // registerSW,
+  // getNeedRefresh,
   applyUpdate,
   setPwaListeners,
   onUpdateAvailable,
@@ -79,9 +78,9 @@ export default function Settings() {
   const {
     workspaces,
     currentWorkspaceId,
-    currentWorkspace,
-    createWorkspace,
-    updateWorkspace,
+    // currentWorkspace,
+    // createWorkspace,
+    // updateWorkspace,
     deleteWorkspace,
     switchWorkspace,
   } = useWorkspaceStore();

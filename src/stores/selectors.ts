@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { useItemsStore } from "./itemsStore";
 import { useMovementsStore } from "./movementsStore";
 import { useWorkspaceStore } from "./workspaceStore";
-import { useLotsStore } from "./lotsStore";
+// import { useLotsStore } from "./lotsStore";
 
 // ✅ 아이템 목록 (삭제되지 않은 것만)
 export const useItemList = () => {

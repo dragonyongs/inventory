@@ -8,6 +8,8 @@ export type WorkspaceType =
   | "WAREHOUSE"
   | "RESTAURANT"
   | "PHARMACY"
+  | "EVENT"
+  | "OFFICE"
   | "GENERAL";
 
 export interface Workspace {
@@ -17,6 +19,14 @@ export interface Workspace {
   type: WorkspaceType;
   createdAt: string;
   updatedAt: string;
+}
+
+// 권한/멤버십
+export type WorkspaceRole = "owner" | "admin" | "member" | "viewer";
+
+interface WorkspaceMembersState {
+  // workspaceId -> { userId -> role }
+  memberships: Record<string, Record<string, WorkspaceRole>>;
 }
 
 interface WorkspaceState {
@@ -31,291 +41,192 @@ interface WorkspaceActions {
     description?: string;
     type: WorkspaceType;
   }) => Workspace;
-  updateWorkspace: (id: string, data: Partial<Workspace>) => void;
+  updateWorkspace: (
+    id: string,
+    data: Partial<Pick<Workspace, "name" | "description" | "type">>
+  ) => void;
   deleteWorkspace: (id: string) => void;
   switchWorkspace: (id: string) => void;
   setCurrentWorkspaceId: (id: string | null) => void;
   getCurrentWorkspace: () => Workspace | null;
   ensureDefaultWorkspace: () => void;
   initialize: () => void;
+
+  // 멤버십 관련
+  getUserRole: (workspaceId: string, userId: string) => WorkspaceRole | null;
+  setUserRole: (
+    workspaceId: string,
+    userId: string,
+    role: WorkspaceRole
+  ) => void;
 }
 
-type WorkspaceStore = WorkspaceState & WorkspaceActions;
+export type WorkspaceStore = WorkspaceState &
+  WorkspaceMembersState &
+  WorkspaceActions;
 
-// 사용자 이름 기반 워크스페이스 생성 함수
-const createUserWorkspace = (): Workspace => {
+function newId() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+// auth-store persist에서 userId를 가져오는 임시 유틸 (DB 도입 전까지만 사용)
+function tryGetAuthUserId(): string | null {
   try {
-    const authStorage = localStorage.getItem("auth-storage");
-    let userName = "사용자";
-
-    if (authStorage) {
-      const parsed = JSON.parse(authStorage);
-      const user = parsed.state?.user;
-      if (user?.name) {
-        userName = user.name;
-      } else if (user?.email) {
-        userName = user.email.split("@")[0];
-      }
-    }
-
-    return {
-      id: "user-workspace",
-      name: `${userName}의 재고관리`,
-      description: `${userName}님 워크스페이스`,
-      type: "DEFAULT",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-  } catch (error) {
-    console.error("사용자 워크스페이스 생성 실패:", error);
-    // 기본 워크스페이스로 폴백
-    return {
-      id: "default-workspace",
-      name: "기본 워크스페이스",
-      description: "기본 재고 관리 워크스페이스",
-      type: "DEFAULT",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    const raw = localStorage.getItem("auth-storage");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed.state?.user?.id ?? null;
+  } catch {
+    return null;
   }
-};
+}
 
 export const useWorkspaceStore = create<WorkspaceStore>()(
   persist(
     (set, get) => ({
+      // 초기 상태
       workspaces: [],
       currentWorkspaceId: null,
       isInitialized: false,
+      memberships: {},
 
-      initialize: () => {
-        const state = get();
-
-        // 이미 초기화되었으면 무시
-        if (state.isInitialized) {
-          console.log("워크스페이스 이미 초기화됨 - 스킵");
-          return;
-        }
-
-        console.log("🎯 워크스페이스 초기화 시작");
-
-        // 워크스페이스가 없는 경우에만 생성
-        if (state.workspaces.length === 0) {
-          const userWorkspace = createUserWorkspace();
-
-          set({
-            workspaces: [userWorkspace],
-            currentWorkspaceId: userWorkspace.id,
-            isInitialized: true,
-          });
-
-          console.log("✅ 사용자 워크스페이스 생성:", userWorkspace.name);
-
-          // 초기화 완료 후 이벤트 발생
-          setTimeout(() => {
-            window.dispatchEvent(
-              new CustomEvent("workspace-changed", {
-                detail: { workspaceId: userWorkspace.id },
-              })
-            );
-          }, 100);
-        } else {
-          // 기존 워크스페이스가 있는 경우
-          const currentId = state.currentWorkspaceId || state.workspaces[0]?.id;
-
-          set({
-            currentWorkspaceId: currentId,
-            isInitialized: true,
-          });
-
-          console.log("✅ 기존 워크스페이스 선택:", currentId);
-
-          // 워크스페이스 변경 이벤트 발생
-          if (currentId) {
-            setTimeout(() => {
-              window.dispatchEvent(
-                new CustomEvent("workspace-changed", {
-                  detail: { workspaceId: currentId },
-                })
-              );
-            }, 100);
-          }
-        }
-      },
-
+      // 워크스페이스 생성
       createWorkspace: (data) => {
-        const state = get();
-
-        // 동일한 이름의 워크스페이스가 이미 있는지 확인
-        const existingWorkspace = state.workspaces.find(
-          (ws) =>
-            ws.name.trim().toLowerCase() === data.name.trim().toLowerCase()
-        );
-
-        if (existingWorkspace) {
-          console.log("🔄 기존 워크스페이스로 전환:", existingWorkspace.name);
-          set({ currentWorkspaceId: existingWorkspace.id });
-
-          // 워크스페이스 변경 이벤트 발생
+        const w: Workspace = {
+          id: newId(),
+          name: data.name,
+          description: data.description,
+          type: data.type,
+          createdAt: nowIso(),
+          updatedAt: nowIso(),
+        };
+        const userId = tryGetAuthUserId();
+        set((s) => ({
+          workspaces: [...s.workspaces, w],
+          currentWorkspaceId: w.id,
+          memberships: {
+            ...s.memberships,
+            [w.id]: {
+              ...(s.memberships[w.id] ?? {}),
+              ...(userId ? { [userId]: "owner" as const } : {}),
+            },
+          },
+        }));
+        queueMicrotask(() =>
           window.dispatchEvent(
             new CustomEvent("workspace-changed", {
-              detail: { workspaceId: existingWorkspace.id },
+              detail: { workspaceId: w.id },
             })
-          );
-
-          return existingWorkspace;
-        }
-
-        // 새 워크스페이스 생성
-        const newWorkspace: Workspace = {
-          id: `ws-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          name: data.name.trim(),
-          description: data.description?.trim(),
-          type: data.type,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-
-        set((state) => ({
-          workspaces: [...state.workspaces, newWorkspace],
-          currentWorkspaceId: newWorkspace.id,
-        }));
-
-        console.log("🆕 새 워크스페이스 생성:", newWorkspace.name);
-
-        // 워크스페이스 변경 이벤트 발생
-        window.dispatchEvent(
-          new CustomEvent("workspace-changed", {
-            detail: { workspaceId: newWorkspace.id },
-          })
+          )
         );
-
-        return newWorkspace;
+        return w;
       },
 
       updateWorkspace: (id, data) => {
-        set((state) => ({
-          workspaces: state.workspaces.map((ws) =>
-            ws.id === id
-              ? {
-                  ...ws,
-                  ...data,
-                  updatedAt: new Date().toISOString(),
-                }
-              : ws
+        set((s) => ({
+          workspaces: s.workspaces.map((w) =>
+            w.id === id ? { ...w, ...data, updatedAt: nowIso() } : w
           ),
         }));
       },
 
       deleteWorkspace: (id) => {
-        const state = get();
-
-        // 기본/사용자 워크스페이스는 삭제 불가
-        if (id === "default-workspace" || id === "user-workspace") {
-          console.log("기본 워크스페이스는 삭제할 수 없습니다.");
-          return;
-        }
-
-        // 마지막 워크스페이스 삭제 시 사용자 워크스페이스 생성
-        if (state.workspaces.length <= 1) {
-          const userWorkspace = createUserWorkspace();
-          set({
-            workspaces: [userWorkspace],
-            currentWorkspaceId: userWorkspace.id,
-          });
-
-          window.dispatchEvent(
-            new CustomEvent("workspace-changed", {
-              detail: { workspaceId: userWorkspace.id },
-            })
-          );
-          return;
-        }
-
-        const remainingWorkspaces = state.workspaces.filter(
-          (ws) => ws.id !== id
-        );
-
-        // 현재 워크스페이스가 삭제되는 경우 첫 번째 워크스페이스로 전환
-        let newCurrentId = state.currentWorkspaceId;
-        if (state.currentWorkspaceId === id) {
-          newCurrentId = remainingWorkspaces[0]?.id || null;
-        }
-
-        set({
-          workspaces: remainingWorkspaces,
-          currentWorkspaceId: newCurrentId,
+        set((s) => {
+          const filtered = s.workspaces.filter((w) => w.id !== id);
+          const memberships = { ...s.memberships };
+          delete memberships[id];
+          const currentWorkspaceId =
+            s.currentWorkspaceId === id
+              ? filtered[0]?.id ?? null
+              : s.currentWorkspaceId;
+          return { workspaces: filtered, currentWorkspaceId, memberships };
         });
-
-        // 워크스페이스 변경 이벤트 발생
-        if (newCurrentId) {
-          window.dispatchEvent(
-            new CustomEvent("workspace-changed", {
-              detail: { workspaceId: newCurrentId },
-            })
-          );
-        }
       },
 
       switchWorkspace: (id) => {
-        const state = get();
-        const workspace = state.workspaces.find((ws) => ws.id === id);
-        if (workspace) {
-          set({ currentWorkspaceId: id });
-          console.log("🔄 워크스페이스 전환:", workspace.name);
-
-          // 워크스페이스 변경 이벤트 발생
-          window.dispatchEvent(
-            new CustomEvent("workspace-changed", {
-              detail: { workspaceId: id },
-            })
-          );
-        }
-      },
-
-      setCurrentWorkspaceId: (id) => {
+        const exists = get().workspaces.some((w) => w.id === id);
+        if (!exists) return;
         set({ currentWorkspaceId: id });
-        if (id) {
+        queueMicrotask(() =>
           window.dispatchEvent(
             new CustomEvent("workspace-changed", {
               detail: { workspaceId: id },
             })
-          );
-        }
-      },
-
-      getCurrentWorkspace: () => {
-        const state = get();
-        if (!state.currentWorkspaceId) return null;
-        return (
-          state.workspaces.find((ws) => ws.id === state.currentWorkspaceId) ||
-          null
+          )
         );
       },
 
+      setCurrentWorkspaceId: (id) => set({ currentWorkspaceId: id }),
+
+      getCurrentWorkspace: () => {
+        const s = get();
+        return s.workspaces.find((w) => w.id === s.currentWorkspaceId) ?? null;
+      },
+
       ensureDefaultWorkspace: () => {
-        const state = get();
-        // initialize가 한 번만 호출되도록 보장
-        if (!state.isInitialized) {
-          console.log("🎯 ensureDefaultWorkspace에서 초기화 시작");
-          state.initialize();
-        } else {
-          console.log("📍 워크스페이스 이미 초기화됨");
+        const s = get();
+        if (s.workspaces.length === 0) {
+          const userId = tryGetAuthUserId();
+          const w: Workspace = {
+            id: newId(),
+            name: "My Workspace",
+            type: "DEFAULT",
+            createdAt: nowIso(),
+            updatedAt: nowIso(),
+          };
+          set({
+            workspaces: [w],
+            currentWorkspaceId: w.id,
+            memberships: {
+              ...(s.memberships ?? {}),
+              [w.id]: {
+                ...(s.memberships?.[w.id] ?? {}),
+                ...(userId ? { [userId]: "owner" as const } : {}),
+              },
+            },
+          });
+        } else if (!s.currentWorkspaceId) {
+          set({ currentWorkspaceId: s.workspaces[0].id });
         }
+      },
+
+      initialize: () => {
+        const s = get();
+        if (s.isInitialized) return;
+        get().ensureDefaultWorkspace();
+        set({ isInitialized: true });
+      },
+
+      // 멤버십
+      getUserRole: (workspaceId, userId) => {
+        const { memberships } = get();
+        return memberships[workspaceId]?.[userId] ?? null;
+      },
+
+      setUserRole: (workspaceId, userId, role) => {
+        set((s) => ({
+          memberships: {
+            ...s.memberships,
+            [workspaceId]: {
+              ...(s.memberships[workspaceId] ?? {}),
+              [userId]: role,
+            },
+          },
+        }));
       },
     }),
     {
       name: "inventory-workspaces",
-      version: 3, // 버전 업그레이드로 기존 데이터 정리
+      version: 1,
       onRehydrateStorage: () => (state) => {
         if (state && !state.isInitialized) {
-          console.log("🔄 워크스페이스 스토어 rehydrate");
-          // rehydrate 후 단 한 번만 초기화
           setTimeout(() => {
-            if (!state.isInitialized) {
-              // 다시 한번 체크
-              state.initialize();
-            }
-          }, 100);
+            if (!state.isInitialized) state.initialize();
+          }, 0);
         }
       },
     }

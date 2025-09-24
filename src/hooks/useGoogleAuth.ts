@@ -40,7 +40,7 @@ export const useGoogleAuth = () => {
           allowMemberInvite: true,
           defaultRole: "member",
         },
-      });
+      } as any); // <- 타입 단언 추가
       return workspace;
     },
     [createWorkspace]
