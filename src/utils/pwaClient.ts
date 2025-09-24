@@ -13,7 +13,7 @@ export const registerSW = () => {
     window.addEventListener("load", () => {
       navigator.serviceWorker
         .register("/sw.js")
-        .then((registration) => {
+        .then((registration: ServiceWorkerRegistration) => {
           console.log("SW registered: ", registration);
           swRegistration = registration;
 
@@ -75,7 +75,6 @@ export const setPwaListeners = (options: {
   onOfflineReady?: () => void;
 }) => {
   console.log("PWA 리스너 설정:", options);
-
   onNeedRefreshCallback = options.onNeedRefresh || null;
   onOfflineReadyCallback = options.onOfflineReady || null;
 
@@ -88,6 +87,7 @@ export const setPwaListeners = (options: {
 // Settings.tsx에서 사용하는 함수들
 export const onUpdateAvailable = (callback: (available: boolean) => void) => {
   updateCallbacks.push(callback);
+
   // 이미 업데이트가 있다면 즉시 콜백 호출
   if (updateAvailable) {
     callback(true);
@@ -99,19 +99,23 @@ export const onUpdateAvailable = (callback: (available: boolean) => void) => {
   };
 };
 
+// 🔧 핵심 수정: applyUpdate 함수
 export const applyUpdate = async (): Promise<void> => {
   if (!swRegistration) {
     console.warn("Service Worker가 등록되지 않았습니다");
     return;
   }
 
-  const waitingWorker: ServiceWorker | null = swRegistration.waiting;
+  // 타입 안전성을 위한 명시적 타입 체크
+  const registration: ServiceWorkerRegistration = swRegistration;
+  const waitingWorker: ServiceWorker | null = registration.waiting;
+
   if (!waitingWorker) {
     console.warn("대기 중인 Service Worker가 없습니다");
     return;
   }
 
-  return new Promise((resolve) => {
+  return new Promise<void>((resolve) => {
     const messageChannel = new MessageChannel();
     messageChannel.port1.onmessage = (event) => {
       if (event.data.type === "SW_SKIP_WAITING_SUCCESS") {
@@ -119,12 +123,10 @@ export const applyUpdate = async (): Promise<void> => {
         updateAvailable = false;
         updateCallbacks.forEach((callback) => callback(false));
         resolve();
-
         // 페이지 새로고침
         window.location.reload();
       }
     };
-
     waitingWorker.postMessage({ type: "SKIP_WAITING" }, [messageChannel.port2]);
   });
 };
@@ -136,7 +138,8 @@ export const checkForUpdate = async (): Promise<boolean> => {
   }
 
   try {
-    const registration = await swRegistration.update();
+    const registration: ServiceWorkerRegistration =
+      await swRegistration.update();
     return !!registration.waiting;
   } catch (error) {
     console.error("업데이트 확인 실패:", error);
@@ -158,7 +161,7 @@ export const getNeedRefresh = (): boolean => {
 };
 
 // 🔧 개발 모드용 캐시 강제 새로고침
-export const forceRefresh = () => {
+export const forceRefresh = (): void => {
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.getRegistrations().then((registrations) => {
       registrations.forEach((registration) => {
@@ -182,7 +185,7 @@ export const forceRefresh = () => {
 };
 
 // 🔧 localStorage 강제 새로고침
-export const clearAllStorage = () => {
+export const clearAllStorage = (): void => {
   // localStorage 정리
   const keysToKeep = ["auth-storage", "workspace-storage"];
   const keysToRemove: string[] = [];

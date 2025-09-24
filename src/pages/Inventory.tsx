@@ -19,7 +19,7 @@ import {
 import {
   useVisibleItems,
   useStockByItem,
-  useExpiringSoonByItem,
+  // useExpiringSoonByItem,
   useSetQuery,
   useQuery,
 } from "../stores/selectors";
