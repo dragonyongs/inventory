@@ -1,7 +1,7 @@
 // src/pages/inventory/NewItemPage.tsx
 import React, { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, PackagePlus, Save, Plus } from "lucide-react";
+import { ArrowLeft, PackagePlus, Plus } from "lucide-react";
 import { z } from "zod";
 import { useItemsStore } from "@/stores/itemsStore";
 import { useCreateMovement } from "@/hooks/useCreateMovement";

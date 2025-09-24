@@ -1,6 +1,7 @@
 // src/stores/itemsStore.ts (전체 파일)
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { useWorkspaceStore } from "./workspaceStore";
 
 export interface Item {
   id: string;
@@ -48,6 +49,9 @@ interface ItemsActions {
   reset: () => void;
   getWorkspaceItems: () => Item[];
   initializeWorkspace: (workspaceId: string) => void;
+  addMany: (
+    items: Array<Omit<Item, "id" | "createdAt" | "workspaceId" | "stock">>
+  ) => Item[];
 }
 
 type ItemsStore = ItemsState & ItemsActions;
@@ -145,6 +149,42 @@ export const useItemsStore = create<ItemsStore>()(
         return item;
       },
 
+      addMany: (newItems) => {
+        const currentWorkspace = useWorkspaceStore
+          .getState()
+          .getCurrentWorkspace();
+        if (!currentWorkspace) {
+          throw new Error("활성 워크스페이스가 없습니다");
+        }
+
+        const createdItems: Item[] = [];
+
+        set((state) => {
+          const updatedItems = { ...state.items };
+
+          newItems.forEach((itemData) => {
+            const id =
+              globalThis.crypto?.randomUUID?.() ??
+              `item-${Date.now()}-${Math.random()}`;
+            const item: Item = {
+              id,
+              workspaceId: currentWorkspace.id,
+              createdAt: new Date().toISOString(),
+              stock: 0, // 초기값
+              ...itemData,
+            };
+
+            updatedItems[id] = item;
+            createdItems.push(item);
+          });
+
+          console.log(`✅ ${createdItems.length}개 아이템 대량 생성 완료`);
+          return { items: updatedItems };
+        });
+
+        return createdItems;
+      },
+
       hasSku: (sku) => {
         return get()
           .getWorkspaceItems()
@@ -170,7 +210,11 @@ export const useItemsStore = create<ItemsStore>()(
           const item = state.items[id];
           if (!item) return state;
 
-          const { workspaceId, ...allowedUpdates } = updates as any;
+          // workspaceId는 업데이트 대상이 아님. 타입 안전하게 제거
+          const allowedUpdates = { ...updates };
+          if ("workspaceId" in allowedUpdates) {
+            delete (allowedUpdates as Partial<Item>).workspaceId;
+          }
           const updatedItem = { ...item, ...allowedUpdates };
 
           console.log("✅ 아이템 업데이트:", {
@@ -222,7 +266,8 @@ export const useItemsStore = create<ItemsStore>()(
 
         // 움직임 스토어에 직접 접근하여 추가
         const movementsStorage = localStorage.getItem("inventory-movements");
-        let movements = {};
+        // movements는 실제로 localStorage에만 기록됨. 타입 명확화
+        let movements: Record<string, any> = {};
 
         if (movementsStorage) {
           try {
@@ -248,6 +293,7 @@ export const useItemsStore = create<ItemsStore>()(
           },
         };
 
+        // movements 객체에 삭제 움직임 기록
         movements[movementId] = deleteMovement;
 
         // localStorage에 직접 저장
