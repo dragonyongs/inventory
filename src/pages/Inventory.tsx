@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { Package, CheckCircle, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import { useVisibleItems, useSetQuery, useQuery } from "../stores/selectors";
 import { useItemsStore, type Item } from "@/stores/itemsStore";
@@ -16,7 +16,10 @@ import { ItemRow } from "@/components/inventory/ItemRow";
 
 import { CategorySelector } from "@/components/inventory/CategorySelector";
 
+import { HeaderActions } from "@/components/inventory/HeaderActions";
+
 export default function Inventory() {
+  const navigate = useNavigate();
   const items = useVisibleItems();
   const setQuery = useSetQuery();
   const q = useQuery();
@@ -62,6 +65,10 @@ export default function Inventory() {
     [setQuery]
   );
 
+  const handleNewItem = useCallback(() => {
+    navigate("/inventory/new");
+  }, [navigate]);
+
   // 성공 알림 자동 숨김
   const hideSuccessNotification = useCallback(() => {
     if (addedId) {
@@ -78,17 +85,13 @@ export default function Inventory() {
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">인벤토리</h1>
-          <p className="text-gray-600">
+          <h1 className="text-2xl font-bold text-gray-900">인벤토리</h1>
+          <p className="text-gray-600 mt-1">
             상품을 등록하고 재고를 효율적으로 관리하세요
           </p>
         </div>
-        <Link
-          to="/inventory/new"
-          className="px-3 py-1.5 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-        >
-          신규 등록
-        </Link>
+
+        <HeaderActions onNewItem={handleNewItem} />
       </div>
 
       <div className="mb-6">

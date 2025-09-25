@@ -8,7 +8,6 @@ import {
   Settings,
   CheckCircle,
   X,
-  Folder,
   ChevronDown,
 } from "lucide-react";
 import { useStockByItem } from "@/stores/selectors";
@@ -16,6 +15,7 @@ import { getExpiryStatus } from "@/utils/expiryUtils";
 import { type Item } from "@/stores/itemsStore";
 import { useCategoriesStore } from "@/stores/categoriesStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { ItemActions } from "./ItemActions";
 
 interface ItemRowProps {
   item: Item;
@@ -29,7 +29,6 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
     const stock = useStockByItem(item.id);
     const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
     const { getCategoriesByWorkspace } = useCategoriesStore();
-
     const [editing, setEditing] = useState(false);
     const [form, setForm] = useState({
       name: item.name,
@@ -68,6 +67,14 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
       });
       setEditing(false);
     }, [onEdit, form]);
+
+    const handleCancel = useCallback(() => {
+      setEditing(false);
+    }, []);
+
+    const handleEdit = useCallback(() => {
+      setEditing(true);
+    }, []);
 
     const isLowStock = stock <= (item.minStock ?? 0);
 
@@ -165,7 +172,7 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
               </div>
               {(item.minStock || item.defaultPrice) && (
                 <div className="text-xs text-gray-600 mt-1 space-y-1">
-                  {item.minStock && <div>최소: {item.minStock}개</div>}
+                  {/* {item.minStock && <div>최소: {item.minStock}개</div>} */}
                   {item.defaultPrice && (
                     <div>가격: {item.defaultPrice.toLocaleString()}원</div>
                   )}
@@ -182,9 +189,9 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
 
         {/* 📊 재고량 */}
         <td className="px-6 py-4">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1">
             <span
-              className={`text-lg font-semibold ${
+              className={`text-sm font-semibold ${
                 isLowStock ? "text-red-600" : "text-gray-900"
               }`}
             >
@@ -306,53 +313,14 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
         </td>
 
         {/* 🔧 작업 */}
-        <td className="px-6 py-4">
-          {editing ? (
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={save}
-                className="flex items-center px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
-              >
-                <CheckCircle className="w-3 h-3 mr-1" />
-                저장
-              </button>
-              <button
-                onClick={() => setEditing(false)}
-                className="flex items-center px-3 py-1 bg-gray-500 text-white text-sm rounded hover:bg-gray-600 transition-colors"
-              >
-                <X className="w-3 h-3 mr-1" />
-                취소
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center space-x-1">
-              <button
-                onClick={() => setEditing(true)}
-                className="flex items-center px-2 py-1 text-blue-600 hover:bg-blue-50 rounded text-sm transition-colors min-w-16"
-                title="수정"
-              >
-                <Edit className="w-3 h-3 mr-1" />
-                수정
-              </button>
-              <button
-                onClick={onAdjust}
-                className="flex items-center px-2 py-1 text-green-600 hover:bg-green-50 rounded text-sm transition-colors min-w-16"
-                title="재고 조정"
-              >
-                <Settings className="w-3 h-3 mr-1" />
-                조정
-              </button>
-              <button
-                onClick={onDelete}
-                className="flex items-center px-2 py-1 text-red-600 hover:bg-red-50 rounded text-sm transition-colors min-w-16"
-                title="삭제"
-              >
-                <Trash2 className="w-3 h-3 mr-1" />
-                삭제
-              </button>
-            </div>
-          )}
-        </td>
+        <ItemActions
+          editing={editing}
+          onEdit={handleEdit}
+          onSave={save}
+          onCancel={handleCancel}
+          onAdjust={onAdjust}
+          onDelete={onDelete}
+        />
       </tr>
     );
   }
