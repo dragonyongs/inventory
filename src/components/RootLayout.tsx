@@ -18,15 +18,17 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-    `group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${
+    `group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
       isActive
-        ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25 transform scale-[1.02]"
-        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50 active:scale-[0.98]"
+        ? "bg-blue-50 text-blue-700 border-r-2 border-blue-600"
+        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
     }`;
 
   const mobileNavLinkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center justify-between px-4 py-3 text-base font-medium rounded-lg transition-colors ${
-      isActive ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-50"
+    `flex items-center justify-between px-4 py-3.5 text-base font-medium rounded-lg transition-all duration-200 ${
+      isActive
+        ? "bg-blue-50 text-blue-700 border-l-4 border-blue-600"
+        : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
     }`;
 
   const navigationItems = [
@@ -48,32 +50,40 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
       label: "이동내역",
       description: "입출고 기록",
     },
-    { to: "/settings", icon: Settings, label: "설정", description: "앱 설정" },
+    {
+      to: "/settings",
+      icon: Settings,
+      label: "설정",
+      description: "앱 설정",
+    },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* 🔧 DevTools를 항상 렌더링 (개발 환경에서만 표시하도록 DevTools 내부에서 처리) */}
+    <div className="min-h-screen bg-white">
       <DevTools />
 
       {/* Mobile Header */}
-      <header className="bg-white shadow-sm border-b lg:hidden sticky top-0 z-40">
+      <header className="bg-white border-b border-gray-200 lg:hidden sticky top-0 z-40 backdrop-blur-sm bg-white/95">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                <Package className="w-5 h-5 text-white" />
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                <Package className="w-4 h-4 text-white" />
               </div>
-              <h1 className="text-xl font-bold text-gray-900">재고관리</h1>
+              <div>
+                <h1 className="text-lg font-semibold text-gray-900">
+                  재고관리
+                </h1>
+              </div>
             </div>
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 rounded-lg text-gray-400 hover:text-gray-500 hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
             >
               {isMobileMenuOpen ? (
-                <X className="h-6 w-6" />
+                <X className="h-5 w-5" />
               ) : (
-                <Menu className="h-6 w-6" />
+                <Menu className="h-5 w-5" />
               )}
             </button>
           </div>
@@ -82,8 +92,8 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden bg-white border-b shadow-lg">
-          <div className="px-4 py-3 space-y-1">
+        <div className="lg:hidden bg-white border-b border-gray-200 shadow-sm">
+          <div className="px-4 py-4 space-y-1">
             {navigationItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -94,22 +104,22 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <div className="flex items-center">
-                    <Icon className="w-5 h-5 mr-3" />
+                    <Icon className="w-5 h-5 mr-3 text-current" />
                     <div>
-                      <div>{item.label}</div>
-                      <div className="text-xs text-gray-500">
+                      <div className="font-medium">{item.label}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">
                         {item.description}
                       </div>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
                 </NavLink>
               );
             })}
           </div>
 
           {/* Mobile 워크스페이스 & 사용자 정보 */}
-          <div className="px-4 py-3 border-t border-gray-100 space-y-3">
+          <div className="px-4 py-4 border-t border-gray-100 space-y-3 bg-gray-50">
             <WorkspaceSelector />
             <UserProfile />
           </div>
@@ -118,61 +128,59 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
 
       <div className="flex">
         {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex lg:flex-col lg:w-72 lg:fixed lg:inset-y-0 lg:z-50">
-          <div className="flex flex-col flex-1 bg-white shadow-xl">
+        <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 lg:z-50">
+          <div className="flex flex-col flex-1 bg-white border-r border-gray-200">
             {/* Logo */}
-            <div className="flex space-x-2 items-center h-16 px-6 bg-gradient-to-r from-blue-500 to-blue-600">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mr-3">
-                <Package className="w-6 h-6 text-white" />
+            <div className="flex items-center h-16 px-6 border-b border-gray-200">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
+                <Package className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white">재고관리</h1>
-                <p className="text-blue-100 text-sm">Smart Inventory</p>
+                <h1 className="text-lg font-semibold text-gray-900">
+                  재고관리
+                </h1>
+                <p className="text-xs text-gray-500">Smart Inventory</p>
               </div>
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 px-4 py-6 space-y-2">
-              <div className="mb-6">
-                <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                  메뉴
-                </h3>
-                <div className="space-y-1">
-                  {navigationItems.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <NavLink
-                        key={item.to}
-                        to={item.to}
-                        className={navLinkClass}
-                      >
-                        <div className="flex items-center min-w-0 flex-1 space-x-2">
-                          <Icon className="w-5 h-5 mr-3 flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <div className="font-medium">{item.label}</div>
-                            <div className="text-xs opacity-75 group-hover:opacity-100 transition-opacity">
-                              {item.description}
-                            </div>
+            <nav className="flex-1 px-4 py-6">
+              <div className="space-y-1">
+                {navigationItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      className={navLinkClass}
+                    >
+                      <div className="flex items-center min-w-0 flex-1">
+                        <Icon className="w-5 h-5 mr-3 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-sm">
+                            {item.label}
                           </div>
                         </div>
-                      </NavLink>
-                    );
-                  })}
-                </div>
+                      </div>
+                    </NavLink>
+                  );
+                })}
               </div>
             </nav>
 
             {/* Workspace & User Section */}
-            <div className="px-4 py-4 border-t border-gray-100 space-y-3">
-              <WorkspaceSelector />
-              <UserProfile />
+            <div className="px-4 py-4 border-t border-gray-200 bg-gray-50/50">
+              <div className="space-y-3">
+                <WorkspaceSelector />
+                <UserProfile />
+              </div>
             </div>
           </div>
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 lg:pl-72">
-          <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30">
+        <main className="flex-1 lg:pl-64">
+          <div className="min-h-screen bg-gray-50">
             {children || <Outlet />}
           </div>
         </main>

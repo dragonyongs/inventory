@@ -30,76 +30,70 @@ export const UserProfile: React.FC = () => {
   return (
     <div className="relative" ref={dropdownRef}>
       <button
-        className="flex space-x-2 items-center w-full px-4 py-3 text-left bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        className="flex items-center gap-3 w-full px-3 py-2.5 text-left bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
         onClick={() => setIsOpen((v) => !v)}
         aria-expanded={isOpen}
         aria-haspopup="menu"
       >
         <UserAvatar user={user} />
-        <div className="flex-1">
-          <span className="text-sm font-medium">
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium text-gray-900 truncate">
             {user?.name || user?.email || "Guest"}
-          </span>
-          <RoleBadge role={role} />
+          </div>
+          <div className="mt-1">
+            <RoleBadge role={role} />
+          </div>
         </div>
         <ChevronUp
-          className={`w-4 h-4 transition-transform ${
+          className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
             isOpen ? "rotate-180" : ""
           }`}
         />
       </button>
 
       <ProfileMenu isOpen={isOpen} onClose={() => setIsOpen(false)}>
-        <ul className="flex flex-col gap-1">
-          <li>
-            <button className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-100">
-              <Shield className="w-4 h-4" />
-              <span>Profile</span>
-            </button>
-          </li>
-          <li>
-            <button className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-100">
-              <Mail className="w-4 h-4" />
-              <span>{user?.email || "Not signed in"}</span>
-            </button>
-          </li>
-          <li>
-            <button className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-100">
-              <Settings className="w-4 h-4" />
-              <span>Settings</span>
-            </button>
-          </li>
+        <div className="py-1">
+          <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 rounded-md hover:bg-gray-50 transition-colors">
+            <Shield className="w-4 h-4 text-gray-400" />
+            <span>프로필</span>
+          </button>
+
+          <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 rounded-md hover:bg-gray-50 transition-colors">
+            <Mail className="w-4 h-4 text-gray-400" />
+            <span className="truncate">{user?.email || "로그인되지 않음"}</span>
+          </button>
+
+          <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 rounded-md hover:bg-gray-50 transition-colors">
+            <Settings className="w-4 h-4 text-gray-400" />
+            <span>설정</span>
+          </button>
 
           {can("manageUsers") && (
-            <li>
-              <button className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-100">
-                <Users className="w-4 h-4" />
-                <span>Manage members</span>
-              </button>
-            </li>
+            <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 rounded-md hover:bg-gray-50 transition-colors">
+              <Users className="w-4 h-4 text-gray-400" />
+              <span>멤버 관리</span>
+            </button>
           )}
 
-          <li className="border-t my-1" />
+          <div className="border-t border-gray-100 my-1" />
 
-          <li>
-            <button
-              className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-red-50 text-red-600"
-              onClick={() => {
-                setIsOpen(false);
-                logout();
-              }}
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Logout</span>
-            </button>
-          </li>
+          <button
+            className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 rounded-md hover:bg-red-50 transition-colors"
+            onClick={() => {
+              setIsOpen(false);
+              logout();
+            }}
+          >
+            <LogOut className="w-4 h-4" />
+            <span>로그아웃</span>
+          </button>
 
           {isOwner && (
-            <li className="text-[10px] text-gray-500 px-2 pt-1">
-              Owner access
-            </li>
+            <div className="px-3 py-1 text-xs text-gray-500 border-t border-gray-100 mt-1">
+              소유자 권한
+            </div>
           )}
-        </ul>
+        </div>
       </ProfileMenu>
     </div>
   );
