@@ -95,14 +95,6 @@ export const NewItemPage: React.FC = () => {
     return valid;
   }, [data]);
 
-  const handleModalClose = useCallback(() => {
-    setIsAddCategoryModalOpen(false);
-    // 작은 지연 후 카테고리 목록 다시 로드 (zustand persist 동기화)
-    setTimeout(() => {
-      console.log("모달 닫힘, 카테고리 목록 새로고침");
-    }, 100);
-  }, []);
-
   const handleSave = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();

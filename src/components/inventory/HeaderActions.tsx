@@ -21,6 +21,8 @@ export const HeaderActions: React.FC<HeaderActionsProps> = React.memo(
 
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [shareUrl, setShareUrl] = useState<string>();
+    const [currentPermission, setCurrentPermission] =
+      useState<SharePermission>("view"); // ✅ 현재 권한 상태 추가
 
     const handleShare = useCallback(() => {
       if (!currentWorkspaceId || !currentCategoryId) {
@@ -39,6 +41,7 @@ export const HeaderActions: React.FC<HeaderActionsProps> = React.memo(
         const url = `${baseUrl}/share/${token}?permission=${permission}&workspace=${currentWorkspaceId}&category=${currentCategoryId}`;
 
         setShareUrl(url);
+        setCurrentPermission(permission);
       },
       [currentWorkspaceId, currentCategoryId, generateShareToken]
     );
@@ -46,6 +49,7 @@ export const HeaderActions: React.FC<HeaderActionsProps> = React.memo(
     const handleCloseShareModal = useCallback(() => {
       setShareModalOpen(false);
       setShareUrl(undefined);
+      setCurrentPermission("view"); // ✅ 권한 초기화
     }, []);
 
     return (
@@ -76,6 +80,7 @@ export const HeaderActions: React.FC<HeaderActionsProps> = React.memo(
           onClose={handleCloseShareModal}
           onGenerate={handleGenerateShare}
           shareUrl={shareUrl}
+          currentPermission={currentPermission} // ✅ 현재 권한 전달
         />
       </>
     );

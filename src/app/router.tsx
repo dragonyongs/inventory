@@ -13,6 +13,7 @@ import Movements from "@/pages/Movements";
 import Settings from "@/pages/Settings";
 import { NewItemPage } from "@/components/inventory/NewItemPage";
 import { BulkImportPage } from "@/components/inventory/BulkImportPage";
+import SharedInventory from "@/pages/SharedInventory";
 
 // 강화된 Error Boundary
 class RouteErrorBoundary extends Component<
@@ -194,7 +195,34 @@ const appRouter = createBrowserRouter([
       { path: "/inventory/bulk", element: <BulkImportPage /> },
     ],
   },
-
+  {
+    path: "/share/:token",
+    element: (
+      <RouteErrorBoundary>
+        <SharedInventory />
+      </RouteErrorBoundary>
+    ),
+    errorElement: (
+      <RouteErrorBoundary>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+          <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              공유 페이지를 불러올 수 없습니다
+            </h2>
+            <p className="text-gray-600 mb-4">
+              링크가 유효하지 않거나 만료되었을 수 있습니다.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              다시 시도
+            </button>
+          </div>
+        </div>
+      </RouteErrorBoundary>
+    ),
+  },
   // 404 처리
   {
     path: "*",
@@ -203,29 +231,37 @@ const appRouter = createBrowserRouter([
 ]);
 
 // ✅ 기존 방식과 호환되는 default export (AppRouter 컴포넌트)
-export default function AppRouter() {
+export function AppRouter() {
   try {
     return <RouterProvider router={appRouter} />;
   } catch (error) {
-    console.error("❌ RouterProvider 오류:", error);
+    console.error("❌ Router Provider Error:", error);
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">라우터 오류</h1>
-          <p className="text-gray-600 mb-4">
-            라우팅 시스템을 불러올 수 없습니다.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            새로고침
-          </button>
+      <RouteErrorBoundary>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">
+              라우팅 시스템을 불러올 수 없습니다
+            </h1>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              페이지 새로고침
+            </button>
+            {process.env.NODE_ENV === "development" && (
+              <details className="mt-4">
+                <summary className="cursor-pointer text-sm text-gray-500">
+                  오류 세부사항
+                </summary>
+                <pre className="text-xs text-red-600 mt-2 overflow-auto max-w-md">
+                  {JSON.stringify(error, null, 2)}
+                </pre>
+              </details>
+            )}
+          </div>
         </div>
-      </div>
+      </RouteErrorBoundary>
     );
   }
 }
-
-// ✅ router 객체를 다른 이름으로 export (충돌 방지)
-export { appRouter as router };

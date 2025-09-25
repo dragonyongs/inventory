@@ -1,15 +1,6 @@
 // src/components/inventory/ItemRow.tsx
 import React, { useState, useCallback, useMemo } from "react";
-import {
-  AlertTriangle,
-  Clock,
-  Edit,
-  Trash2,
-  Settings,
-  CheckCircle,
-  X,
-  ChevronDown,
-} from "lucide-react";
+import { AlertTriangle, Clock, CheckCircle, ChevronDown } from "lucide-react";
 import { useStockByItem } from "@/stores/selectors";
 import { getExpiryStatus } from "@/utils/expiryUtils";
 import { type Item } from "@/stores/itemsStore";

@@ -19,6 +19,11 @@ export interface Movement {
   qty: number;
   reason?: string;
   createdAt: string;
+  userName?: string; // 사용자 이름 (로그인/비로그인 모두)
+  userId?: string; // 로그인한 경우 사용자 ID
+  userEmail?: string; // 로그인한 경우 이메일
+  isSharedAccess?: boolean; // 공유 페이지에서 접근한 경우
+  shareToken?: string; // 공유 토큰
   // ✅ 삭제된 아이템 정보 보존용
   itemSnapshot?: {
     name: string;
@@ -94,6 +99,8 @@ export const useMovementsStore = create<MovementsStore>()(
           itemId: movement.itemId,
           qty: movement.qty,
           reason: movement.reason,
+          userName: movement.userName,
+          isSharedAccess: movement.isSharedAccess,
           hasSnapshot: !!movement.itemSnapshot,
         });
 
@@ -125,7 +132,7 @@ export const useMovementsStore = create<MovementsStore>()(
     {
       name: "inventory-movements",
       storage: createJSONStorage(() => localStorage),
-      version: 2, // ✅ 버전 업그레이드
+      version: 3, // ✅ 버전 업그레이드
       partialize: (state) => ({ byId: state.byId }),
       onRehydrateStorage: () => (state) => {
         if (state) {
@@ -134,8 +141,11 @@ export const useMovementsStore = create<MovementsStore>()(
           const deleteMovements = Object.values(state.byId).filter(
             (m) => m.type === "DELETE"
           );
+          const sharedMovements = Object.values(state.byId).filter(
+            (m) => m.isSharedAccess
+          );
           console.log(
-            `총 움직임: ${movementCount}개, 삭제 움직임: ${deleteMovements.length}개`
+            `총 움직임: ${movementCount}개, 삭제: ${deleteMovements.length}개, 공유: ${sharedMovements.length}개`
           );
         }
       },
