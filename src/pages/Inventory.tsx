@@ -1,543 +1,17 @@
 // src/pages/Inventory.tsx
 
-import { useMemo, useState, useCallback } from "react";
-import {
-  Search,
-  Package,
-  AlertTriangle,
-  Clock,
-  Edit,
-  Trash2,
-  Settings,
-  CheckCircle,
-  X,
-} from "lucide-react";
+import { useMemo, useState, useCallback, useEffect } from "react";
+import { Package, CheckCircle, X } from "lucide-react";
 
-import {
-  useVisibleItems,
-  useStockByItem,
-  // useExpiringSoonByItem,
-  useSetQuery,
-  useQuery,
-} from "../stores/selectors";
-import { getActionLabels } from "@/utils/workspaceLabels";
-import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { useVisibleItems, useSetQuery, useQuery } from "../stores/selectors";
 import { useItemsStore, type Item } from "@/stores/itemsStore";
-import { useCreateMovement } from "@/hooks/useCreateMovement";
-import { getExpiryStatus } from "@/utils/expiryUtils";
 
-function AdjustStockModal({
-  itemId,
-  onClose,
-}: {
-  itemId: string;
-  onClose: () => void;
-}) {
-  const createMovement = useCreateMovement();
-  const [adjustmentType, setAdjustmentType] = useState<
-    "IN" | "OUT" | "USE" | "ADJUST"
-  >("ADJUST"); // ✅ 기본값을 ADJUST로 변경
-  const [qty, setQty] = useState<number | "">(0);
-  const [reason, setReason] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+import { InventoryFilters } from "@/components/inventory/InventoryFilters";
+import { EmptyInventoryState } from "@/components/inventory/EmptyInventoryState";
 
-  // ✅ 현재 아이템 정보 가져오기
-  const items = useVisibleItems();
-  const currentItem = items.find((item) => item.id === itemId);
-  const currentStock = currentItem?.stock || 0;
-
-  const submit = useCallback(async () => {
-    const n = typeof qty === "number" ? qty : 0;
-    if (n <= 0 && adjustmentType !== "ADJUST") return onClose();
-
-    setIsSubmitting(true);
-    try {
-      if (adjustmentType === "ADJUST") {
-        // ✅ 핵심 수정: ADJUST 타입일 때 절대값 모드 사용
-        await createMovement({
-          type: "ADJUST",
-          itemId,
-          qty: n,
-          reason: reason || `재고조정: ${currentStock}개 → ${n}개`,
-          isAbsoluteValue: true, // ✅ 절대값 모드 활성화
-        });
-      } else {
-        // ✅ 기존 IN, OUT, USE 로직 유지
-        await createMovement({
-          type: adjustmentType,
-          itemId,
-          qty: n,
-          reason: reason || adjustmentType,
-        });
-      }
-      onClose();
-    } catch (error) {
-      console.error("Adjust movement failed:", error);
-      onClose();
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [
-    adjustmentType,
-    qty,
-    reason,
-    itemId,
-    currentStock,
-    createMovement,
-    onClose,
-  ]);
-
-  const getCurrentWorkspace = useWorkspaceStore((s) => s.getCurrentWorkspace);
-  const currentWorkspace = getCurrentWorkspace();
-  const actionLabels = getActionLabels(currentWorkspace?.type || "DEFAULT");
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-            <Settings className="w-5 h-5 mr-2 text-blue-600" />
-            재고 조정
-          </h3>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
-
-        {/* ✅ 현재 재고 표시 추가 */}
-        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-          <div className="text-sm text-gray-600">현재 재고</div>
-          <div className="text-2xl font-bold text-gray-900">
-            {currentStock.toLocaleString()}개
-          </div>
-        </div>
-
-        <div className="gap-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              조정 유형
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setAdjustmentType("IN")}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  adjustmentType === "IN"
-                    ? "bg-green-100 text-green-800 border border-green-200"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                {actionLabels.IN}
-              </button>
-              <button
-                type="button"
-                onClick={() => setAdjustmentType("OUT")}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  adjustmentType === "OUT"
-                    ? "bg-red-100 text-red-800 border border-red-200"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                {actionLabels.OUT}
-              </button>
-              <button
-                type="button"
-                onClick={() => setAdjustmentType("USE")}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  adjustmentType === "USE"
-                    ? "bg-blue-100 text-blue-800 border border-blue-200"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                {actionLabels.USE}
-              </button>
-              <button
-                type="button"
-                onClick={() => setAdjustmentType("ADJUST")}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  adjustmentType === "ADJUST"
-                    ? "bg-orange-100 text-orange-800 border border-orange-200"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                {actionLabels.ADJUST}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {adjustmentType === "ADJUST" ? "최종 재고 수량" : "수량"}
-            </label>
-            <input
-              type="number"
-              value={qty}
-              onChange={(e) =>
-                setQty(e.target.value ? Number(e.target.value) : "")
-              }
-              min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder={
-                adjustmentType === "ADJUST"
-                  ? "최종 재고 수량 입력"
-                  : "수량 입력"
-              }
-            />
-            {/* ✅ ADJUST 모드일 때 변화량 표시 */}
-            {adjustmentType === "ADJUST" &&
-              typeof qty === "number" &&
-              qty !== currentStock && (
-                <p
-                  className={`text-sm mt-1 ${
-                    qty > currentStock ? "text-green-600" : "text-red-600"
-                  }`}
-                >
-                  {qty > currentStock ? "+" : ""}
-                  {qty - currentStock}개 변화
-                </p>
-              )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              사유 (선택)
-            </label>
-            <input
-              type="text"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="조정 사유를 입력하세요"
-            />
-          </div>
-        </div>
-
-        <div className="flex space-x-3 mt-6">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-          >
-            취소
-          </button>
-          <button
-            onClick={submit}
-            disabled={isSubmitting}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-          >
-            {isSubmitting ? "처리 중..." : "적용"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// 🔧 개선된 ItemRow 컴포넌트
-function ItemRow({
-  item,
-  onEdit,
-  onDelete,
-  onAdjust,
-}: {
-  item: Item;
-  onEdit: (patch: Partial<Item>) => void;
-  onDelete: () => void;
-  onAdjust: () => void;
-}) {
-  const stock = useStockByItem(item.id);
-  // const expSoon = useExpiringSoonByItem(item.id, 30);
-  const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({
-    name: item.name,
-    sku: item.sku ?? "",
-    barcode: item.barcode ?? "",
-    minStock: item.minStock ?? 0,
-    defaultPrice: item.defaultPrice ?? "",
-    expiryDate: item.expiryDate ?? "",
-    batchNumber: item.batchNumber ?? "",
-    receivedDate: item.receivedDate ?? "",
-  });
-
-  const expiryStatus = useMemo(() => {
-    return item.expiryDate ? getExpiryStatus(item.expiryDate) : null;
-  }, [item.expiryDate]);
-
-  const save = useCallback(() => {
-    onEdit({
-      name: form.name,
-      sku: form.sku || undefined,
-      barcode: form.barcode || undefined,
-      minStock: typeof form.minStock === "number" ? form.minStock : 0,
-      defaultPrice:
-        typeof form.defaultPrice === "number" ? form.defaultPrice : undefined,
-      expiryDate: form.expiryDate || undefined,
-      batchNumber: form.batchNumber || undefined,
-      receivedDate: form.receivedDate || undefined,
-    });
-    setEditing(false);
-  }, [onEdit, form]);
-
-  const isLowStock = stock <= (item.minStock ?? 0);
-
-  return (
-    <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-      {/* 🎯 상품 정보 (간소화) */}
-      <td className="px-6 py-4">
-        {editing ? (
-          <div className="space-y-2">
-            <input
-              value={form.name}
-              onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium"
-              placeholder="상품명"
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                value={form.sku}
-                onChange={(e) =>
-                  setForm((s) => ({ ...s, sku: e.target.value }))
-                }
-                className="px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
-                placeholder="SKU"
-              />
-              <input
-                value={form.barcode}
-                onChange={(e) =>
-                  setForm((s) => ({ ...s, barcode: e.target.value }))
-                }
-                className="px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
-                placeholder="바코드"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                value={form.minStock}
-                onChange={(e) =>
-                  setForm((s) => ({
-                    ...s,
-                    minStock: Number(e.target.value) || 0,
-                  }))
-                }
-                className="px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
-                placeholder="최소재고"
-                type="number"
-                min="0"
-              />
-              <input
-                value={form.defaultPrice}
-                onChange={(e) =>
-                  setForm((s) => ({ ...s, defaultPrice: e.target.value }))
-                }
-                className="px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
-                placeholder="가격"
-                type="number"
-                step="0.01"
-              />
-            </div>
-          </div>
-        ) : (
-          <div>
-            <div className="font-medium text-gray-900 text-sm">{item.name}</div>
-            <div className="text-xs text-gray-500 mt-1">
-              {item.sku && `SKU: ${item.sku}`}
-              {item.sku && item.barcode && " • "}
-              {item.barcode && `바코드: ${item.barcode}`}
-            </div>
-            {(item.minStock || item.defaultPrice) && (
-              <div className="text-xs text-gray-600 mt-1 space-y-1">
-                {item.minStock && <div>최소: {item.minStock}개</div>}
-                {item.defaultPrice && (
-                  <div>가격: {item.defaultPrice.toLocaleString()}원</div>
-                )}
-              </div>
-            )}
-            {item.batchNumber && (
-              <div className="text-xs text-orange-600 mt-1">
-                로트: {item.batchNumber}
-              </div>
-            )}
-          </div>
-        )}
-      </td>
-
-      {/* 📊 재고량 */}
-      <td className="px-6 py-4">
-        <div className="flex items-center space-x-2">
-          <span
-            className={`text-lg font-semibold ${
-              isLowStock ? "text-red-600" : "text-gray-900"
-            }`}
-          >
-            {stock}
-          </span>
-          <span className="text-sm text-gray-500">개</span>
-        </div>
-        {item.minStock && item.minStock > 0 && (
-          <div className="text-xs text-gray-400 mt-1">
-            최소: {item.minStock}개
-          </div>
-        )}
-      </td>
-
-      {/* 📦 입고일 */}
-      <td className="px-6 py-4">
-        {editing ? (
-          <input
-            value={form.receivedDate}
-            onChange={(e) =>
-              setForm((s) => ({ ...s, receivedDate: e.target.value }))
-            }
-            className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
-            type="date"
-          />
-        ) : (
-          <div>
-            {item.receivedDate ? (
-              <div className="text-sm text-gray-900">
-                {new Date(item.receivedDate).toLocaleDateString("ko-KR")}
-              </div>
-            ) : (
-              <div className="text-sm text-gray-400">-</div>
-            )}
-          </div>
-        )}
-      </td>
-
-      {/* 📅 유통기한 */}
-      <td className="px-6 py-4">
-        {editing ? (
-          <div className="space-y-1">
-            <input
-              value={form.expiryDate}
-              onChange={(e) =>
-                setForm((s) => ({ ...s, expiryDate: e.target.value }))
-              }
-              className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
-              type="date"
-            />
-            <input
-              value={form.batchNumber}
-              onChange={(e) =>
-                setForm((s) => ({ ...s, batchNumber: e.target.value }))
-              }
-              className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
-              placeholder="로트번호"
-            />
-          </div>
-        ) : (
-          <div>
-            {item.expiryDate ? (
-              <div
-                className={`text-sm ${
-                  expiryStatus?.status !== "safe"
-                    ? expiryStatus?.color.includes("red")
-                      ? "text-red-600 font-medium"
-                      : expiryStatus?.color.includes("orange")
-                      ? "text-orange-600"
-                      : "text-gray-900"
-                    : "text-gray-900"
-                }`}
-              >
-                {new Date(item.expiryDate).toLocaleDateString("ko-KR")}
-              </div>
-            ) : (
-              <div className="text-sm text-gray-400">-</div>
-            )}
-            {expiryStatus && expiryStatus.status !== "safe" && (
-              <div className="text-xs text-gray-500 mt-1">
-                {expiryStatus.message}
-              </div>
-            )}
-          </div>
-        )}
-      </td>
-
-      {/* ⚡ 상태 */}
-      <td className="px-6 py-4">
-        <div className="flex flex-wrap gap-1">
-          {isLowStock && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-              <AlertTriangle className="w-3 h-3 mr-1" />
-              재고부족
-            </span>
-          )}
-          {expiryStatus && expiryStatus.status !== "safe" && (
-            <span
-              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${expiryStatus.color}`}
-            >
-              <Clock className="w-3 h-3 mr-1" />
-              {expiryStatus.status === "expired"
-                ? "기한만료"
-                : expiryStatus.status === "critical"
-                ? "위험"
-                : expiryStatus.status === "warning"
-                ? "주의"
-                : "임박"}
-            </span>
-          )}
-          {!isLowStock && (!expiryStatus || expiryStatus.status === "safe") && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-              <CheckCircle className="w-3 h-3 mr-1" />
-              정상
-            </span>
-          )}
-        </div>
-      </td>
-
-      {/* 🔧 작업 */}
-      <td className="px-6 py-4">
-        {editing ? (
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={save}
-              className="flex items-center px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
-            >
-              <CheckCircle className="w-3 h-3 mr-1" />
-              저장
-            </button>
-            <button
-              onClick={() => setEditing(false)}
-              className="flex items-center px-3 py-1 bg-gray-500 text-white text-sm rounded hover:bg-gray-600 transition-colors"
-            >
-              <X className="w-3 h-3 mr-1" />
-              취소
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center space-x-1">
-            <button
-              onClick={() => setEditing(true)}
-              className="flex items-center px-2 py-1 text-blue-600 hover:bg-blue-50 rounded text-sm transition-colors"
-              title="수정"
-            >
-              <Edit className="w-3 h-3 mr-1" />
-              수정
-            </button>
-            <button
-              onClick={onAdjust}
-              className="flex items-center px-2 py-1 text-green-600 hover:bg-green-50 rounded text-sm transition-colors"
-              title="재고 조정"
-            >
-              <Settings className="w-3 h-3 mr-1" />
-              조정
-            </button>
-            <button
-              onClick={onDelete}
-              className="flex items-center px-2 py-1 text-red-600 hover:bg-red-50 rounded text-sm transition-colors"
-              title="삭제"
-            >
-              <Trash2 className="w-3 h-3 mr-1" />
-              삭제
-            </button>
-          </div>
-        )}
-      </td>
-    </tr>
-  );
-}
+import { useAdjustStock } from "@/hooks/useAdjustStock";
+import { AdjustStockModal } from "@/components/inventory/AdjustStockModal";
+import { ItemRow } from "@/components/inventory/ItemRow";
 
 export default function Inventory() {
   const items = useVisibleItems();
@@ -545,8 +19,10 @@ export default function Inventory() {
   const q = useQuery();
   const updateItem = useItemsStore((s) => s.updateItem);
   const removeItem = useItemsStore((s) => s.removeItem);
-  const [adjustFor, setAdjustFor] = useState<string | null>(null);
   const [addedId, setAddedId] = useState<string | null>(null);
+
+  const { adjustFor, openAdjustModal, closeAdjustModal, isAdjustModalOpen } =
+    useAdjustStock();
 
   const sorted = useMemo(
     () =>
@@ -572,9 +48,16 @@ export default function Inventory() {
     [removeItem]
   );
 
-  const handleAdjust = useCallback((id: string) => {
-    setAdjustFor(id);
-  }, []);
+  // const handleAdjust = useCallback((id: string) => {
+  //   setAdjustFor(id);
+  // }, []);
+
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setQuery(value);
+    },
+    [setQuery]
+  );
 
   // 성공 알림 자동 숨김
   const hideSuccessNotification = useCallback(() => {
@@ -583,8 +66,10 @@ export default function Inventory() {
       return () => clearTimeout(timer);
     }
   }, [addedId]);
+  useEffect(hideSuccessNotification, [hideSuccessNotification]);
 
-  useState(hideSuccessNotification);
+  // 검색 쿼리 존재 여부 확인
+  const hasSearchQuery = q.trim().length > 0;
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
@@ -615,16 +100,7 @@ export default function Inventory() {
 
       {/* 검색 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="상품명, SKU, 바코드로 검색..."
-            value={q}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-          />
-        </div>
+        <InventoryFilters searchQuery={q} onSearchChange={handleSearchChange} />
       </div>
 
       {/* 품목 목록 */}
@@ -673,25 +149,17 @@ export default function Inventory() {
                     item={item}
                     onEdit={(patch) => handleEdit(item.id, patch)}
                     onDelete={() => handleDelete(item.id)}
-                    onAdjust={() => handleAdjust(item.id)}
+                    onAdjust={() => openAdjustModal(item.id)}
                   />
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <div className="text-center py-12">
-            <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              등록된 품목이 없습니다
-            </h3>
-            <p className="text-gray-500 mb-4">
-              새 품목을 추가하여 재고 관리를 시작해보세요.
-            </p>
-            <p className="text-xs text-gray-400">
-              💡 체계적인 재고 관리로 효율성을 높여보세요
-            </p>
-          </div>
+          <EmptyInventoryState
+            hasSearchQuery={hasSearchQuery}
+            searchQuery={q}
+          />
         )}
       </div>
 
@@ -699,7 +167,8 @@ export default function Inventory() {
       {adjustFor && (
         <AdjustStockModal
           itemId={adjustFor}
-          onClose={() => setAdjustFor(null)}
+          isOpen={isAdjustModalOpen}
+          onClose={closeAdjustModal}
         />
       )}
     </div>

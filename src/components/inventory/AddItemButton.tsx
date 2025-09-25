@@ -39,3 +39,28 @@ export const AddItemButton: React.FC = React.memo(() => {
 });
 
 AddItemButton.displayName = "AddItemButton";
+
+// src/components/inventory/AddItemButton.tsx
+// import React from "react";
+// import { Plus } from "lucide-react";
+// import { useNavigate } from "react-router-dom";
+
+// export const AddItemButton: React.FC = React.memo(() => {
+//   const navigate = useNavigate();
+
+//   const handleAddItem = () => {
+//     navigate("/items/add");
+//   };
+
+//   return (
+//     <button
+//       onClick={handleAddItem}
+//       className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+//     >
+//       <Plus className="w-5 h-5" />
+//       새 품목 추가
+//     </button>
+//   );
+// });
+
+// AddItemButton.displayName = "AddItemButton";
