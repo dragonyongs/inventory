@@ -3,10 +3,12 @@ import React, { useState, useCallback, useEffect } from "react";
 import { X, Folder, Check } from "lucide-react";
 import { useCategoriesStore } from "@/stores/categoriesStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import type { Category } from "@/stores/categoriesStore";
 
 interface AddCategoryModalProps {
   isOpen: boolean;
   onClose: () => void;
+  editingCategory?: Category;
 }
 
 // 간소화된 아이콘 선택지
@@ -30,15 +32,29 @@ const CATEGORY_ICONS = [
 ];
 
 export const AddCategoryModal: React.FC<AddCategoryModalProps> = React.memo(
-  ({ isOpen, onClose }) => {
+  ({ isOpen, onClose, editingCategory }) => {
     const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
-    const { addCategory } = useCategoriesStore();
+    const { addCategory, updateCategory } = useCategoriesStore();
+
+    const isEditing = !!editingCategory;
 
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [selectedIcon, setSelectedIcon] = useState("📦");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
+
+    useEffect(() => {
+      if (editingCategory) {
+        setName(editingCategory.name);
+        setDescription(editingCategory.description || "");
+        setSelectedIcon(editingCategory.icon || "📦");
+      } else {
+        setName("");
+        setDescription("");
+        setSelectedIcon("📦");
+      }
+    }, [editingCategory]);
 
     // 모달이 열릴 때 첫 번째 입력 필드에 포커스
     useEffect(() => {
@@ -57,12 +73,22 @@ export const AddCategoryModal: React.FC<AddCategoryModalProps> = React.memo(
       setIsSubmitting(true);
 
       try {
-        addCategory({
-          workspaceId: currentWorkspaceId,
-          name: name.trim(),
-          description: description.trim() || undefined,
-          icon: selectedIcon,
-        });
+        if (isEditing && editingCategory) {
+          // 편집 모드
+          updateCategory(editingCategory.id, {
+            name: name.trim(),
+            description: description.trim() || undefined,
+            icon: selectedIcon,
+          });
+        } else {
+          // 새 카테고리 생성
+          addCategory({
+            workspaceId: currentWorkspaceId,
+            name: name.trim(),
+            description: description.trim() || undefined,
+            icon: selectedIcon,
+          });
+        }
 
         setShowSuccess(true);
 
@@ -74,7 +100,7 @@ export const AddCategoryModal: React.FC<AddCategoryModalProps> = React.memo(
           setShowSuccess(false);
         }, 800);
       } catch (error) {
-        console.error("카테고리 추가 실패:", error);
+        console.error("카테고리 저장 실패:", error);
       } finally {
         setIsSubmitting(false);
       }
@@ -84,6 +110,9 @@ export const AddCategoryModal: React.FC<AddCategoryModalProps> = React.memo(
       selectedIcon,
       currentWorkspaceId,
       addCategory,
+      updateCategory,
+      editingCategory,
+      isEditing,
       onClose,
     ]);
 
@@ -122,10 +151,10 @@ export const AddCategoryModal: React.FC<AddCategoryModalProps> = React.memo(
                       <Check size={20} className="text-green-600" />
                     </div>
                     <h3 className="text-base font-semibold text-gray-900 mb-1">
-                      생성 완료
+                      {isEditing ? "수정 완료" : "생성 완료"}
                     </h3>
                     <p className="text-sm text-gray-600">
-                      {name} 카테고리가 추가되었습니다.
+                      {name} 카테고리가 {isEditing ? "수정" : "추가"}되었습니다.
                     </p>
                   </div>
                 </div>
@@ -139,10 +168,12 @@ export const AddCategoryModal: React.FC<AddCategoryModalProps> = React.memo(
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-gray-900">
-                      새 카테고리
+                      {isEditing ? "카테고리 편집" : "새 카테고리"}
                     </h2>
                     <p className="text-xs text-gray-500">
-                      아이템을 정리할 폴더를 만드세요
+                      {isEditing
+                        ? "카테고리 정보를 수정하세요"
+                        : "아이템을 정리할 폴더를 만드세요"}
                     </p>
                   </div>
                 </div>
@@ -239,7 +270,13 @@ export const AddCategoryModal: React.FC<AddCategoryModalProps> = React.memo(
                   disabled={!name.trim() || isSubmitting}
                   className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
                 >
-                  {isSubmitting ? "생성 중..." : "생성"}
+                  {isSubmitting
+                    ? isEditing
+                      ? "수정 중..."
+                      : "생성 중..."
+                    : isEditing
+                    ? "수정"
+                    : "생성"}
                 </button>
               </div>
             </div>
