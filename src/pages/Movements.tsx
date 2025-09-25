@@ -1,26 +1,30 @@
 // src/pages/Movements.tsx
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import {
   ArrowUpRight,
   ArrowDownLeft,
   Activity,
   Clock,
-  Search,
   Trash2,
 } from "lucide-react";
-import { useMovementList } from "../stores/selectors";
+import { useFilteredMovements } from "../stores/selectors";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { getActionLabels } from "../utils/workspaceLabels";
+import { InventoryFilters } from "@/components/inventory/InventoryFilters";
+import { useSetQuery, useQuery } from "../stores/selectors";
 
 export default function Movements() {
-  const movements = useMovementList();
+  const filteredMovements = useFilteredMovements();
+
   const { getCurrentWorkspace } = useWorkspaceStore();
   const currentWorkspace = getCurrentWorkspace();
+  const setQuery = useSetQuery();
+  const q = useQuery();
 
   // 최근 움직임 (최대 50개)
   const recentMovements = useMemo(() => {
-    return movements.slice(0, 50);
-  }, [movements]);
+    return filteredMovements.slice(0, 50); // 필터링 후 슬라이싱
+  }, [filteredMovements]);
 
   // 움직임 아이콘 가져오기
   const getMovementIcon = (type: string) => {
@@ -80,6 +84,13 @@ export default function Movements() {
     return labels[type as keyof typeof labels] || type;
   };
 
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setQuery(value);
+    },
+    [setQuery]
+  );
+
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       <div className="mb-6">
@@ -88,15 +99,8 @@ export default function Movements() {
       </div>
 
       {/* 검색 */}
-      <div className="mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input
-            type="text"
-            placeholder="상품명, SKU, 바코드로 검색..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
+        <InventoryFilters searchQuery={q} onSearchChange={handleSearchChange} />
       </div>
 
       {/* 최근 이동내역 */}
@@ -108,18 +112,18 @@ export default function Movements() {
               최근 이동내역
             </h3>
             <span className="text-sm text-gray-500">
-              총 {movements.length}개 활동
+              총 {filteredMovements.length}개 활동
             </span>
           </div>
         </div>
 
         <div className="p-6">
           {recentMovements.length > 0 ? (
-            <div className="gap-y-4">
+            <div className="space-y-2">
               {recentMovements.map((movement) => (
                 <div
                   key={movement.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  className="flex items-center justify-between p-4 border border-gray-50 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center gap-x-4">
                     {/* 아이콘 */}

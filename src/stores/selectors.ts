@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { useItemsStore } from "./itemsStore";
 import { useMovementsStore } from "./movementsStore";
 import { useWorkspaceStore } from "./workspaceStore";
-// import { useLotsStore } from "./lotsStore";
+import { useLotsStore } from "./lotsStore";
 
 // ✅ 아이템 목록 (삭제되지 않은 것만)
 export const useItemList = () => {
@@ -35,6 +35,93 @@ export const useItemList = () => {
 
     return filtered;
   }, [items, query, currentWorkspaceId]);
+};
+
+// 현재 useItemList는 이미 query 필터링 구현됨 [attached_file:2]
+export const useFilteredMovements = () => {
+  const movements = useMovementList();
+  const query = useItemsStore((state) => state.query);
+
+  return useMemo(() => {
+    if (!query) return movements;
+    const q = query.toLowerCase();
+    return movements.filter(
+      (movement) =>
+        movement.itemName?.toLowerCase().includes(q) ||
+        movement.itemSku?.toLowerCase().includes(q) ||
+        movement.reason?.toLowerCase?.().includes(q) ||
+        movement.type?.toLowerCase?.().includes(q)
+    );
+  }, [movements, query]);
+};
+
+// 향후 Lots, Reports 등에도 동일 패턴 적용 가능
+export const useFilteredLots = () => {
+  const lotsRecord = useLotsStore((s) => s.lots);
+  const query = useItemsStore((s) => s.query);
+  const allWorkspaceItems = useAllWorkspaceItems(); // 기존 훅 재사용
+  const currentWorkspaceId = useWorkspaceStore(
+    (state) => state.currentWorkspaceId
+  );
+
+  return useMemo(() => {
+    if (!currentWorkspaceId) return [];
+
+    // 1) Record를 배열로 변환 + 현재 워크스페이스 필터링
+    const lotsArray = Object.values(lotsRecord).filter(
+      (lot) => lot.workspaceId === currentWorkspaceId
+    );
+
+    // 2) 아이템 정보 조인 (itemName 추가)
+    const itemsMap = new Map(allWorkspaceItems.map((item) => [item.id, item]));
+    const enrichedLots = lotsArray.map((lot) => {
+      const item = itemsMap.get(lot.itemId);
+      return {
+        ...lot,
+        itemName: item?.name || "알 수 없는 상품",
+        itemSku: item?.sku,
+      };
+    });
+
+    // 3) 검색 필터링
+    if (!query) return enrichedLots;
+
+    const q = query.toLowerCase();
+    return enrichedLots.filter(
+      (lot) =>
+        lot.batchNumber?.toLowerCase().includes(q) ||
+        lot.itemName?.toLowerCase().includes(q) ||
+        lot.itemSku?.toLowerCase().includes(q) ||
+        lot.supplier?.toLowerCase().includes(q) ||
+        lot.notes?.toLowerCase().includes(q)
+    );
+  }, [lotsRecord, query, allWorkspaceItems, currentWorkspaceId]);
+};
+
+export const useLotsList = () => {
+  const lotsRecord = useLotsStore((s) => s.lots);
+  const allWorkspaceItems = useAllWorkspaceItems();
+  const currentWorkspaceId = useWorkspaceStore(
+    (state) => state.currentWorkspaceId
+  );
+
+  return useMemo(() => {
+    if (!currentWorkspaceId) return [];
+
+    const lotsArray = Object.values(lotsRecord).filter(
+      (lot) => lot.workspaceId === currentWorkspaceId
+    );
+
+    const itemsMap = new Map(allWorkspaceItems.map((item) => [item.id, item]));
+    return lotsArray.map((lot) => {
+      const item = itemsMap.get(lot.itemId);
+      return {
+        ...lot,
+        itemName: item?.name || "알 수 없는 상품",
+        itemSku: item?.sku,
+      };
+    });
+  }, [lotsRecord, allWorkspaceItems, currentWorkspaceId]);
 };
 
 // ✅ 모든 워크스페이스 아이템 (삭제된 것 포함)

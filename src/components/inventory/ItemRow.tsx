@@ -59,7 +59,7 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
     return (
       <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
         {/* 🎯 상품 정보 (간소화) */}
-        <td className="px-6 py-4">
+        <td className="px-6 py-4 min-w-60">
           {editing ? (
             <div className="space-y-2">
               <input
@@ -185,7 +185,7 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
         </td>
 
         {/* 📅 유통기한 */}
-        <td className="px-6 py-4">
+        <td className="px-6 py-4 max-w-56">
           {editing ? (
             <div className="space-y-1">
               <input
@@ -258,7 +258,7 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
             )}
             {!isLowStock &&
               (!expiryStatus || expiryStatus.status === "safe") && (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                <span className="min-w-16 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 justify-center">
                   <CheckCircle className="w-3 h-3 mr-1" />
                   정상
                 </span>
@@ -289,7 +289,7 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
             <div className="flex items-center space-x-1">
               <button
                 onClick={() => setEditing(true)}
-                className="flex items-center px-2 py-1 text-blue-600 hover:bg-blue-50 rounded text-sm transition-colors"
+                className="flex items-center px-2 py-1 text-blue-600 hover:bg-blue-50 rounded text-sm transition-colors min-w-16"
                 title="수정"
               >
                 <Edit className="w-3 h-3 mr-1" />
@@ -297,7 +297,7 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
               </button>
               <button
                 onClick={onAdjust}
-                className="flex items-center px-2 py-1 text-green-600 hover:bg-green-50 rounded text-sm transition-colors"
+                className="flex items-center px-2 py-1 text-green-600 hover:bg-green-50 rounded text-sm transition-colors min-w-16"
                 title="재고 조정"
               >
                 <Settings className="w-3 h-3 mr-1" />
@@ -305,7 +305,7 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
               </button>
               <button
                 onClick={onDelete}
-                className="flex items-center px-2 py-1 text-red-600 hover:bg-red-50 rounded text-sm transition-colors"
+                className="flex items-center px-2 py-1 text-red-600 hover:bg-red-50 rounded text-sm transition-colors min-w-16"
                 title="삭제"
               >
                 <Trash2 className="w-3 h-3 mr-1" />
