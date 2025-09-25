@@ -4,7 +4,6 @@ import {
   Package,
   AlertTriangle,
   Activity,
-  Package2,
   TrendingUp,
   CheckCircle,
 } from "lucide-react";
