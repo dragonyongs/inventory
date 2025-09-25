@@ -2,6 +2,8 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { useWorkspaceStore } from "./workspaceStore";
+import { useCategoriesStore } from "./categoriesStore";
+import { generateId } from "@/utils/generateId";
 
 export interface Item {
   id: string;
@@ -17,7 +19,7 @@ export interface Item {
   expiryDate?: string;
   batchNumber?: string;
   receivedDate?: string;
-  // ✅ Soft Delete 필드들
+  categoryId?: string;
   deletedAt?: string;
   deletedBy?: string;
   deletedReason?: string;
@@ -117,7 +119,11 @@ export const useItemsStore = create<ItemsStore>()(
       },
 
       addItem: (itemData) => {
-        const currentWorkspaceId = getCurrentWorkspaceId();
+        const currentWorkspaceId =
+          useWorkspaceStore.getState().currentWorkspaceId;
+        const currentCategoryId =
+          useCategoriesStore.getState().currentCategoryId;
+
         if (!currentWorkspaceId) {
           console.error(
             "현재 워크스페이스를 찾을 수 없습니다. 워크스페이스를 먼저 선택해주세요."
@@ -129,10 +135,12 @@ export const useItemsStore = create<ItemsStore>()(
 
         const item: Item = {
           ...itemData,
-          id: globalThis.crypto?.randomUUID?.() ?? `item_${Date.now()}`,
-          stock: itemData.stock ?? 0,
-          createdAt: new Date().toISOString(),
+          id: generateId("item"),
           workspaceId: currentWorkspaceId,
+          categoryId: itemData.categoryId || currentCategoryId || undefined,
+          stock: itemData.stock ?? 0,
+          name: itemData.name,
+          createdAt: new Date().toISOString(),
         };
 
         console.log("✅ 새 아이템 생성:", {

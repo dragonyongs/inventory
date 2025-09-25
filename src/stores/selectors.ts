@@ -4,6 +4,7 @@ import { useItemsStore } from "./itemsStore";
 import { useMovementsStore } from "./movementsStore";
 import { useWorkspaceStore } from "./workspaceStore";
 import { useLotsStore } from "./lotsStore";
+import { useCategoriesStore } from "./categoriesStore";
 
 // ✅ 아이템 목록 (삭제되지 않은 것만)
 export const useItemList = () => {
@@ -258,6 +259,56 @@ export const useQuery = () => {
   return useItemsStore((state) => state.query);
 };
 
-export const useVisibleItems = () => {
-  return useItemList();
+// export const useVisibleItems = () => {
+//   return useItemList();
+// };
+
+// 카테고리별 아이템 목록
+export const useItemsByCategory = (categoryId?: string) => {
+  const items = useItemsStore((state) => state.items);
+  const query = useItemsStore((state) => state.query);
+  const currentWorkspaceId = useWorkspaceStore(
+    (state) => state.currentWorkspaceId
+  );
+  const currentCategoryId = useCategoriesStore(
+    (state) => state.currentCategoryId
+  );
+
+  const targetCategoryId = categoryId || currentCategoryId;
+
+  return useMemo(() => {
+    if (!currentWorkspaceId) return [];
+
+    const allItems = Object.values(items);
+    let workspaceItems = allItems.filter(
+      (item) =>
+        item && item.workspaceId === currentWorkspaceId && !item.isDeleted
+    );
+
+    // 카테고리 필터링 (전체가 아닌 경우만)
+    if (targetCategoryId) {
+      const category =
+        useCategoriesStore.getState().categories[targetCategoryId];
+      if (category && !category.isDefault) {
+        workspaceItems = workspaceItems.filter(
+          (item) => item.categoryId === targetCategoryId
+        );
+      }
+    }
+
+    // 검색 필터링
+    if (query) {
+      workspaceItems = workspaceItems.filter(
+        (item) =>
+          item.name.toLowerCase().includes(query.toLowerCase()) ||
+          item.sku?.toLowerCase().includes(query.toLowerCase()) ||
+          item.barcode?.toLowerCase().includes(query.toLowerCase())
+      );
+    }
+
+    return workspaceItems;
+  }, [items, query, currentWorkspaceId, targetCategoryId]);
 };
+
+// 기존 useItemList를 useItemsByCategory로 교체
+export const useVisibleItems = () => useItemsByCategory();

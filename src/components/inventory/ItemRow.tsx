@@ -8,10 +8,14 @@ import {
   Settings,
   CheckCircle,
   X,
+  Folder,
+  ChevronDown,
 } from "lucide-react";
 import { useStockByItem } from "@/stores/selectors";
 import { getExpiryStatus } from "@/utils/expiryUtils";
 import { type Item } from "@/stores/itemsStore";
+import { useCategoriesStore } from "@/stores/categoriesStore";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 interface ItemRowProps {
   item: Item;
@@ -23,6 +27,9 @@ interface ItemRowProps {
 export const ItemRow: React.FC<ItemRowProps> = React.memo(
   ({ item, onEdit, onDelete, onAdjust }) => {
     const stock = useStockByItem(item.id);
+    const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
+    const { getCategoriesByWorkspace } = useCategoriesStore();
+
     const [editing, setEditing] = useState(false);
     const [form, setForm] = useState({
       name: item.name,
@@ -33,7 +40,14 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
       expiryDate: item.expiryDate ?? "",
       batchNumber: item.batchNumber ?? "",
       receivedDate: item.receivedDate ?? "",
+      categoryId: item.categoryId ?? "",
     });
+
+    // 워크스페이스의 카테고리 목록
+    const availableCategories = useMemo(() => {
+      if (!currentWorkspaceId) return [];
+      return getCategoriesByWorkspace(currentWorkspaceId);
+    }, [currentWorkspaceId, getCategoriesByWorkspace]);
 
     const expiryStatus = useMemo(() => {
       return item.expiryDate ? getExpiryStatus(item.expiryDate) : null;
@@ -50,6 +64,7 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
         expiryDate: form.expiryDate || undefined,
         batchNumber: form.batchNumber || undefined,
         receivedDate: form.receivedDate || undefined,
+        categoryId: form.categoryId || undefined,
       });
       setEditing(false);
     }, [onEdit, form]);
@@ -88,6 +103,30 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
                   placeholder="바코드"
                 />
               </div>
+
+              {/* 🔥 카테고리 선택 드롭다운 */}
+              <div className="relative">
+                <select
+                  value={form.categoryId}
+                  onChange={(e) =>
+                    setForm((s) => ({ ...s, categoryId: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white appearance-none pr-8"
+                >
+                  <option value="">카테고리 선택 (선택사항)</option>
+                  {availableCategories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.icon && `${category.icon} `}
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={16}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <input
                   value={form.minStock}

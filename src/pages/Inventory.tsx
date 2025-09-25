@@ -14,6 +14,8 @@ import { useAdjustStock } from "@/hooks/useAdjustStock";
 import { AdjustStockModal } from "@/components/inventory/AdjustStockModal";
 import { ItemRow } from "@/components/inventory/ItemRow";
 
+import { CategorySelector } from "@/components/inventory/CategorySelector";
+
 export default function Inventory() {
   const items = useVisibleItems();
   const setQuery = useSetQuery();
@@ -87,6 +89,10 @@ export default function Inventory() {
         >
           신규 등록
         </Link>
+      </div>
+
+      <div className="mb-6">
+        <CategorySelector />
       </div>
 
       {/* 성공 알림 */}
