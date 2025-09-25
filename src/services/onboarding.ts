@@ -1,4 +1,5 @@
 // src/services/onboarding.ts
+
 export type OnboardingStepKey = "addItem" | "recordMovement" | "enableAlerts";
 
 export type StepStatus = "completed" | "active" | "locked";
@@ -43,5 +44,15 @@ export function buildOnboardingState(opts: {
 
   const allDone =
     step1 === "completed" && step2 === "completed" && step3 === "completed";
+
   return { steps, activeKey, allDone };
+}
+
+// 이전 인터페이스와 호환성을 위한 함수
+export function createOnboardingState(
+  totalItems: number,
+  hasMovement: boolean,
+  alertsEnabled: boolean
+): OnboardingState {
+  return buildOnboardingState({ totalItems, hasMovement, alertsEnabled });
 }

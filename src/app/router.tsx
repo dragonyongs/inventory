@@ -4,15 +4,15 @@ import { RouterProvider } from "react-router-dom"; // ✅ 별도 import로 명�
 import { Component, ReactNode } from "react";
 
 // 레이아웃 & 페이지
-import { RootLayout } from "../components/RootLayout";
-import { AuthGuard } from "../components/AuthGuard";
-import Login from "../pages/Login";
-import Dashboard from "../pages/Dashboard";
-import Inventory from "../pages/Inventory";
-import Movements from "../pages/Movements";
-import Settings from "../pages/Settings";
-import { NewItemPage } from "@/pages/inventory/NewItemPage";
-import { BulkImportPage } from "@/pages/inventory/BulkImportPage";
+import { RootLayout } from "@/components/RootLayout";
+import { AuthGuard } from "@/components/AuthGuard";
+import Login from "@/pages/Login";
+import Dashboard from "@/pages/Dashboard";
+import Inventory from "@/pages/Inventory";
+import Movements from "@/pages/Movements";
+import Settings from "@/pages/Settings";
+import { NewItemPage } from "@/components/inventory/NewItemPage";
+import { BulkImportPage } from "@/components/inventory/BulkImportPage";
 
 // 강화된 Error Boundary
 class RouteErrorBoundary extends Component<
