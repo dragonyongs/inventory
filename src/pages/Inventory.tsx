@@ -1,22 +1,23 @@
 // src/pages/Inventory.tsx
 
 import { useMemo, useState, useCallback, useEffect } from "react";
-import { Package, CheckCircle, X } from "lucide-react";
+import { CheckCircle, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-import { useVisibleItems, useSetQuery, useQuery } from "../stores/selectors";
+import {
+  useVisibleItems,
+  useSetQuery,
+  useQuery,
+  useStockByItem,
+} from "../stores/selectors";
 import { useItemsStore, type Item } from "@/stores/itemsStore";
-
 import { InventoryFilters } from "@/components/inventory/InventoryFilters";
 import { EmptyInventoryState } from "@/components/inventory/EmptyInventoryState";
-
+import InventoryTable from "@/components/inventory/InventoryTable";
 import { useAdjustStock } from "@/hooks/useAdjustStock";
 import { AdjustStockModal } from "@/components/inventory/AdjustStockModal";
-import { ItemRow } from "@/components/inventory/ItemRow";
-
 import { CategorySelector } from "@/components/inventory/CategorySelector";
-
 import { HeaderActions } from "@/components/inventory/HeaderActions";
+import { getExpiryStatus } from "@/utils/expiryUtils";
 
 export default function Inventory() {
   const navigate = useNavigate();
@@ -25,20 +26,121 @@ export default function Inventory() {
   const q = useQuery();
   const updateItem = useItemsStore((s) => s.updateItem);
   const removeItem = useItemsStore((s) => s.removeItem);
+
   const [addedId, setAddedId] = useState<string | null>(null);
+
+  // 📌 추가 필터 상태들
+  const [statusFilter, setStatusFilter] = useState("");
+  const [stockFilter, setStockFilter] = useState("");
+  const [expiryFilter, setExpiryFilter] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
 
   const { adjustFor, openAdjustModal, closeAdjustModal, isAdjustModalOpen } =
     useAdjustStock();
 
+  // 📌 재고 정보를 가져오는 함수 (기존 셀렉터 사용)
+  const getItemStock = useCallback(
+    (itemId: string) => {
+      const item = items.find((i) => i.id === itemId);
+      return item?.stock || 0;
+    },
+    [items]
+  );
+
+  // 📌 필터링된 아이템들 (기존 useVisibleItems + 추가 필터)
+  const filteredItems = useMemo(() => {
+    let filtered = [...items];
+
+    // 추가 필터들 적용
+    if (statusFilter || stockFilter || expiryFilter) {
+      filtered = filtered.filter((item) => {
+        const stock = getItemStock(item.id);
+        const expiryStatus = item.expiryDate
+          ? getExpiryStatus(item.expiryDate)
+          : null;
+        const isLowStock =
+          item.minStock && item.minStock > 0 && stock <= item.minStock;
+
+        // 상태 필터
+        if (statusFilter) {
+          switch (statusFilter) {
+            case "normal":
+              if (
+                isLowStock ||
+                (expiryStatus && expiryStatus.status !== "safe")
+              ) {
+                return false;
+              }
+              break;
+            case "lowStock":
+              if (!isLowStock) return false;
+              break;
+            case "expiring":
+              if (
+                !expiryStatus ||
+                !["near", "warning", "critical"].includes(expiryStatus.status)
+              ) {
+                return false;
+              }
+              break;
+            case "expired":
+              if (!expiryStatus || expiryStatus.status !== "expired") {
+                return false;
+              }
+              break;
+          }
+        }
+
+        // 재고량 필터
+        if (stockFilter) {
+          switch (stockFilter) {
+            case "high":
+              if (stock < 50) return false;
+              break;
+            case "medium":
+              if (stock < 10 || stock >= 50) return false;
+              break;
+            case "low":
+              if (stock >= 10 || stock === 0) return false;
+              break;
+            case "empty":
+              if (stock !== 0) return false;
+              break;
+          }
+        }
+
+        // 유통기한 필터
+        if (expiryFilter && expiryStatus) {
+          if (expiryFilter !== expiryStatus.status) return false;
+        } else if (expiryFilter && !expiryStatus) {
+          return false;
+        }
+
+        return true;
+      });
+    }
+
+    return filtered;
+  }, [items, statusFilter, stockFilter, expiryFilter, getItemStock]);
+
   const sorted = useMemo(
     () =>
-      [...items].sort(
+      [...filteredItems].sort(
         (a: any, b: any) =>
           new Date(b.createdAt || 0).getTime() -
           new Date(a.createdAt || 0).getTime()
       ),
-    [items]
+    [filteredItems]
   );
+
+  // 📌 활성 필터 개수 계산
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (statusFilter) count++;
+    if (stockFilter) count++;
+    if (expiryFilter) count++;
+    return count;
+  }, [statusFilter, stockFilter, expiryFilter]);
 
   const handleEdit = useCallback(
     (id: string, patch: Partial<Item>) => updateItem(id, patch),
@@ -54,10 +156,6 @@ export default function Inventory() {
     [removeItem]
   );
 
-  // const handleAdjust = useCallback((id: string) => {
-  //   setAdjustFor(id);
-  // }, []);
-
   const handleSearchChange = useCallback(
     (value: string) => {
       setQuery(value);
@@ -69,6 +167,11 @@ export default function Inventory() {
     navigate("/inventory/new");
   }, [navigate]);
 
+  // 📌 필터 핸들러들
+  const handleToggleFilters = useCallback(() => {
+    setShowFilters((prev) => !prev);
+  }, []);
+
   // 성공 알림 자동 숨김
   const hideSuccessNotification = useCallback(() => {
     if (addedId) {
@@ -76,110 +179,92 @@ export default function Inventory() {
       return () => clearTimeout(timer);
     }
   }, [addedId]);
+
   useEffect(hideSuccessNotification, [hideSuccessNotification]);
 
   // 검색 쿼리 존재 여부 확인
   const hasSearchQuery = q.trim().length > 0;
 
   return (
-    <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-y-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">인벤토리</h1>
-          <p className="text-gray-600 mt-1">
-            상품을 등록하고 재고를 효율적으로 관리하세요
-          </p>
-        </div>
-
-        <HeaderActions onNewItem={handleNewItem} />
-      </div>
-
-      <div className="mb-6">
-        <CategorySelector />
-      </div>
-
-      {/* 성공 알림 */}
-      {addedId && (
-        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
-          <div className="flex items-center">
-            <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
-            <span className="text-green-800 font-medium">
-              품목이 성공적으로 추가되었습니다! 🎉
-            </span>
+    <div className="min-h-screen bg-gray-50">
+      {/* 헤더 */}
+      <div className="bg-white border-b border-gray-100 px-4 lg:px-6">
+        <div className="py-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-y-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">인벤토리</h1>
+              <p className="text-gray-600 mt-1">
+                상품을 등록하고 재고를 효율적으로 관리하세요
+              </p>
+            </div>
+            <HeaderActions onNewItem={handleNewItem} />
           </div>
-          <button
-            onClick={() => setAddedId(null)}
-            className="text-green-600 hover:text-green-800 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
-      {/* 검색 */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
-        <InventoryFilters searchQuery={q} onSearchChange={handleSearchChange} />
+          {/* 성공 알림 */}
+          {addedId && (
+            <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
+              <div className="flex items-center">
+                <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
+                <span className="text-green-800 font-medium">
+                  품목이 성공적으로 추가되었습니다! 🎉
+                </span>
+              </div>
+              <button
+                onClick={() => setAddedId(null)}
+                className="text-green-600 hover:text-green-800 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          <CategorySelector />
+        </div>
       </div>
+
+      {/* 📌 개선된 필터 컴포넌트 */}
+      <InventoryFilters
+        searchQuery={q}
+        onSearchChange={handleSearchChange}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        stockFilter={stockFilter}
+        onStockFilterChange={setStockFilter}
+        expiryFilter={expiryFilter}
+        onExpiryFilterChange={setExpiryFilter}
+        showFilters={showFilters}
+        onToggleFilters={handleToggleFilters}
+        activeFiltersCount={activeFiltersCount}
+      />
 
       {/* 품목 목록 */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-100">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-              <Package className="w-5 h-5 mr-2 text-blue-600" />
-              품목 목록
-            </h3>
-            <span className="text-sm text-gray-500">
-              총 {sorted.length}개 품목
-            </span>
-          </div>
-        </div>
+      {sorted.length > 0 ? (
+        <InventoryTable
+          items={sorted}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onAdjust={openAdjustModal}
+        />
+      ) : (
+        <EmptyInventoryState
+          hasSearchQuery={hasSearchQuery || activeFiltersCount > 0}
+          searchQuery={q}
+        />
+      )}
 
-        {sorted.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                    상품 정보
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                    재고량
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                    입고일
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                    유통기한
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                    상태
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                    작업
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sorted.map((item: any) => (
-                  <ItemRow
-                    key={item.id}
-                    item={item}
-                    onEdit={(patch) => handleEdit(item.id, patch)}
-                    onDelete={() => handleDelete(item.id)}
-                    onAdjust={() => openAdjustModal(item.id)}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <EmptyInventoryState
-            hasSearchQuery={hasSearchQuery}
-            searchQuery={q}
-          />
-        )}
-      </div>
+      {/* 📌 필터 결과 요약 */}
+      {(q.trim() || activeFiltersCount > 0) && (
+        <div className="fixed bottom-6 right-6 bg-white rounded-xl shadow-lg border border-gray-200 px-4 py-3 z-30">
+          <p className="text-sm font-medium text-gray-900">
+            {sorted.length}개 품목이 조건에 맞습니다
+          </p>
+          {sorted.length !== items.length && (
+            <p className="text-xs text-gray-600 mt-1">
+              전체 {items.length}개 중 {items.length - sorted.length}개 숨겨짐
+            </p>
+          )}
+        </div>
+      )}
 
       {/* 재고 조정 모달 */}
       {adjustFor && (

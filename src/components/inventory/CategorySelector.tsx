@@ -253,28 +253,30 @@ export function CategorySelector() {
 
         {/* 우측 스크롤 버튼 */}
         {canScrollRight && (
-          <div className="z-20 absolute -right-2">
-            <button
-              onClick={scrollRight}
-              className="flex-shrink-0 p-1 rounded-full bg-white shadow-md hover:shadow-lg transition-shadow z-10"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+          <>
+            <div className="z-20 absolute -right-2">
+              <button
+                onClick={scrollRight}
+                className="flex-shrink-0 p-1 rounded-full bg-white shadow-md hover:shadow-lg transition-shadow z-10"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
-          </div>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div className="absolute right-0 top-0 w-8 h-full bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none" />
+          </>
         )}
-        <div className="absolute right-0 top-0 w-8 h-full bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none" />
       </div>
 
       {/* 컨텍스트 메뉴 */}

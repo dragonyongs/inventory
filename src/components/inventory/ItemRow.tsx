@@ -1,6 +1,4 @@
-// src/components/inventory/ItemRow.tsx
 import React, { useState, useCallback, useMemo } from "react";
-import { AlertTriangle, Clock, CheckCircle, ChevronDown } from "lucide-react";
 import { useStockByItem } from "@/stores/selectors";
 import { getExpiryStatus } from "@/utils/expiryUtils";
 import { type Item } from "@/stores/itemsStore";
@@ -21,11 +19,13 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
     const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
     const { getCategoriesByWorkspace } = useCategoriesStore();
     const [editing, setEditing] = useState(false);
+
     const [form, setForm] = useState({
       name: item.name,
       sku: item.sku ?? "",
       barcode: item.barcode ?? "",
-      minStock: item.minStock ?? 0,
+      minStock:
+        item.minStock && item.minStock > 0 ? item.minStock.toString() : "",
       defaultPrice: item.defaultPrice ?? "",
       expiryDate: item.expiryDate ?? "",
       batchNumber: item.batchNumber ?? "",
@@ -33,7 +33,6 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
       categoryId: item.categoryId ?? "",
     });
 
-    // 워크스페이스의 카테고리 목록
     const availableCategories = useMemo(() => {
       if (!currentWorkspaceId) return [];
       return getCategoriesByWorkspace(currentWorkspaceId);
@@ -44,11 +43,14 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
     }, [item.expiryDate]);
 
     const save = useCallback(() => {
+      const minStockValue = form.minStock.trim();
+      const minStockNum = minStockValue ? Number(minStockValue) : null;
+
       onEdit({
         name: form.name,
         sku: form.sku || undefined,
         barcode: form.barcode || undefined,
-        minStock: typeof form.minStock === "number" ? form.minStock : 0,
+        minStock: minStockNum && minStockNum > 0 ? minStockNum : undefined,
         defaultPrice:
           typeof form.defaultPrice === "number" ? form.defaultPrice : undefined,
         expiryDate: form.expiryDate || undefined,
@@ -61,229 +63,199 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
 
     const handleCancel = useCallback(() => {
       setEditing(false);
-    }, []);
+      setForm({
+        name: item.name,
+        sku: item.sku ?? "",
+        barcode: item.barcode ?? "",
+        minStock:
+          item.minStock && item.minStock > 0 ? item.minStock.toString() : "",
+        defaultPrice: item.defaultPrice ?? "",
+        expiryDate: item.expiryDate ?? "",
+        batchNumber: item.batchNumber ?? "",
+        receivedDate: item.receivedDate ?? "",
+        categoryId: item.categoryId ?? "",
+      });
+    }, [item]);
 
     const handleEdit = useCallback(() => {
       setEditing(true);
     }, []);
 
-    const isLowStock = stock <= (item.minStock ?? 0);
+    const isLowStock =
+      typeof item.minStock === "number" &&
+      item.minStock > 0 &&
+      stock <= item.minStock;
 
     return (
-      <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-        {/* 🎯 상품 정보 (간소화) */}
-        <td className="px-6 py-4 min-w-60">
+      <tr
+        className={`border-b border-gray-100 hover:bg-gray-50/50 transition-colors ${
+          editing && "bg-gray-50"
+        }`}
+      >
+        {/* 상품 정보 */}
+        <td className="py-4 px-6">
           {editing ? (
             <div className="space-y-2">
+              {/* 카테고리 선택 */}
+              <select
+                value={form.categoryId}
+                onChange={(e) =>
+                  setForm({ ...form, categoryId: e.target.value })
+                }
+                className="w-full px-3 py-2 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white appearance-none cursor-pointer"
+              >
+                <option value="">카테고리 선택</option>
+                {availableCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.icon && `${category.icon} `}
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+
               <input
+                type="text"
                 value={form.name}
                 onChange={(e) =>
                   setForm((s) => ({ ...s, name: e.target.value }))
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium text-sm"
                 placeholder="상품명"
               />
-              <div className="grid grid-cols-2 gap-2">
+
+              <div className="flex gap-2">
                 <input
+                  type="text"
                   value={form.sku}
                   onChange={(e) =>
                     setForm((s) => ({ ...s, sku: e.target.value }))
                   }
-                  className="px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className="flex-1 px-2 py-1 bg-white border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
                   placeholder="SKU"
                 />
                 <input
+                  type="text"
                   value={form.barcode}
                   onChange={(e) =>
                     setForm((s) => ({ ...s, barcode: e.target.value }))
                   }
-                  className="px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className="flex-1 px-2 py-1 bg-white border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
                   placeholder="바코드"
-                />
-              </div>
-
-              {/* 🔥 카테고리 선택 드롭다운 */}
-              <div className="relative">
-                <select
-                  value={form.categoryId}
-                  onChange={(e) =>
-                    setForm((s) => ({ ...s, categoryId: e.target.value }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white appearance-none pr-8"
-                >
-                  <option value="">카테고리 선택 (선택사항)</option>
-                  {availableCategories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.icon && `${category.icon} `}
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={16}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  value={form.minStock}
-                  onChange={(e) =>
-                    setForm((s) => ({
-                      ...s,
-                      minStock: Number(e.target.value) || 0,
-                    }))
-                  }
-                  className="px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
-                  placeholder="최소재고"
-                  type="number"
-                  min="0"
-                />
-                <input
-                  value={form.defaultPrice}
-                  onChange={(e) =>
-                    setForm((s) => ({ ...s, defaultPrice: e.target.value }))
-                  }
-                  className="px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
-                  placeholder="가격"
-                  type="number"
-                  step="0.01"
                 />
               </div>
             </div>
           ) : (
             <div>
-              <div className="font-medium text-gray-900 text-sm">
+              <div className="font-semibold text-gray-900 mb-1">
                 {item.name}
               </div>
-              <div className="text-xs text-gray-500 mt-1">
-                {item.sku && `SKU: ${item.sku}`}
-                {item.sku && item.barcode && " • "}
-                {item.barcode && `바코드: ${item.barcode}`}
+              <div className="text-sm text-gray-600 space-y-1">
+                {item.sku && <div>SKU: {item.sku}</div>}
+                {item.barcode && <div>바코드: {item.barcode}</div>}
+                {(item.defaultPrice || item.batchNumber) && (
+                  <div className="text-xs text-gray-500">
+                    {item.defaultPrice && (
+                      <span>가격: {item.defaultPrice.toLocaleString()}원</span>
+                    )}
+                    {item.batchNumber && <span>로트: {item.batchNumber}</span>}
+                  </div>
+                )}
               </div>
-              {(item.minStock || item.defaultPrice) && (
-                <div className="text-xs text-gray-600 mt-1 space-y-1">
-                  {/* {item.minStock && <div>최소: {item.minStock}개</div>} */}
-                  {item.defaultPrice && (
-                    <div>가격: {item.defaultPrice.toLocaleString()}원</div>
-                  )}
-                </div>
-              )}
-              {item.batchNumber && (
-                <div className="text-xs text-orange-600 mt-1">
-                  로트: {item.batchNumber}
-                </div>
-              )}
             </div>
           )}
         </td>
 
-        {/* 📊 재고량 */}
-        <td className="px-6 py-4">
-          <div className="flex items-center space-x-1">
-            <span
-              className={`text-sm font-semibold ${
-                isLowStock ? "text-red-600" : "text-gray-900"
-              }`}
-            >
-              {stock}
-            </span>
-            <span className="text-sm text-gray-500">개</span>
+        {/* 재고량 */}
+        <td className="py-4 px-6">
+          <div className="space-y-1 text-nowrap">
+            <div className="text-lg font-bold text-gray-900">{stock}개</div>
+            {typeof item.minStock === "number" && item.minStock > 0 && (
+              <div className="text-xs text-gray-500">
+                최소: {item.minStock}개
+              </div>
+            )}
           </div>
-          {item.minStock && item.minStock > 0 && (
-            <div className="text-xs text-gray-400 mt-1">
-              최소: {item.minStock}개
-            </div>
-          )}
         </td>
 
-        {/* 📦 입고일 */}
-        <td className="px-6 py-4">
+        {/* 입고일 */}
+        <td className="py-4 px-6">
           {editing ? (
             <input
+              type="date"
               value={form.receivedDate}
               onChange={(e) =>
                 setForm((s) => ({ ...s, receivedDate: e.target.value }))
               }
-              className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
-              type="date"
+              className="w-full px-2 py-1 bg-white border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
             />
           ) : (
-            <div>
+            <div className="text-sm">
               {item.receivedDate ? (
-                <div className="text-sm text-gray-900">
+                <span className="text-gray-900">
                   {new Date(item.receivedDate).toLocaleDateString("ko-KR")}
-                </div>
+                </span>
               ) : (
-                <div className="text-sm text-gray-400">-</div>
+                <span className="text-gray-400">-</span>
               )}
             </div>
           )}
         </td>
 
-        {/* 📅 유통기한 */}
-        <td className="px-6 py-4 max-w-56">
+        {/* 유통기한 */}
+        <td className="py-4 px-6">
           {editing ? (
-            <div className="space-y-1">
+            <div className="space-y-2">
               <input
+                type="date"
                 value={form.expiryDate}
                 onChange={(e) =>
                   setForm((s) => ({ ...s, expiryDate: e.target.value }))
                 }
-                className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
-                type="date"
+                className="w-full px-2 py-1 bg-white border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
               />
               <input
+                type="text"
                 value={form.batchNumber}
                 onChange={(e) =>
                   setForm((s) => ({ ...s, batchNumber: e.target.value }))
                 }
-                className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
+                className="w-full px-2 py-1 bg-white border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
                 placeholder="로트번호"
               />
             </div>
           ) : (
-            <div>
+            <div className="text-sm">
               {item.expiryDate ? (
-                <div
-                  className={`text-sm ${
-                    expiryStatus?.status !== "safe"
-                      ? expiryStatus?.color.includes("red")
-                        ? "text-red-600 font-medium"
-                        : expiryStatus?.color.includes("orange")
-                        ? "text-orange-600"
-                        : "text-gray-900"
-                      : "text-gray-900"
-                  }`}
-                >
+                <span className="text-gray-900">
                   {new Date(item.expiryDate).toLocaleDateString("ko-KR")}
-                </div>
+                </span>
               ) : (
-                <div className="text-sm text-gray-400">-</div>
-              )}
-              {expiryStatus && expiryStatus.status !== "safe" && (
-                <div className="text-xs text-gray-500 mt-1">
-                  {expiryStatus.message}
-                </div>
+                <span className="text-gray-400">-</span>
               )}
             </div>
           )}
         </td>
 
-        {/* ⚡ 상태 */}
-        <td className="px-6 py-4">
-          <div className="flex flex-wrap gap-1">
+        {/* 상태 */}
+        <td className="py-4 px-6">
+          <div className="flex flex-col gap-1 text-nowrap">
             {isLowStock && (
               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                <AlertTriangle className="w-3 h-3 mr-1" />
                 재고부족
               </span>
             )}
             {expiryStatus && expiryStatus.status !== "safe" && (
               <span
-                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${expiryStatus.color}`}
+                className={`inline-flex justify-center items-center px-2 py-1 rounded-full text-xs font-medium ${
+                  expiryStatus.status === "expired"
+                    ? "bg-red-100 text-red-800"
+                    : expiryStatus.status === "critical"
+                    ? "bg-red-100 text-red-800"
+                    : expiryStatus.status === "warning"
+                    ? "bg-orange-100 text-orange-800"
+                    : "bg-amber-100 text-amber-800"
+                }`}
               >
-                <Clock className="w-3 h-3 mr-1" />
                 {expiryStatus.status === "expired"
                   ? "기한만료"
                   : expiryStatus.status === "critical"
@@ -295,23 +267,24 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
             )}
             {!isLowStock &&
               (!expiryStatus || expiryStatus.status === "safe") && (
-                <span className="min-w-16 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 justify-center">
-                  <CheckCircle className="w-3 h-3 mr-1" />
+                <span className="inline-flex justify-center items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                   정상
                 </span>
               )}
           </div>
         </td>
 
-        {/* 🔧 작업 */}
-        <ItemActions
-          editing={editing}
-          onEdit={handleEdit}
-          onSave={save}
-          onCancel={handleCancel}
-          onAdjust={onAdjust}
-          onDelete={onDelete}
-        />
+        {/* 작업 */}
+        <td className="py-4 px-6">
+          <ItemActions
+            editing={editing}
+            onEdit={handleEdit}
+            onSave={save}
+            onCancel={handleCancel}
+            onDelete={onDelete}
+            onAdjust={onAdjust}
+          />
+        </td>
       </tr>
     );
   }

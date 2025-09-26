@@ -15,7 +15,7 @@ interface ItemActionsProps {
 export const ItemActions: React.FC<ItemActionsProps> = React.memo(
   ({ editing, onEdit, onSave, onCancel, onAdjust, onDelete }) => {
     return (
-      <td className="px-6 py-4">
+      <td className="p-4">
         {editing ? (
           <div className="flex items-center space-x-2">
             <button
@@ -37,7 +37,7 @@ export const ItemActions: React.FC<ItemActionsProps> = React.memo(
           <div className="flex items-center space-x-1">
             <button
               onClick={onEdit}
-              className="flex items-center px-2 py-1 text-blue-600 hover:bg-blue-50 rounded text-xs transition-colors min-w-16"
+              className="flex items-center px-2 py-1 text-blue-600 hover:bg-blue-50 rounded text-xs transition-colors min-w-14"
               title="수정"
             >
               <Edit className="w-3 h-3 mr-1" />
@@ -45,7 +45,7 @@ export const ItemActions: React.FC<ItemActionsProps> = React.memo(
             </button>
             <button
               onClick={onAdjust}
-              className="flex items-center px-2 py-1 text-green-600 hover:bg-green-50 rounded text-xs transition-colors min-w-16"
+              className="flex items-center px-2 py-1 text-green-600 hover:bg-green-50 rounded text-xs transition-colors min-w-14"
               title="조정"
             >
               <Settings className="w-3 h-3 mr-1" />
@@ -53,7 +53,7 @@ export const ItemActions: React.FC<ItemActionsProps> = React.memo(
             </button>
             <button
               onClick={onDelete}
-              className="flex items-center px-2 py-1 text-red-600 hover:bg-red-50 rounded text-xs transition-colors min-w-16"
+              className="flex items-center px-2 py-1 text-red-600 hover:bg-red-50 rounded text-xs transition-colors min-w-14"
               title="삭제"
             >
               <Trash2 className="w-3 h-3 mr-1" />
