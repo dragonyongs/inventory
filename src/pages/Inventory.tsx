@@ -83,7 +83,7 @@ export default function Inventory() {
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-y-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">인벤토리</h1>
           <p className="text-gray-600 mt-1">

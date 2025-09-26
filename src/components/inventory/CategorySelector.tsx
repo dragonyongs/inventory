@@ -1,5 +1,5 @@
 // src/components/inventory/CategorySelector.tsx
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Plus, MoreHorizontal, Edit, Trash2 } from "lucide-react";
 import { useCategoriesStore } from "@/stores/categoriesStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -25,6 +25,11 @@ export function CategorySelector() {
 
   const workspaceCategories = getCategoriesByWorkspace(currentWorkspaceId!);
 
+  // useRef 타입 수정 및 import 확인
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
   // 컨텍스트 메뉴 핸들러
   const handleCategoryRightClick = useCallback(
     (e: React.MouseEvent, category: Category) => {
@@ -47,15 +52,127 @@ export function CategorySelector() {
     }
   }, [contextMenu]);
 
+  // 스크롤 상태 확인
+  const checkScrollButtons = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    setCanScrollLeft(container.scrollLeft > 0);
+    setCanScrollRight(
+      container.scrollLeft < container.scrollWidth - container.clientWidth
+    );
+  }, []);
+
+  // 스크롤 버튼 핸들러
+  const scrollLeft = useCallback(() => {
+    scrollContainerRef.current?.scrollBy({ left: -120, behavior: "smooth" });
+  }, []);
+
+  const scrollRight = useCallback(() => {
+    scrollContainerRef.current?.scrollBy({ left: 120, behavior: "smooth" });
+  }, []);
+
+  // 활성 카테고리로 자동 스크롤
+  useEffect(() => {
+    // setTimeout으로 DOM 업데이트 후 실행
+    const timer = setTimeout(() => {
+      if (!scrollContainerRef.current) return;
+
+      let targetElement: Element | null = null;
+
+      if (currentCategoryId === null) {
+        // "전체" 버튼으로 스크롤
+        targetElement = scrollContainerRef.current.querySelector(
+          '[data-category-id="all"]'
+        );
+      } else {
+        // 특정 카테고리 버튼으로 스크롤
+        targetElement = scrollContainerRef.current.querySelector(
+          `[data-category-id="${currentCategoryId}"]`
+        );
+      }
+
+      if (targetElement) {
+        targetElement.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+          inline: "center",
+        });
+
+        console.log("Scrolled to:", currentCategoryId || "all"); // 디버깅용
+      } else {
+        console.warn("Target element not found:", currentCategoryId || "all"); // 디버깅용
+      }
+    }, 0); // 0ms로 다음 틱에 실행
+
+    return () => clearTimeout(timer);
+  }, [currentCategoryId]);
+
+  // 스크롤 이벤트 리스너
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => checkScrollButtons();
+    container.addEventListener("scroll", handleScroll);
+
+    // 초기 상태 확인
+    checkScrollButtons();
+
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [checkScrollButtons]);
+
+  // 화면 크기 변경 감지 (SSR 안전)
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    // 클라이언트에서만 실행
+    setIsMobile(window.innerWidth < 768);
+
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+      checkScrollButtons();
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [checkScrollButtons]);
+
   return (
     <div className="relative">
       {/* 메인 카테고리 네비게이션 */}
-      <div className="flex items-center gap-1 p-1 bg-white rounded-xl border border-gray-100 overflow-hidden">
+      <div className="flex items-center gap-1 p-1 bg-white rounded-xl border border-gray-100 overflow-x-auto scrollbar-hide">
+        {/* 좌측 스크롤 버튼 */}
+        {canScrollLeft && (
+          <div className="z-20 absolute -left-2">
+            <button
+              onClick={scrollLeft}
+              className="flex-shrink-0 p-1 rounded-full bg-white shadow-md hover:shadow-lg transition-shadow z-10"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* 전체 버튼 - 항상 첫 번째 */}
         <button
+          data-category-id="all"
           onClick={() => setCurrentCategory(null)}
           className={`
-            group relative px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200
+             flex-shrink-0 px-4 py-2.5 rounded-lg text-sm font-medium 
+            whitespace-nowrap transition-all duration-200 min-w-[60px]
             ${
               !currentCategoryId
                 ? "bg-gray-900 text-white shadow-sm"
@@ -69,40 +186,48 @@ export function CategorySelector() {
         </button>
 
         {/* 스크롤 가능한 카테고리 영역 */}
-        <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide max-w-[calc(100vw-320px)]">
+        <div
+          ref={scrollContainerRef}
+          className="flex items-center gap-1 overflow-x-auto scrollbar-hide max-w-[calc(100vw-160px)] md:max-w-[calc(100vw-180px)] lg:max-w-[calc(100vw-320px)]"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+        >
           {workspaceCategories.map((category) => (
             <button
+              data-category-id={category.id}
               key={category.id}
               onClick={() => setCurrentCategory(category.id)}
               onContextMenu={(e) => handleCategoryRightClick(e, category)}
               className={`
-                group flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap
-                transition-all duration-200 relative
+                group flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium 
+              whitespace-nowrap transition-all duration-200 relative flex-shrink-0
+              min-w-fit max-w-[120px]
                 ${
                   currentCategoryId === category.id
                     ? "bg-gray-900 text-white shadow-sm"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                    : "bg-gray-50 text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-100"
                 }
               `}
             >
               {category.icon && (
-                <span className="text-sm">{category.icon}</span>
+                <span className="flex-shrink-0 text-sm">{category.icon}</span>
               )}
-              {category.name}
+              <span className="truncate">{category.name}</span>
 
               {/* 호버 시 점 3개 메뉴 */}
-              <div
-                className={`
-                opacity-0 group-hover:opacity-100 transition-opacity ml-1
+              {!isMobile && (
+                <div
+                  className={`
+                opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity ml-1 
                 ${
                   currentCategoryId === category.id
                     ? "text-white"
                     : "text-gray-400"
                 }
-              `}
-              >
-                <MoreHorizontal size={12} />
-              </div>
+                  `}
+                >
+                  <MoreHorizontal className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                </div>
+              )}
             </button>
           ))}
         </div>
@@ -125,6 +250,31 @@ export function CategorySelector() {
             />
           </button>
         </div>
+
+        {/* 우측 스크롤 버튼 */}
+        {canScrollRight && (
+          <div className="z-20 absolute -right-2">
+            <button
+              onClick={scrollRight}
+              className="flex-shrink-0 p-1 rounded-full bg-white shadow-md hover:shadow-lg transition-shadow z-10"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </button>
+          </div>
+        )}
+        <div className="absolute right-0 top-0 w-8 h-full bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none" />
       </div>
 
       {/* 컨텍스트 메뉴 */}
