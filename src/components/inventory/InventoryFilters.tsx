@@ -34,7 +34,7 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = React.memo(
     onSearchChange,
     statusFilter = "",
     onStatusFilterChange,
-    categoryFilter = "",
+    // categoryFilter = "",
     onCategoryFilterChange,
     stockFilter = "",
     onStockFilterChange,
@@ -217,7 +217,6 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = React.memo(
                       className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       {statusOptions.map((option) => {
-                        const Icon = option.icon;
                         return (
                           <option key={option.value} value={option.value}>
                             {option.label}

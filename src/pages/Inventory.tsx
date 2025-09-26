@@ -3,12 +3,7 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { CheckCircle, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import {
-  useVisibleItems,
-  useSetQuery,
-  useQuery,
-  useStockByItem,
-} from "../stores/selectors";
+import { useVisibleItems, useSetQuery, useQuery } from "../stores/selectors";
 import { useItemsStore, type Item } from "@/stores/itemsStore";
 import { InventoryFilters } from "@/components/inventory/InventoryFilters";
 import { EmptyInventoryState } from "@/components/inventory/EmptyInventoryState";

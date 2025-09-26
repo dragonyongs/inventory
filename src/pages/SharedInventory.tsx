@@ -214,7 +214,7 @@ const SharedInventory: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 헤더 */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40 backdrop-blur-sm bg-white/95">
+      <header className="border-b border-gray-200 sticky top-0 z-40 backdrop-blur-sm bg-white/95">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* 좌측: 로고 및 정보 */}
@@ -288,7 +288,7 @@ const SharedInventory: React.FC = () => {
       </header>
 
       {/* 메인 컨텐츠 */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="min-h-[calc(100vh-182px)] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* 검색 및 뷰 모드 */}
         <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
