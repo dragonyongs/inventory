@@ -58,7 +58,7 @@ export const useGoogleAuth = () => {
       const response = await new Promise<any>((resolve, reject) => {
         window.google.accounts.oauth2
           .initTokenClient({
-            client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+            client_id: import.meta.env.VITE_INVENTORY_GOOGLE_CLIENT_ID,
             scope: "email profile",
             callback: resolve,
             error_callback: reject,
