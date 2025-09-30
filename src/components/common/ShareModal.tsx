@@ -137,7 +137,7 @@ export const ShareModal: React.FC<ShareModalProps> = React.memo(
           </div>
 
           {/* 본문 */}
-          <div className="p-6 space-y-4">
+          <div className="overflow-y-auto p-6 space-y-4 max-h-[calc(100vh-260px)]">
             {/* 권한 선택 */}
             <div>
               <label className="text-sm font-medium text-gray-700 mb-3 block">

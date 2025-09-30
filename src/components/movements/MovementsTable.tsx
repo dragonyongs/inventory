@@ -1,6 +1,6 @@
 // src/components/movements/MovementsTable.tsx
 
-import React, { memo, useCallback } from "react";
+import { memo, useCallback } from "react";
 import {
   ArrowUpRight,
   ArrowDownLeft,

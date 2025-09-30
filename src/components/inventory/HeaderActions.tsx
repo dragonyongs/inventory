@@ -1,5 +1,4 @@
 // src/components/inventory/HeaderActions.tsx
-
 import React, { useState, useCallback } from "react";
 import { Plus, Share2 } from "lucide-react";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -18,11 +17,10 @@ export const HeaderActions: React.FC<HeaderActionsProps> = React.memo(
     const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
     const currentCategoryId = useCategoriesStore((s) => s.currentCategoryId);
     const { generateShareToken } = useCategoriesStore();
-
     const [shareModalOpen, setShareModalOpen] = useState(false);
-    const [shareUrl, setShareUrl] = useState<string>();
+    const [shareUrl, setShareUrl] = useState<string | undefined>();
     const [currentPermission, setCurrentPermission] =
-      useState<SharePermission>("view"); // ✅ 현재 권한 상태 추가
+      useState<SharePermission>("view");
 
     const handleShare = useCallback(() => {
       if (!currentWorkspaceId || !currentCategoryId) {
@@ -35,11 +33,9 @@ export const HeaderActions: React.FC<HeaderActionsProps> = React.memo(
     const handleGenerateShare = useCallback(
       (permission: SharePermission) => {
         if (!currentWorkspaceId || !currentCategoryId) return;
-
         const token = generateShareToken(currentCategoryId);
         const baseUrl = window.location.origin;
         const url = `${baseUrl}/share/${token}?permission=${permission}&workspace=${currentWorkspaceId}&category=${currentCategoryId}`;
-
         setShareUrl(url);
         setCurrentPermission(permission);
       },
@@ -49,29 +45,37 @@ export const HeaderActions: React.FC<HeaderActionsProps> = React.memo(
     const handleCloseShareModal = useCallback(() => {
       setShareModalOpen(false);
       setShareUrl(undefined);
-      setCurrentPermission("view"); // ✅ 권한 초기화
+      setCurrentPermission("view");
     }, []);
 
     return (
       <>
-        <div className="flex items-center space-x-3">
+        {/* 모바일: 전체 너비 그리드, 데스크탑: 플렉스 */}
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-3">
           {/* 공유 버튼 */}
           <button
             onClick={handleShare}
-            className="inline-flex items-center px-4 py-2.5 border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 shadow-sm"
-            disabled={!currentWorkspaceId || !currentCategoryId}
+            className="inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-2 
+                     text-sm font-medium text-gray-700 bg-white border border-gray-300 
+                     rounded-lg hover:bg-gray-50 transition-colors duration-200
+                     focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+                     active:bg-gray-100 touch-manipulation"
           >
-            <Share2 className="w-4 h-4 mr-2" />
-            공유
+            <Share2 className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate">공유</span>
           </button>
 
           {/* 신규 등록 버튼 */}
           <button
             onClick={onNewItem}
-            className="inline-flex items-center px-5 py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 active:bg-blue-800 transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98]"
+            className="inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-2 
+                     text-sm font-medium text-white bg-blue-600 border border-transparent 
+                     rounded-lg hover:bg-blue-700 transition-colors duration-200
+                     focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+                     active:bg-blue-800 touch-manipulation shadow-sm"
           >
-            <Plus className="w-4 h-4 mr-2" />
-            신규 등록
+            <Plus className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate">신규 등록</span>
           </button>
         </div>
 
@@ -80,7 +84,7 @@ export const HeaderActions: React.FC<HeaderActionsProps> = React.memo(
           onClose={handleCloseShareModal}
           onGenerate={handleGenerateShare}
           shareUrl={shareUrl}
-          currentPermission={currentPermission} // ✅ 현재 권한 전달
+          currentPermission={currentPermission}
         />
       </>
     );

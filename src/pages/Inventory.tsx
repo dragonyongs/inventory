@@ -186,41 +186,41 @@ export default function Inventory() {
       {/* 헤더 */}
       <div className="bg-white border-b border-gray-100 px-4 lg:px-6">
         <div className="py-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-y-4">
+          {/* <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-y-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">인벤토리</h1>
               <p className="text-gray-600 mt-1">
                 상품을 등록하고 재고를 효율적으로 관리하세요
               </p>
             </div>
-            <HeaderActions onNewItem={handleNewItem} />
-          </div>
+          </div> */}
 
-          {/* 성공 알림 */}
-          {addedId && (
-            <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
-              <div className="flex items-center">
-                <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
-                <span className="text-green-800 font-medium">
-                  품목이 성공적으로 추가되었습니다! 🎉
-                </span>
-              </div>
-              <button
-                onClick={() => setAddedId(null)}
-                className="text-green-600 hover:text-green-800 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+          <PageHeader
+            title="인벤토리"
+            description="상품을 등록하고 재고를 효율적으로 관리하세요"
+            actions={<HeaderActions onNewItem={handleNewItem} />}
+          />
 
           <CategorySelector />
         </div>
 
-        <PageHeader
-          title="이동내역"
-          description="재고 입출고 내역을 확인하세요"
-        />
+        {/* 성공 알림 */}
+        {addedId && (
+          <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
+            <div className="flex items-center">
+              <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
+              <span className="text-green-800 font-medium">
+                품목이 성공적으로 추가되었습니다! 🎉
+              </span>
+            </div>
+            <button
+              onClick={() => setAddedId(null)}
+              className="text-green-600 hover:text-green-800 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 📌 개선된 필터 컴포넌트 */}

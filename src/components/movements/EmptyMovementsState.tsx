@@ -1,6 +1,6 @@
 // src/components/movements/EmptyMovementsState.tsx
 
-import React, { memo } from "react";
+import { memo } from "react";
 import { Activity } from "lucide-react";
 
 interface EmptyMovementsStateProps {
