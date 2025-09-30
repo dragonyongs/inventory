@@ -13,7 +13,7 @@ import { useWorkspaceStore } from "../stores/workspaceStore";
 import type { WorkspaceType } from "../stores/workspaceStore";
 import {
   getWorkspaceTypeOptions,
-  getWorkspaceTypeLabel,
+  // getWorkspaceTypeLabel,
 } from "../utils/workspaceLabels";
 
 interface WorkspaceSelectorProps {
