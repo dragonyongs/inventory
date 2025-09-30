@@ -11,10 +11,7 @@ import {
 } from "lucide-react";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import type { WorkspaceType } from "../stores/workspaceStore";
-import {
-  getWorkspaceTypeOptions,
-  // getWorkspaceTypeLabel,
-} from "../utils/workspaceLabels";
+import { getWorkspaceTypeOptions } from "../utils/workspaceLabels";
 
 interface WorkspaceSelectorProps {
   variant?: "default" | "compact";
