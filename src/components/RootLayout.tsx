@@ -59,132 +59,127 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
-      <DevTools />
-
-      {/* Mobile Header */}
-      <header className="bg-white border-b border-gray-200 lg:hidden sticky top-0 z-40 backdrop-blur-sm bg-white/95">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Package className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold text-gray-900">
-                  재고관리
-                </h1>
-              </div>
-            </div>
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-            >
-              {isMobileMenuOpen ? (
-                <X className="h-5 w-5" />
-              ) : (
-                <Menu className="h-5 w-5" />
-              )}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Mobile Menu */}
-      {isMobileMenuOpen && (
-        <div className="fixed w-full lg:hidden bg-white border-b border-gray-200 shadow-sm">
-          <div className="px-4 py-4 space-y-1">
-            {navigationItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={mobileNavLinkClass}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <div className="flex items-center">
-                    <Icon className="w-5 h-5 mr-3 text-current" />
-                    <div>
-                      <div className="font-medium">{item.label}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">
-                        {item.description}
-                      </div>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                </NavLink>
-              );
-            })}
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex md:flex-shrink-0">
+        <div className="flex flex-col w-64 border-r border-gray-200 bg-white">
+          {/* Workspace Selector - 최상단 배치 */}
+          <div className="px-3 pt-4 pb-2">
+            <WorkspaceSelector variant="compact" />
           </div>
 
-          {/* Mobile 워크스페이스 & 사용자 정보 */}
-          <div className="px-4 py-4 border-t border-gray-100 space-y-3 bg-gray-50">
-            <WorkspaceSelector />
+          {/* App Title */}
+          <div className="px-4 py-3 border-b border-gray-100">
+            <h1 className="text-sm font-semibold text-gray-700">재고관리</h1>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 px-3 pt-4 pb-4 space-y-1 overflow-y-auto">
+            {navigationItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={navLinkClass}
+                end={item.to === "/"}
+              >
+                <item.icon className="mr-3 h-5 w-5 flex-shrink-0 transition-colors" />
+                <span className="flex-1">{item.label}</span>
+              </NavLink>
+            ))}
+          </nav>
+
+          {/* User Profile - 하단 고정 */}
+          <div className="border-t border-gray-100 px-3 py-3">
             <UserProfile />
           </div>
         </div>
-      )}
+      </aside>
 
-      <div className="flex">
-        {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 lg:z-50">
-          <div className="flex flex-col flex-1 bg-white border-r border-gray-200">
-            {/* Logo */}
-            <div className="flex items-center h-16 px-6 border-b border-gray-200">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
-                <Package className="w-4 h-4 text-white" />
+      {/* Mobile Menu Button */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+              aria-label="메뉴"
+            >
+              {isMobileMenuOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
+              )}
+            </button>
+            <h1 className="text-lg font-semibold text-gray-900">재고관리</h1>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Sidebar Overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black bg-opacity-50"
+          onClick={() => setIsMobileMenuOpen(false)}
+        >
+          <aside
+            className="fixed inset-y-0 left-0 w-80 bg-white shadow-xl transform transition-transform duration-300 ease-in-out"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col h-full">
+              {/* Workspace Selector - 모바일도 최상단 */}
+              <div className="px-4 pt-6 pb-3">
+                <WorkspaceSelector variant="compact" />
               </div>
-              <div>
-                <h1 className="text-lg font-semibold text-gray-900">
+
+              {/* App Title */}
+              <div className="px-4 py-3 border-b border-gray-100">
+                <h1 className="text-base font-semibold text-gray-800">
                   재고관리
                 </h1>
-                <p className="text-xs text-gray-500">Smart Inventory</p>
               </div>
-            </div>
 
-            {/* Navigation */}
-            <nav className="flex-1 px-4 py-6">
-              <div className="space-y-1">
-                {navigationItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      className={navLinkClass}
-                    >
-                      <div className="flex items-center min-w-0 flex-1">
-                        <Icon className="w-5 h-5 mr-3 flex-shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <div className="font-medium text-sm">
-                            {item.label}
-                          </div>
+              {/* Navigation */}
+              <nav className="flex-1 px-4 pt-6 pb-4 space-y-2 overflow-y-auto">
+                {navigationItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={mobileNavLinkClass}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    end={item.to === "/"}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                      <div>
+                        <div className="font-medium">{item.label}</div>
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          {item.description}
                         </div>
                       </div>
-                    </NavLink>
-                  );
-                })}
-              </div>
-            </nav>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-gray-400" />
+                  </NavLink>
+                ))}
+              </nav>
 
-            {/* Workspace & User Section */}
-            <div className="px-4 py-4 border-t border-gray-200 bg-gray-50/50">
-              <div className="space-y-3">
-                <WorkspaceSelector />
+              {/* User Profile - 모바일 하단 */}
+              <div className="border-t border-gray-100 px-4 py-4">
                 <UserProfile />
               </div>
             </div>
-          </div>
-        </aside>
+          </aside>
+        </div>
+      )}
 
-        {/* Main Content */}
-        <main className="lg:flex-1 lg:pl-64 w-full">
-          <div className="min-h-screen bg-gray-50">
-            {children || <Outlet />}
-          </div>
-        </main>
-      </div>
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto md:mt-0 mt-16">
+        <div className="h-full">
+          {children}
+          <Outlet />
+        </div>
+      </main>
+
+      <DevTools />
     </div>
   );
 }
