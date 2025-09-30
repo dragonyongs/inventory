@@ -186,15 +186,6 @@ export default function Inventory() {
       {/* 헤더 */}
       <div className="bg-white border-b border-gray-100 px-4 lg:px-6">
         <div className="py-6">
-          {/* <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-y-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">인벤토리</h1>
-              <p className="text-gray-600 mt-1">
-                상품을 등록하고 재고를 효율적으로 관리하세요
-              </p>
-            </div>
-          </div> */}
-
           <PageHeader
             title="인벤토리"
             description="상품을 등록하고 재고를 효율적으로 관리하세요"

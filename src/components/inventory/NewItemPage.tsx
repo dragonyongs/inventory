@@ -151,7 +151,7 @@ export const NewItemPage: React.FC = () => {
     <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       {/* 헤더 */}
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <PackagePlus className="w-6 h-6 text-blue-600" />
             <div>
@@ -278,7 +278,7 @@ export const NewItemPage: React.FC = () => {
             </div>
 
             {/* 수치 정보 그리드 */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   최소 재고

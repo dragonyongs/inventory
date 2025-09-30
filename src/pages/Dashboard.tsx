@@ -442,20 +442,22 @@ const Dashboard: React.FC = () => {
       <div className="max-w-7xl mx-auto p-6 lg:p-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-semibold text-gray-900 mb-2">
                 {currentWorkspace?.name || "대시보드"}
               </h1>
               <p className="text-gray-500">전체적인 재고 현황을 확인하세요</p>
             </div>
-            <button
-              onClick={() => navigate("/inventory/new")}
-              className="inline-flex items-center px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              상품 추가
-            </button>
+            <div className="flex-shrink-0 w-full sm:w-auto">
+              <button
+                onClick={() => navigate("/inventory/new")}
+                className="inline-flex items-center px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                상품 추가
+              </button>
+            </div>
           </div>
         </div>
 
