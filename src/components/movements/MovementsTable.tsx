@@ -4,12 +4,14 @@ import { memo, useCallback } from "react";
 import {
   ArrowUpRight,
   ArrowDownLeft,
-  Activity,
+  RefreshCw,
   Clock,
   Trash2,
+  User,
 } from "lucide-react";
 import type { Movement } from "@/stores/movementsStore";
 import { useItemsStore } from "@/stores/itemsStore";
+import { useAuthStore } from "@/stores/authStore";
 import type { ActionLabels } from "@/utils/workspaceLabels";
 
 interface MovementsTableProps {
@@ -21,6 +23,7 @@ interface MovementsTableProps {
 export const MovementsTable = memo<MovementsTableProps>(
   ({ movements, onDelete, actionLabels }) => {
     const items = useItemsStore((s) => s.items);
+    const currentUser = useAuthStore((s) => s.user);
 
     // 아이템 이름 가져오기 (삭제된 경우 스냅샷 활용)
     const getItemName = useCallback(
@@ -33,18 +36,48 @@ export const MovementsTable = memo<MovementsTableProps>(
       [items]
     );
 
+    // ✅ 사용자 이름 표시 함수
+    const getUserDisplay = useCallback(
+      (movement: Movement) => {
+        // 1. userName이 있으면 우선 사용
+        if (movement.userName) {
+          return movement.userName;
+        }
+
+        // 2. userId가 현재 사용자와 같으면 "나"
+        if (movement.userId && currentUser?.id === movement.userId) {
+          return "나";
+        }
+
+        // 3. 공유 액세스인 경우
+        if (movement.isSharedAccess) {
+          return "공유 사용자";
+        }
+
+        // 4. 로그인한 사용자 이메일 표시
+        if (movement.userEmail) {
+          return movement.userEmail.split("@")[0]; // 이메일 앞부분만
+        }
+
+        // 5. 기본값
+        return "익명";
+      },
+      [currentUser]
+    );
+
     // 움직임 아이콘 가져오기
     const getMovementIcon = useCallback((type: string) => {
       switch (type) {
         case "IN":
-          return <ArrowDownLeft className="w-5 h-5" />;
+          return <ArrowDownLeft className="w-4 h-4 flex-shrink-0" />;
         case "OUT":
+          return <ArrowUpRight className="w-4 h-4 flex-shrink-0" />;
         case "USE":
-          return <ArrowUpRight className="w-5 h-5" />;
+          return <ArrowUpRight className="w-4 h-4 flex-shrink-0" />;
         case "ADJUST":
-          return <Activity className="w-5 h-5" />;
+          return <RefreshCw className="w-4 h-4 flex-shrink-0" />;
         default:
-          return <Clock className="w-5 h-5" />;
+          return <Clock className="w-4 h-4 flex-shrink-0" />;
       }
     }, []);
 
@@ -54,6 +87,7 @@ export const MovementsTable = memo<MovementsTableProps>(
         case "IN":
           return "bg-green-100 text-green-700 border-green-200";
         case "OUT":
+          return "bg-red-100 text-red-700 border-red-200";
         case "USE":
           return "bg-red-100 text-red-700 border-red-200";
         case "ADJUST":
@@ -109,9 +143,12 @@ export const MovementsTable = memo<MovementsTableProps>(
                   메모
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  일시
+                  사용자
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  일시
+                </th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20 min-w-[80px]">
                   작업
                 </th>
               </tr>
@@ -151,6 +188,18 @@ export const MovementsTable = memo<MovementsTableProps>(
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                          <User className="w-4 h-4 text-gray-500" />
+                        </div>
+                      </div>
+                      <span className="text-sm font-medium text-gray-900">
+                        {getUserDisplay(movement)}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-600">
                       {new Date(movement.createdAt).toLocaleString("ko-KR", {
                         year: "numeric",
@@ -161,13 +210,14 @@ export const MovementsTable = memo<MovementsTableProps>(
                       })}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap text-center w-20 min-w-[80px]">
                     <button
                       onClick={() => onDelete(movement.id)}
-                      className="text-red-600 hover:text-red-800 transition-colors p-2 rounded-lg hover:bg-red-50"
+                      className="inline-flex items-center justify-center text-red-600 hover:text-red-800 
+                             transition-colors p-2 rounded-lg hover:bg-red-50 flex-shrink-0"
                       title="삭제"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4 flex-shrink-0" />
                     </button>
                   </td>
                 </tr>

@@ -2,6 +2,7 @@
 import { useCallback } from "react";
 import { useMovementsStore, type MovementType } from "../stores/movementsStore";
 import { useItemsStore } from "../stores/itemsStore";
+import { useAuthStore } from "@/stores/authStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 
 export interface CreateMovementParams {
@@ -19,7 +20,7 @@ export const useCreateMovement = () => {
   const setStock = useItemsStore((s) => s.setStock);
   // getCurrentWorkspace를 의존성에서 빼기 위해 직접 스토어를 구독
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
-
+  const user = useAuthStore((s) => s.user);
   return useCallback(
     async (params: CreateMovementParams) => {
       console.log("🔧 createMovement 시작:", params);
@@ -42,6 +43,9 @@ export const useCreateMovement = () => {
           itemId: params.itemId,
           type: params.type,
           qty: params.qty,
+          userName: user?.name || user?.email?.split("@")[0] || undefined,
+          userId: user?.id,
+          userEmail: user?.email,
           reason:
             params.reason ||
             (params.type === "IN"

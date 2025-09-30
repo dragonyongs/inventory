@@ -1,6 +1,8 @@
 // src/stores/itemsStore.ts (전체 파일)
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { createMovementWithUser } from "@/utils/movementHelpers";
+import { useMovementsStore } from "./movementsStore";
 import { useWorkspaceStore } from "./workspaceStore";
 import { useCategoriesStore } from "./categoriesStore";
 import { generateId } from "@/utils/generateId";
@@ -261,34 +263,28 @@ export const useItemsStore = create<ItemsStore>()(
           return;
         }
 
-        // ✅ Soft Delete: 실제 삭제 대신 삭제 표시
+        // ✅ 사용자 정보 가져오기
+        const user = useAuthStore.getState().user;
+
+        // Soft Delete
         const deletedItem = {
           ...item,
           isDeleted: true,
           deletedAt: new Date().toISOString(),
-          deletedBy: "current-user",
+          deletedBy: user?.id || "unknown",
           deletedReason: reason,
-          stock: 0, // 재고를 0으로 설정하여 계산에서 제외
+          stock: 0,
         };
-
-        console.log("✅ 아이템 소프트 삭제:", {
-          itemId: id,
-          itemName: item.name,
-          reason,
-          deletedAt: deletedItem.deletedAt,
-        });
 
         set({
           items: { ...state.items, [id]: deletedItem },
         });
 
-        // ✅ 삭제 움직임 기록 (동적 import로 순환 의존성 방지)
+        // ✅ 삭제 움직임 기록 (사용자 정보 포함)
         const movementId =
           globalThis.crypto?.randomUUID?.() ?? `movement_${Date.now()}`;
 
-        // 움직임 스토어에 직접 접근하여 추가
         const movementsStorage = localStorage.getItem("inventory-movements");
-        // movements는 실제로 localStorage에만 기록됨. 타입 명확화
         let movements: Record<string, any> = {};
 
         if (movementsStorage) {
@@ -307,7 +303,11 @@ export const useItemsStore = create<ItemsStore>()(
           qty: 0,
           reason: `상품 삭제: ${reason}`,
           createdAt: new Date().toISOString(),
-          // ✅ 아이템 스냅샷 저장
+          // ✅ 사용자 정보 추가
+          userName: user?.name || user?.email?.split("@")[0] || undefined,
+          userId: user?.id,
+          userEmail: user?.email,
+          // 아이템 스냅샷
           itemSnapshot: {
             name: item.name,
             sku: item.sku,
@@ -315,10 +315,8 @@ export const useItemsStore = create<ItemsStore>()(
           },
         };
 
-        // movements 객체에 삭제 움직임 기록
         movements[movementId] = deleteMovement;
 
-        // localStorage에 직접 저장
         try {
           const updatedMovementsStorage = {
             state: { byId: movements },
@@ -376,25 +374,26 @@ export const useItemsStore = create<ItemsStore>()(
 
           const newStock = Math.max(0, item.stock + delta);
 
-          // ✅ 입고(delta > 0)인 경우 maxStock 누적
           let newMaxStock = item.maxStock;
           if (delta > 0) {
             newMaxStock = (item.maxStock || 0) + delta;
-            console.log(
-              `✅ maxStock 업데이트: ${item.maxStock || 0} → ${newMaxStock}`
-            );
           }
 
-          console.log("✅ 재고 조정:", {
+          // ✅ Movement 생성 시 사용자 정보 포함
+          const movement = createMovementWithUser({
+            type: "ADJUST",
             itemId,
-            itemName: item.name,
-            oldStock: item.stock,
-            delta,
-            newStock,
-            maxStock: newMaxStock,
-            minStockAlert: item.minStock,
-            isLowStock: newStock <= (item.minStock || 5),
+            qty: delta,
+            reason: `재고 조정: ${delta > 0 ? "+" : ""}${delta}`,
+            itemSnapshot: {
+              name: item.name,
+              sku: item.sku,
+              category: item.category,
+            },
           });
+
+          // Movement 추가
+          useMovementsStore.getState().addMovement(movement);
 
           return {
             items: {
@@ -402,7 +401,7 @@ export const useItemsStore = create<ItemsStore>()(
               [itemId]: {
                 ...item,
                 stock: newStock,
-                maxStock: newMaxStock, // ✅ maxStock 업데이트
+                maxStock: newMaxStock,
               },
             },
           };

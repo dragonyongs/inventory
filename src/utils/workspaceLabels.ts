@@ -14,44 +14,44 @@ export const getActionLabels = (workspaceType: WorkspaceType): ActionLabels => {
   switch (workspaceType) {
     case "EVENT": // 뮤지컬 행사장
       return {
-        IN: "📦 입고 (업체→본사)",
-        OUT: "🚚 출고 (본사→행사장)",
-        USE: "💰 판매",
-        ADJUST: "📋 재고조정",
-        TRANSFER: "🎁 증정",
+        IN: "입고 (업체→본사)",
+        OUT: "출고 (본사→행사장)",
+        USE: "판매",
+        ADJUST: "재고조정",
+        TRANSFER: "증정",
       };
 
     case "OFFICE": // 본사 사무실
       return {
-        IN: "📦 입고",
-        OUT: "📤 출고 (다른부서/외부)",
-        USE: "✋ 사용 (현장소모)",
-        ADJUST: "📋 재고조정",
+        IN: "입고",
+        OUT: "출고 (다른부서/외부)",
+        USE: "사용",
+        ADJUST: "재고조정",
       };
 
     case "WAREHOUSE": // 창고
       return {
-        IN: "📥 입고",
-        OUT: "📤 출고",
-        USE: "🔧 사용/소모",
-        ADJUST: "📋 재고조정",
-        TRANSFER: "🔄 이동",
+        IN: "입고",
+        OUT: "출고",
+        USE: "사용/소모",
+        ADJUST: "재고조정",
+        TRANSFER: "이동",
       };
 
     case "RETAIL": // 매장
       return {
-        IN: "📦 입고",
-        OUT: "🛒 판매",
-        USE: "🔧 사용/소모",
-        ADJUST: "📋 재고조정",
+        IN: "입고",
+        OUT: "판매",
+        USE: "사용/소모",
+        ADJUST: "재고조정",
       };
 
     default:
       return {
-        IN: "📥 입고",
-        OUT: "📤 출고",
-        USE: "✋ 사용",
-        ADJUST: "📋 조정",
+        IN: "입고",
+        OUT: "출고",
+        USE: "사용",
+        ADJUST: "조정",
       };
   }
 };
