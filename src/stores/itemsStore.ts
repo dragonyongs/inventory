@@ -2,6 +2,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { createMovementWithUser } from "@/utils/movementHelpers";
+import { useAuthStore } from "../stores/authStore";
 import { useMovementsStore } from "./movementsStore";
 import { useWorkspaceStore } from "./workspaceStore";
 import { useCategoriesStore } from "./categoriesStore";

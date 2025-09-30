@@ -16,16 +16,16 @@ export interface CreateMovementParams {
 
 export const useCreateMovement = () => {
   const addMovement = useMovementsStore((s) => s.addMovement);
-  const adjustStock = useItemsStore((s) => s.adjustStock);
   const setStock = useItemsStore((s) => s.setStock);
-  // getCurrentWorkspace를 의존성에서 빼기 위해 직접 스토어를 구독
+  const updateItem = useItemsStore((s) => s.updateItem); // ✅ updateItem 사용
+  // const items = useItemsStore((s) => s.items);
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
   const user = useAuthStore((s) => s.user);
+
   return useCallback(
     async (params: CreateMovementParams) => {
       console.log("🔧 createMovement 시작:", params);
 
-      // getCurrentWorkspace 함수 호출 대신 직접 체크
       if (!currentWorkspaceId) {
         throw new Error("활성 워크스페이스가 없습니다");
       }
@@ -35,9 +35,16 @@ export const useCreateMovement = () => {
       }
 
       try {
-        // 1. 이동 기록 생성
+        const items = useItemsStore.getState().items;
+        const item = items[params.itemId];
+        if (!item) {
+          throw new Error("아이템을 찾을 수 없습니다");
+        }
+
+        // 1. Movement 기록 생성
         const movementId =
           globalThis.crypto?.randomUUID?.() ?? `movement-${Date.now()}`;
+
         const movement = {
           id: movementId,
           itemId: params.itemId,
@@ -55,21 +62,36 @@ export const useCreateMovement = () => {
               : "조정"),
           note: params.note,
           createdAt: new Date().toISOString(),
-          workspaceId: currentWorkspaceId, // 함수 호출 대신 직접 사용
+          workspaceId: currentWorkspaceId,
+          itemSnapshot: {
+            name: item.name,
+            sku: item.sku,
+            category: item.category,
+          },
         };
 
         console.log("🔄 addMovement 호출:", movement);
         addMovement(movement);
         console.log("✅ 움직임 추가 완료");
 
-        // 2. 재고 조정
+        // 2. 재고 조정 (Movement 생성 없이)
         if (params.type === "ADJUST" && params.isAbsoluteValue) {
           console.log(`🔄 setStock 호출: ${params.itemId} → ${params.qty}`);
           setStock(params.itemId, params.qty);
         } else {
+          // ✅ adjustStock 대신 updateItem 직접 사용 (Movement 중복 방지)
           const delta = params.type === "IN" ? params.qty : -params.qty;
-          console.log(`🔄 adjustStock 호출: ${params.itemId} + ${delta}`);
-          adjustStock(params.itemId, delta);
+          const newStock = Math.max(0, item.stock + delta);
+
+          console.log(`🔄 재고 직접 업데이트: ${item.stock} → ${newStock}`);
+
+          updateItem(params.itemId, {
+            stock: newStock,
+            // 입고 시 maxStock 업데이트
+            ...(delta > 0 && {
+              maxStock: (item.maxStock || 0) + delta,
+            }),
+          });
         }
 
         console.log("✅ 재고 조정 완료");
@@ -86,7 +108,6 @@ export const useCreateMovement = () => {
         throw error;
       }
     },
-    [addMovement, adjustStock, setStock, currentWorkspaceId]
-    // getCurrentWorkspace 함수는 의존성에서 제거
+    [addMovement, setStock, updateItem, currentWorkspaceId, user]
   );
 };

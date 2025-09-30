@@ -7,6 +7,12 @@ import {
   Plus,
   Folder,
   ChevronDown,
+  Package,
+  Barcode,
+  DollarSign,
+  Calendar,
+  Hash,
+  Tag,
 } from "lucide-react";
 import { z } from "zod";
 import { useItemsStore } from "@/stores/itemsStore";
@@ -38,7 +44,15 @@ export const NewItemPage: React.FC = () => {
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
   const { getCategoriesByWorkspace, currentCategoryId } = useCategoriesStore();
 
-  const [data, setData] = useState<FormData>({
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const categories = useMemo(() => {
+    if (!currentWorkspaceId) return [];
+    return getCategoriesByWorkspace(currentWorkspaceId);
+  }, [currentWorkspaceId, getCategoriesByWorkspace]);
+
+  const [form, setForm] = useState<FormData>({
     name: "",
     sku: "",
     barcode: "",
@@ -48,389 +62,416 @@ export const NewItemPage: React.FC = () => {
     expiryDate: "",
     batchNumber: "",
     receivedDate: new Date().toISOString().split("T")[0],
-    categoryId: "", // 🔥 카테고리 초기값
+    categoryId: currentCategoryId || "",
   });
 
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
+  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>(
+    {}
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (currentCategoryId && !data.categoryId) {
-      console.log("새 카테고리 감지됨:", currentCategoryId);
-      setData((prev) => ({
-        ...prev,
-        categoryId: currentCategoryId,
-      }));
+    if (currentCategoryId && !form.categoryId) {
+      setForm((prev) => ({ ...prev, categoryId: currentCategoryId }));
     }
-  }, [currentCategoryId, data.categoryId]);
+  }, [currentCategoryId, form.categoryId]);
 
-  // 워크스페이스의 카테고리 목록
-  const availableCategories = useMemo(() => {
-    if (!currentWorkspaceId) return [];
-    const categories = getCategoriesByWorkspace(currentWorkspaceId);
-    return categories;
-  }, [currentWorkspaceId, getCategoriesByWorkspace, currentCategoryId]);
-
-  // 선택된 카테고리 정보
-  const selectedCategory = useMemo(() => {
-    if (!data.categoryId) return null;
-    const category =
-      availableCategories.find((cat) => cat.id === data.categoryId) || null;
-    return category;
-  }, [data.categoryId, availableCategories]);
-
-  const onChange = useCallback(
-    <K extends keyof FormData>(key: K, value: FormData[K]) => {
-      console.log(`필드 변경: ${String(key)} =`, value);
-      setData((d) => ({ ...d, [key]: value }));
-    },
-    []
-  );
-
-  const isValid = useMemo(() => {
-    const valid = schema.safeParse(data).success && data.name.trim();
-    return valid;
-  }, [data]);
-
-  const handleSave = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      setError(null);
-      setSaving(true);
-
-      console.log("저장 시도, 폼 데이터:", data);
-
-      const parsed = schema.safeParse(data);
-      if (!parsed.success) {
-        const errorMsg =
-          parsed.error.issues[0]?.message ?? "입력값을 확인해주세요";
-        console.error("유효성 검사 실패:", parsed.error.issues);
-        setError(errorMsg);
-        setSaving(false);
-        return;
-      }
-
-      try {
-        const { qty, minStock, price, categoryId, ...otherData } = parsed.data;
-
-        const item = addItem({
-          ...otherData,
-          minStock,
-          defaultPrice: price,
-          stock: 0,
-          categoryId: categoryId || undefined,
-        });
-
-        console.log("아이템 생성됨:", item);
-
-        if (qty > 0) {
-          await createMovement({
-            type: "IN",
-            itemId: item.id,
-            qty,
-            reason: "초기 입고",
-          });
-          console.log("초기 입고 완료:", qty);
+  const handleChange = useCallback(
+    (field: keyof FormData) =>
+      (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        setForm((prev) => ({ ...prev, [field]: e.target.value }));
+        if (errors[field]) {
+          setErrors((prev) => ({ ...prev, [field]: undefined }));
         }
-
-        navigate("/inventory", { replace: true });
-      } catch (error) {
-        console.error("상품 등록 실패:", error);
-        setError(String(error));
-      } finally {
-        setSaving(false);
-      }
-    },
-    [data, addItem, createMovement, navigate]
+      },
+    [errors]
   );
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const result = schema.safeParse(form);
+    if (!result.success) {
+      // ✅ 타입을 명시적으로 지정
+      const newErrors: Partial<Record<keyof FormData, string>> = {};
+
+      // ✅ Zod 에러 처리 - issues 속성 사용
+      result.error.issues.forEach((issue) => {
+        const field = issue.path[0] as keyof FormData;
+        if (field) {
+          newErrors[field] = issue.message;
+        }
+      });
+
+      setErrors(newErrors);
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const item = addItem({
+        name: form.name,
+        sku: form.sku || undefined,
+        barcode: form.barcode || undefined,
+        stock: 0,
+        minStock: form.minStock > 0 ? form.minStock : undefined,
+        defaultPrice: form.price && form.price > 0 ? form.price : undefined,
+        expiryDate: form.expiryDate || undefined,
+        batchNumber: form.batchNumber || undefined,
+        receivedDate: form.receivedDate || undefined,
+        categoryId: form.categoryId || undefined,
+      });
+
+      const qty = Number(form.qty);
+      if (qty > 0) {
+        await createMovement({
+          type: "IN",
+          itemId: item.id,
+          qty,
+          reason: "초기 입고",
+        });
+      }
+
+      navigate("/inventory");
+    } catch (error) {
+      console.error("상품 등록 실패:", error);
+      alert("상품 등록에 실패했습니다.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
       {/* 헤더 */}
-      <div className="mb-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <PackagePlus className="w-6 h-6 text-blue-600" />
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">새 상품 등록</h1>
-              <p className="text-gray-600">
-                상품을 등록하고 재고를 효율적으로 관리하세요
-              </p>
-            </div>
+      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 shadow-sm">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <Link
+              to="/inventory"
+              className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 
+                       font-medium transition-colors duration-200 group"
+            >
+              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform duration-200" />
+              <span className="text-sm">목록으로</span>
+            </Link>
           </div>
-          <Link
-            to="/inventory"
-            className="inline-flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            목록으로
-          </Link>
         </div>
-      </div>
+      </header>
 
-      {/* 메인 폼 */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-          <Plus className="w-5 h-5 mr-2 text-blue-600" />
-          상품 정보
-        </h3>
+      {/* 메인 컨텐츠 */}
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* 타이틀 섹션 */}
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg shadow-blue-500/25">
+              <PackagePlus className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
+              새 상품 등록
+            </h1>
+            <p className="text-gray-500 text-sm sm:text-base">
+              상품을 등록하고 재고를 효율적으로 관리하세요
+            </p>
+          </div>
 
-        <form onSubmit={handleSave} className="space-y-6">
-          {/* 기본 정보 */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-gray-900 flex items-center">
-                <PackagePlus className="w-4 h-4 mr-2 text-blue-600" />
-                기본 정보
-              </h4>
-              <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                필수 입력
-              </span>
+          {/* 기본 정보 카드 */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-xl">
+                  <Package className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">기본 정보</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    필수 입력 항목입니다
+                  </p>
+                </div>
+              </div>
             </div>
 
-            {/* 상품명 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                상품명 <span className="text-red-500">*</span>
-              </label>
-              <input
-                value={data.name}
-                onChange={(e) => onChange("name", e.target.value)}
-                placeholder="상품명을 입력하세요 (예: 동록 컴포트 상품)"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+            <div className="p-6 space-y-6">
+              {/* 카테고리 선택 */}
+              {categories.length > 0 && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    카테고리{" "}
+                    <span className="text-gray-400 font-normal">(선택)</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Folder className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                      <select
+                        value={form.categoryId}
+                        onChange={handleChange("categoryId")}
+                        className="w-full h-12 pl-12 pr-10 bg-gray-50 border-0 rounded-xl
+                                 text-sm font-medium text-gray-900
+                                 focus:ring-2 focus:ring-blue-500 focus:bg-white
+                                 transition-all duration-200 appearance-none cursor-pointer"
+                      >
+                        <option value="">카테고리 선택</option>
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.icon && `${cat.icon} `}
+                            {cat.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsCategoryModalOpen(true)}
+                      className="flex items-center justify-center w-12 h-12 bg-blue-600 
+                               hover:bg-blue-700 rounded-xl transition-colors duration-200
+                               shadow-sm hover:shadow-md"
+                      title="카테고리 추가"
+                    >
+                      <Plus className="w-5 h-5 text-white" />
+                    </button>
+                  </div>
+                </div>
+              )}
 
-            {/* 🔥 카테고리 선택 - 기본 정보 섹션에 추가 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                카테고리 (선택)
-              </label>
+              {/* 상품명 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  상품명 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={handleChange("name")}
+                  placeholder="상품명을 입력하세요 (예: 등록 컴포트 상품)"
+                  className={`w-full h-14 px-4 bg-gray-50 border-0 rounded-xl
+                           text-base font-medium text-gray-900 placeholder:text-gray-400
+                           focus:ring-2 focus:ring-blue-500 focus:bg-white
+                           transition-all duration-200
+                           ${errors.name ? "ring-2 ring-red-500" : ""}`}
+                />
+                {errors.name && (
+                  <p className="mt-2 text-sm text-red-600 font-medium">
+                    {errors.name}
+                  </p>
+                )}
+              </div>
 
-              <div className="flex gap-2">
-                <div className="flex-1 relative">
-                  <select
-                    value={data.categoryId || ""}
-                    onChange={(e) => onChange("categoryId", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none pr-10"
-                  >
-                    <option value="">카테고리를 선택하세요 (선택사항)</option>
-                    {availableCategories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.icon && `${category.icon} `}
-                        {category.name}
-                        {category.description && ` - ${category.description}`}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown
-                    size={16}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
+              {/* 2열 그리드 - 최소재고, 가격, 초기수량 */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    최소 재고
+                  </label>
+                  <div className="relative">
+                    <Hash className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                    <input
+                      type="number"
+                      value={form.minStock}
+                      onChange={handleChange("minStock")}
+                      placeholder="0"
+                      min="0"
+                      className="w-full h-12 pl-12 pr-4 bg-gray-50 border-0 rounded-xl
+                               text-sm font-medium text-gray-900 placeholder:text-gray-400
+                               focus:ring-2 focus:ring-blue-500 focus:bg-white
+                               transition-all duration-200"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    가격
+                  </label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                    <input
+                      type="number"
+                      value={form.price}
+                      onChange={handleChange("price")}
+                      placeholder="0"
+                      min="0"
+                      step="0.01"
+                      className="w-full h-12 pl-12 pr-4 bg-gray-50 border-0 rounded-xl
+                               text-sm font-medium text-gray-900 placeholder:text-gray-400
+                               focus:ring-2 focus:ring-blue-500 focus:bg-white
+                               transition-all duration-200"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    초기 수량
+                  </label>
+                  <div className="relative">
+                    <Package className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                    <input
+                      type="number"
+                      value={form.qty}
+                      onChange={handleChange("qty")}
+                      placeholder="0"
+                      min="0"
+                      className="w-full h-12 pl-12 pr-4 bg-gray-50 border-0 rounded-xl
+                               text-sm font-medium text-gray-900 placeholder:text-gray-400
+                               focus:ring-2 focus:ring-blue-500 focus:bg-white
+                               transition-all duration-200"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 입고일 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  입고일 <span className="text-blue-600">(오늘)</span>
+                </label>
+                <div className="relative">
+                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                  <input
+                    type="date"
+                    value={form.receivedDate}
+                    onChange={handleChange("receivedDate")}
+                    className="w-full h-12 pl-12 pr-4 bg-gray-50 border-0 rounded-xl
+                             text-sm font-medium text-gray-900
+                             focus:ring-2 focus:ring-blue-500 focus:bg-white
+                             transition-all duration-200"
                   />
                 </div>
-
-                {/* 새 카테고리 추가 버튼 - 모달 트리거 */}
-                <button
-                  type="button"
-                  onClick={() => setIsAddCategoryModalOpen(true)}
-                  className="
-                    flex items-center px-3 py-2 border border-dashed border-gray-300 text-gray-600 
-                    rounded-lg hover:border-gray-400 hover:text-gray-800 transition-colors
-                  "
-                  title="새 카테고리 추가"
-                >
-                  <Plus size={16} />
-                </button>
-              </div>
-
-              {/* 선택된 카테고리 미리보기 */}
-              {selectedCategory && (
-                <div className="mt-2 flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg text-sm">
-                  <Folder size={14} className="text-gray-500" />
-                  {selectedCategory.icon && (
-                    <span>{selectedCategory.icon}</span>
-                  )}
-                  <span className="text-gray-700">{selectedCategory.name}</span>
-                  {selectedCategory.description && (
-                    <span className="text-gray-500">
-                      - {selectedCategory.description}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* 🔥 디버그 정보 (개발용) */}
-              {process.env.NODE_ENV === "development" && (
-                <div className="mt-2 text-xs text-gray-400">
-                  <div>
-                    사용 가능한 카테고리: {availableCategories.length}개
-                  </div>
-                  <div>선택된 카테고리 ID: {data.categoryId || "없음"}</div>
-                  <div>
-                    전역 currentCategoryId: {currentCategoryId || "없음"}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 수치 정보 그리드 */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  최소 재고
-                </label>
-                <input
-                  value={data.minStock}
-                  onChange={(e) =>
-                    onChange("minStock", Number(e.target.value) || 0)
-                  }
-                  placeholder="10"
-                  type="number"
-                  min="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  가격
-                </label>
-                <input
-                  value={data.price ?? ""}
-                  onChange={(e) =>
-                    onChange("price", Number(e.target.value) || undefined)
-                  }
-                  placeholder="1000"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  초기 수량
-                </label>
-                <input
-                  value={data.qty}
-                  onChange={(e) => onChange("qty", Number(e.target.value) || 0)}
-                  placeholder="100"
-                  type="number"
-                  min="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  입고일 <span className="text-blue-500 text-xs">(오늘)</span>
-                </label>
-                <input
-                  value={data.receivedDate ?? ""}
-                  onChange={(e) => onChange("receivedDate", e.target.value)}
-                  type="date"
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
               </div>
             </div>
           </div>
 
           {/* 고급 옵션 토글 */}
-          <div className="border-t border-gray-200 pt-4">
-            <button
-              type="button"
-              onClick={() => setShowAdvanced((s) => !s)}
-              className="flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              고급 옵션
-              <span className="ml-2 text-xs text-gray-400">
-                {showAdvanced ? "숨기기" : "펼치기"}
-              </span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="w-full flex items-center justify-between p-4 bg-white rounded-xl
+                     border border-gray-200 hover:border-gray-300 transition-colors duration-200"
+          >
+            <span className="text-sm font-semibold text-gray-700">
+              고급 옵션 {showAdvanced ? "숨기기" : "보기"}
+            </span>
+            <ChevronDown
+              className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${
+                showAdvanced ? "rotate-180" : ""
+              }`}
+            />
+          </button>
 
-          {/* 고급 옵션 */}
+          {/* 고급 옵션 카드 */}
           {showAdvanced && (
-            <div className="space-y-6 bg-gray-50 rounded-lg p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-2">
-                    SKU 코드
-                  </label>
-                  <input
-                    value={data.sku ?? ""}
-                    onChange={(e) => onChange("sku", e.target.value)}
-                    placeholder="APP-001"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-2">
-                    바코드
-                  </label>
-                  <input
-                    value={data.barcode ?? ""}
-                    onChange={(e) => onChange("barcode", e.target.value)}
-                    placeholder="8801234567890"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-6 space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                      유통기한
+                    </label>
+                    <input
+                      type="date"
+                      value={form.expiryDate}
+                      onChange={handleChange("expiryDate")}
+                      className="w-full h-12 px-4 bg-gray-50 border-0 rounded-xl
+                               text-sm font-medium text-gray-900
+                               focus:ring-2 focus:ring-blue-500 focus:bg-white
+                               transition-all duration-200"
+                    />
+                  </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-2">
-                    유통기한
-                  </label>
-                  <input
-                    type="date"
-                    value={data.expiryDate ?? ""}
-                    onChange={(e) => onChange("expiryDate", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                      배치번호/로트번호
+                    </label>
+                    <input
+                      type="text"
+                      value={form.batchNumber}
+                      onChange={handleChange("batchNumber")}
+                      placeholder="LOT-20250924"
+                      className="w-full h-12 px-4 bg-gray-50 border-0 rounded-xl
+                               text-sm font-medium text-gray-900 placeholder:text-gray-400
+                               focus:ring-2 focus:ring-blue-500 focus:bg-white
+                               transition-all duration-200"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-2">
-                    배치번호/로트번호
-                  </label>
-                  <input
-                    value={data.batchNumber ?? ""}
-                    onChange={(e) => onChange("batchNumber", e.target.value)}
-                    placeholder="LOT-20250924"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+
+                {/* 2열 그리드 - SKU & 바코드 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                      SKU 코드
+                    </label>
+                    <div className="relative">
+                      <Tag className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={form.sku}
+                        onChange={handleChange("sku")}
+                        placeholder="APP-001"
+                        className="w-full h-12 pl-12 pr-4 bg-gray-50 border-0 rounded-xl
+                               text-sm font-medium text-gray-900 placeholder:text-gray-400
+                               focus:ring-2 focus:ring-blue-500 focus:bg-white
+                               transition-all duration-200"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                      바코드
+                    </label>
+                    <div className="relative">
+                      <Barcode className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={form.barcode}
+                        onChange={handleChange("barcode")}
+                        placeholder="8801234567890"
+                        className="w-full h-12 pl-12 pr-4 bg-gray-50 border-0 rounded-xl
+                               text-sm font-medium text-gray-900 placeholder:text-gray-400
+                               focus:ring-2 focus:ring-blue-500 focus:bg-white
+                               transition-all duration-200"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          <AddCategoryModal
-            isOpen={isAddCategoryModalOpen}
-            onClose={() => setIsAddCategoryModalOpen(false)}
-          />
-
-          {/* 버튼 */}
-          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-            <div className="text-sm text-red-600">{error}</div>
+          {/* 제출 버튼 */}
+          <div className="flex gap-3 pt-4">
+            <Link
+              to="/inventory"
+              className="flex-1 sm:flex-none sm:px-8 h-14 inline-flex items-center justify-center
+                       bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl
+                       transition-colors duration-200"
+            >
+              취소
+            </Link>
             <button
               type="submit"
-              disabled={!isValid || saving}
-              className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              disabled={isSubmitting}
+              className="flex-1 sm:flex-none sm:px-8 h-14 inline-flex items-center justify-center gap-2
+                       bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800
+                       text-white font-bold rounded-xl
+                       shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30
+                       transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {saving ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              ) : (
-                <Plus className="w-4 h-4 mr-2" />
-              )}
-              {saving ? "등록 중..." : "상품 등록"}
+              <PackagePlus className="w-5 h-5" />
+              {isSubmitting ? "등록 중..." : "상품 등록"}
             </button>
           </div>
         </form>
-      </div>
+      </main>
+
+      {/* 카테고리 추가 모달 */}
+      <AddCategoryModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+      />
     </div>
   );
 };
