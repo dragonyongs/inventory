@@ -92,7 +92,7 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden bg-white border-b border-gray-200 shadow-sm">
+        <div className="fixed w-full lg:hidden bg-white border-b border-gray-200 shadow-sm">
           <div className="px-4 py-4 space-y-1">
             {navigationItems.map((item) => {
               const Icon = item.icon;
