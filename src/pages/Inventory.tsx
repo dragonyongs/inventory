@@ -13,6 +13,7 @@ import { AdjustStockModal } from "@/components/inventory/AdjustStockModal";
 import { CategorySelector } from "@/components/inventory/CategorySelector";
 import { HeaderActions } from "@/components/inventory/HeaderActions";
 import { getExpiryStatus } from "@/utils/expiryUtils";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 export default function Inventory() {
   const navigate = useNavigate();
@@ -215,6 +216,11 @@ export default function Inventory() {
 
           <CategorySelector />
         </div>
+
+        <PageHeader
+          title="이동내역"
+          description="재고 입출고 내역을 확인하세요"
+        />
       </div>
 
       {/* 📌 개선된 필터 컴포넌트 */}

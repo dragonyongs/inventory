@@ -1,89 +1,95 @@
 // src/pages/Movements.tsx
-import { useMemo, useCallback } from "react";
-import {
-  ArrowUpRight,
-  ArrowDownLeft,
-  Activity,
-  Clock,
-  Trash2,
-} from "lucide-react";
+
+import { useMemo, useState, useCallback } from "react";
 import { useFilteredMovements } from "../stores/selectors";
 import { useWorkspaceStore } from "../stores/workspaceStore";
-import { getActionLabels } from "../utils/workspaceLabels";
+import { getActionLabels, type ActionLabels } from "../utils/workspaceLabels";
 import { InventoryFilters } from "@/components/inventory/InventoryFilters";
 import { useSetQuery, useQuery } from "../stores/selectors";
+import { useMovementsStore } from "@/stores/movementsStore";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { MovementsTable } from "@/components/movements/MovementsTable";
+import { EmptyMovementsState } from "@/components/movements/EmptyMovementsState";
 
 export default function Movements() {
   const filteredMovements = useFilteredMovements();
-
   const { getCurrentWorkspace } = useWorkspaceStore();
   const currentWorkspace = getCurrentWorkspace();
   const setQuery = useSetQuery();
   const q = useQuery();
+  const removeMovement = useMovementsStore((s) => s.removeMovement);
 
-  // 최근 움직임 (최대 50개)
-  const recentMovements = useMemo(() => {
-    return filteredMovements.slice(0, 50); // 필터링 후 슬라이싱
-  }, [filteredMovements]);
+  // 📌 추가 필터 상태들
+  const [typeFilter, setTypeFilter] = useState<string>("");
+  const [dateFilter, setDateFilter] = useState<string>("");
+  const [showFilters, setShowFilters] = useState(false);
 
-  // 움직임 아이콘 가져오기
-  const getMovementIcon = (type: string) => {
-    switch (type) {
-      case "IN":
-        return <ArrowUpRight className="w-4 h-4" />;
-      case "OUT":
-      case "USE":
-        return <ArrowDownLeft className="w-4 h-4" />;
-      case "DELETE":
-        return <Trash2 className="w-4 h-4" />;
-      case "ADJUST":
-      default:
-        return <Activity className="w-4 h-4" />;
-    }
-  };
+  // 워크스페이스 액션 라벨 (✅ ActionLabels 인터페이스와 정확히 일치)
+  const actionLabels = useMemo<ActionLabels>(
+    () =>
+      currentWorkspace
+        ? getActionLabels(currentWorkspace.type)
+        : {
+            IN: "📥 입고",
+            OUT: "📤 출고",
+            USE: "✋ 사용",
+            ADJUST: "📋 조정",
+          },
+    [currentWorkspace]
+  );
 
-  // 움직임 색상 가져오기
-  const getMovementColor = (type: string) => {
-    switch (type) {
-      case "IN":
-        return "text-green-600 bg-green-50";
-      case "OUT":
-      case "USE":
-        return "text-red-600 bg-red-50";
-      case "DELETE":
-        return "text-gray-600 bg-gray-50";
-      case "ADJUST":
-      default:
-        return "text-blue-600 bg-blue-50";
-    }
-  };
+  // 📌 필터링된 이동내역들
+  const filtered = useMemo(() => {
+    let result = [...filteredMovements];
 
-  // 움직임 라벨 가져오기
-  const getMovementLabel = (type: string) => {
-    if (type === "DELETE") return "삭제";
-
-    if (!currentWorkspace) {
-      // 기본값
-      switch (type) {
-        case "IN":
-          return "입고";
-        case "OUT":
-          return "출고";
-        case "USE":
-          return "사용";
-        case "ADJUST":
-          return "조정";
-        case "TRANSFER":
-          return "이동";
-        default:
-          return type;
-      }
+    // 타입 필터
+    if (typeFilter) {
+      result = result.filter((m) => m.type === typeFilter);
     }
 
-    const labels = getActionLabels(currentWorkspace.type || "DEFAULT");
-    return labels[type as keyof typeof labels] || type;
-  };
+    // 날짜 필터
+    if (dateFilter) {
+      const now = Date.now();
+      const day = 24 * 60 * 60 * 1000;
 
+      result = result.filter((m) => {
+        const movementTime = new Date(m.createdAt).getTime();
+
+        switch (dateFilter) {
+          case "today":
+            return now - movementTime < day;
+          case "week":
+            return now - movementTime < 7 * day;
+          case "month":
+            return now - movementTime < 30 * day;
+          default:
+            return true;
+        }
+      });
+    }
+
+    return result;
+  }, [filteredMovements, typeFilter, dateFilter]);
+
+  // 최신순 정렬 및 최대 50개
+  const sorted = useMemo(() => {
+    return [...filtered]
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+      .slice(0, 50);
+  }, [filtered]);
+
+  // 📌 활성 필터 개수 계산
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (typeFilter) count++;
+    if (dateFilter) count++;
+    return count;
+  }, [typeFilter, dateFilter]);
+
+  // 검색 핸들러
   const handleSearchChange = useCallback(
     (value: string) => {
       setQuery(value);
@@ -91,159 +97,74 @@ export default function Movements() {
     [setQuery]
   );
 
+  // 📌 필터 핸들러들
+  const handleToggleFilters = useCallback(() => {
+    setShowFilters((prev) => !prev);
+  }, []);
+
+  // 삭제 핸들러
+  const handleDelete = useCallback(
+    (id: string) => {
+      if (window.confirm("이 이동 내역을 삭제하시겠습니까?")) {
+        removeMovement(id);
+      }
+    },
+    [removeMovement]
+  );
+
   return (
-    <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">이동내역</h1>
-        <p className="text-gray-600">재고 입출고 내역을 확인하세요</p>
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-white border-b border-gray-100 px-4 lg:px-6">
+        {/* 헤더 */}
+        <PageHeader
+          title="이동내역"
+          description="재고 입출고 내역을 확인하세요"
+        />
       </div>
 
-      {/* 검색 */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
-        <InventoryFilters searchQuery={q} onSearchChange={handleSearchChange} />
-      </div>
+      {/* 📌 필터 컴포넌트 */}
+      <InventoryFilters
+        searchQuery={q}
+        onSearchChange={handleSearchChange}
+        showFilters={showFilters}
+        onToggleFilters={handleToggleFilters}
+        activeFiltersCount={activeFiltersCount}
+        statusFilter={typeFilter}
+        onStatusFilterChange={setTypeFilter}
+        stockFilter={dateFilter}
+        onStockFilterChange={setDateFilter}
+        expiryFilter=""
+        onExpiryFilterChange={() => {}}
+      />
 
-      {/* 최근 이동내역 */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-              <Activity className="w-5 h-5 mr-2 text-blue-600" />
-              최근 이동내역
-            </h3>
-            <span className="text-sm text-gray-500">
-              총 {filteredMovements.length}개 활동
-            </span>
-          </div>
-        </div>
-
+      {/* 이동내역 목록 */}
+      {sorted.length > 0 ? (
         <div className="p-6">
-          {recentMovements.length > 0 ? (
-            <div className="space-y-2">
-              {recentMovements.map((movement) => (
-                <div
-                  key={movement.id}
-                  className="flex items-center justify-between p-4 border border-gray-50 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-x-4">
-                    {/* 아이콘 */}
-                    <div
-                      className={`p-2 rounded-lg ${getMovementColor(
-                        movement.type
-                      )}`}
-                    >
-                      {getMovementIcon(movement.type)}
-                    </div>
+          <MovementsTable
+            movements={sorted}
+            onDelete={handleDelete}
+            actionLabels={actionLabels}
+          />
+        </div>
+      ) : (
+        <EmptyMovementsState
+          hasFilters={activeFiltersCount > 0}
+          searchQuery={q}
+        />
+      )}
 
-                    <div>
-                      {/* ✅ 개선: 삭제된 아이템 표시 */}
-                      <div className="flex items-center gap-x-2">
-                        <span
-                          className={`font-medium ${
-                            movement.isItemDeleted
-                              ? "text-gray-500 line-through"
-                              : "text-gray-900"
-                          }`}
-                        >
-                          {movement.itemName}
-                        </span>
-
-                        {/* ✅ 삭제된 아이템 표시 */}
-                        {movement.isItemDeleted && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                            삭제됨
-                          </span>
-                        )}
-
-                        {/* SKU 표시 */}
-                        {movement.itemSku && (
-                          <span className="text-xs text-gray-500">
-                            SKU: {movement.itemSku}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-x-2 mt-1">
-                        {/* 움직임 타입 */}
-                        <span
-                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            movement.type === "DELETE"
-                              ? "bg-gray-100 text-gray-800"
-                              : movement.type === "IN"
-                              ? "bg-green-100 text-green-800"
-                              : movement.type === "OUT" ||
-                                movement.type === "USE"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-blue-100 text-blue-800"
-                          }`}
-                        >
-                          {getMovementLabel(movement.type)}
-                        </span>
-
-                        {/* 사유 */}
-                        {movement.reason && (
-                          <span className="text-xs text-gray-500">
-                            • {movement.reason}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 수량 및 시간 */}
-                  <div className="text-right">
-                    {movement.type !== "DELETE" && (
-                      <div
-                        className={`text-lg font-semibold ${
-                          movement.type === "IN"
-                            ? "text-green-600"
-                            : movement.type === "OUT" || movement.type === "USE"
-                            ? "text-red-600"
-                            : "text-blue-600"
-                        }`}
-                      >
-                        {movement.type === "IN"
-                          ? "+"
-                          : movement.type === "OUT" || movement.type === "USE"
-                          ? "-"
-                          : "±"}
-                        {movement.qty}
-                      </div>
-                    )}
-
-                    {movement.type === "DELETE" && (
-                      <div className="text-sm text-gray-500 font-medium">
-                        상품 삭제
-                      </div>
-                    )}
-
-                    <div className="flex items-center text-xs text-gray-400 mt-1">
-                      <Clock className="w-3 h-3 mr-1" />
-                      {new Date(movement.createdAt).toLocaleDateString(
-                        "ko-KR",
-                        {
-                          month: "short",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <Activity className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">아직 이동 내역이 없습니다.</p>
-              <p className="text-sm text-gray-400 mt-1">
-                상품을 추가하고 입출고를 기록해보세요.
-              </p>
-            </div>
+      {/* 📌 필터 결과 요약 */}
+      {(q.trim() || activeFiltersCount > 0) && sorted.length > 0 && (
+        <div className="mt-4 text-sm text-gray-600 flex items-center justify-center">
+          <span>{sorted.length}개 이동내역이 조건에 맞습니다</span>
+          {sorted.length !== filteredMovements.length && (
+            <span className="text-gray-500">
+              전체 {filteredMovements.length}개 중{" "}
+              {filteredMovements.length - sorted.length}개 숨겨짐
+            </span>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 }

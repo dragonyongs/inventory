@@ -255,7 +255,7 @@ export const UseItemModal: React.FC<UseItemModalProps> = React.memo(
                 사용 사유 <span className="text-gray-500">(선택사항)</span>
               </label>
               <div className="relative">
-                <div className="absolute left-3 top-3">
+                <div className="absolute left-3 top-3 mt-1">
                   <FileText className="w-4 h-4 text-gray-400" />
                 </div>
                 <textarea

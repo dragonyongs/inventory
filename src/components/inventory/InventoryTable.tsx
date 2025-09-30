@@ -19,7 +19,7 @@ export default function InventoryTable({
   return (
     <div className="min-h-screen">
       {/* 헤더 - 모던한 미니멀 디자인 */}
-      <div className="bg-white border-b border-gray-100 px-4 lg:px-6">
+      {/* <div className="bg-white border-b border-gray-100 px-4 lg:px-6">
         <div className="py-6">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
@@ -33,7 +33,7 @@ export default function InventoryTable({
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {items.length > 0 ? (
         <>

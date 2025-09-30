@@ -39,6 +39,7 @@ interface MovementsState {
 
 interface MovementsActions {
   addMovement: (movement: Movement) => void;
+  removeMovement: (id: string) => void;
   bulk: (movements: Movement[]) => void;
   setQuery: (query: string) => void;
   reset: () => void;
@@ -107,6 +108,14 @@ export const useMovementsStore = create<MovementsStore>()(
         set((state) => ({
           byId: { ...state.byId, [movement.id]: movement },
         }));
+      },
+
+      removeMovement: (id) => {
+        set((state) => {
+          const newById = { ...state.byId };
+          delete newById[id];
+          return { byId: newById };
+        });
       },
 
       bulk: (movements) => {

@@ -168,11 +168,25 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
         {/* 재고량 */}
         <td className="py-4 px-6">
           <div className="space-y-1 text-nowrap">
-            <div className="text-lg font-bold text-gray-900">{stock}개</div>
-            {typeof item.minStock === "number" && item.minStock > 0 && (
-              <div className="text-xs text-gray-500">
-                최소: {item.minStock}개
-              </div>
+            {editing ? (
+              <input
+                type="number"
+                value={form.minStock}
+                onChange={(e) =>
+                  setForm((s) => ({ ...s, minStock: e.target.value }))
+                }
+                className="flex-1 w-20 px-2 py-1 bg-white border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm text-right"
+                placeholder="최소 수량"
+              />
+            ) : (
+              <>
+                <div className="text-lg font-bold text-gray-900">{stock}개</div>
+                {typeof item.minStock === "number" && item.minStock > 0 && (
+                  <div className="text-xs text-gray-500">
+                    최소: {item.minStock}개
+                  </div>
+                )}
+              </>
             )}
           </div>
         </td>
@@ -240,13 +254,13 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
         <td className="py-4 px-6">
           <div className="flex flex-col gap-1 text-nowrap">
             {isLowStock && (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+              <span className="inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 max-w-24">
                 재고부족
               </span>
             )}
             {expiryStatus && expiryStatus.status !== "safe" && (
               <span
-                className={`inline-flex justify-center items-center px-2 py-1 rounded-full text-xs font-medium ${
+                className={`inline-flex justify-center items-center px-2 py-1 rounded-full text-xs font-medium max-w-24 ${
                   expiryStatus.status === "expired"
                     ? "bg-red-100 text-red-800"
                     : expiryStatus.status === "critical"

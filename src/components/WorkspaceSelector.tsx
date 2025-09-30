@@ -303,9 +303,9 @@ export default function WorkspaceSelector() {
                   {currentWorkspace.description}
                 </div>
               )}
-              <div className="text-xs text-gray-400 mt-1">
+              {/* <div className="text-xs text-gray-400 mt-1">
                 {getWorkspaceTypeLabel(currentWorkspace.type)}
-              </div>
+              </div> */}
             </div>
             <ChevronDown
               className={`h-5 w-5 text-gray-400 transition-transform ${

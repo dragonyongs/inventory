@@ -13,6 +13,7 @@ export interface Item {
   stock: number;
   category?: string;
   minStock?: number;
+  maxStock?: number;
   defaultPrice?: number;
   createdAt: string;
   workspaceId: string;
@@ -78,6 +79,19 @@ const getCurrentWorkspaceId = (): string | null => {
   } catch (e) {
     console.error("워크스페이스 ID 가져오기 실패:", e);
     return "default-workspace";
+  }
+};
+
+// ✅ 입고 시 maxStock 자동 업데이트 함수
+export const updateMaxStock = (itemId: string, inQty: number) => {
+  const store = useItemsStore.getState();
+  const item = store.items[itemId];
+
+  if (item) {
+    const newMaxStock = (item.maxStock || 0) + inQty;
+    store.updateItem(itemId, {
+      maxStock: newMaxStock,
+    });
   }
 };
 
@@ -362,12 +376,22 @@ export const useItemsStore = create<ItemsStore>()(
 
           const newStock = Math.max(0, item.stock + delta);
 
+          // ✅ 입고(delta > 0)인 경우 maxStock 누적
+          let newMaxStock = item.maxStock;
+          if (delta > 0) {
+            newMaxStock = (item.maxStock || 0) + delta;
+            console.log(
+              `✅ maxStock 업데이트: ${item.maxStock || 0} → ${newMaxStock}`
+            );
+          }
+
           console.log("✅ 재고 조정:", {
             itemId,
             itemName: item.name,
             oldStock: item.stock,
             delta,
             newStock,
+            maxStock: newMaxStock,
             minStockAlert: item.minStock,
             isLowStock: newStock <= (item.minStock || 5),
           });
@@ -375,7 +399,11 @@ export const useItemsStore = create<ItemsStore>()(
           return {
             items: {
               ...state.items,
-              [itemId]: { ...item, stock: newStock },
+              [itemId]: {
+                ...item,
+                stock: newStock,
+                maxStock: newMaxStock, // ✅ maxStock 업데이트
+              },
             },
           };
         });
@@ -431,6 +459,27 @@ export const useItemsStore = create<ItemsStore>()(
           const deletedItems = Object.values(state.items).filter(
             (item) => item.workspaceId === currentWorkspaceId && item.isDeleted
           );
+
+          // ✅ maxStock이 없는 기존 아이템들 초기화
+          let migratedCount = 0;
+          const updatedItems = { ...state.items };
+
+          Object.values(state.items).forEach((item) => {
+            if (!item.isDeleted && item.stock > 0 && !item.maxStock) {
+              // 현재 재고를 초기 maxStock으로 설정
+              updatedItems[item.id] = {
+                ...item,
+                maxStock: item.stock,
+              };
+              migratedCount++;
+            }
+          });
+
+          if (migratedCount > 0) {
+            console.log(`✅ ${migratedCount}개 아이템의 maxStock 초기화 완료`);
+            // 상태 업데이트
+            state.items = updatedItems;
+          }
 
           console.log(
             `총 아이템: ${itemCount}개, 활성: ${workspaceItems.length}개, 삭제: ${deletedItems.length}개`
