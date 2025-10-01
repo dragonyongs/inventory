@@ -16,39 +16,12 @@ interface GoogleUser {
 export const useGoogleAuth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuthStore();
-  const { workspaces, createWorkspace, setCurrentWorkspaceId } =
-    useWorkspaceStore();
-
-  const createUserWorkspace = useCallback(
-    (user: GoogleUser) => {
-      const userName = user.name.split(" ")[0];
-      const workspaceName = `${userName}의 워크스페이스`;
-
-      const workspace = createWorkspace({
-        name: workspaceName,
-        description: "개인 재고 관리",
-        type: "DEFAULT",
-        ownerId: user.id,
-        members: [
-          {
-            userId: user.id,
-            email: user.email,
-            name: user.name,
-            role: "owner",
-            joinedAt: new Date().toISOString(),
-            invitedBy: user.id,
-          },
-        ],
-        settings: {
-          allowMemberInvite: true,
-          defaultRole: "member",
-        },
-      } as any);
-
-      return workspace;
-    },
-    [createWorkspace]
-  );
+  const {
+    workspaces,
+    createWorkspace,
+    setCurrentWorkspaceId,
+    claimOwnerIfMissing,
+  } = useWorkspaceStore();
 
   const signInWithGoogle = useCallback(async () => {
     setIsLoading(true);
@@ -77,22 +50,27 @@ export const useGoogleAuth = () => {
       }
 
       const googleUser: GoogleUser = await userResponse.json();
-
-      // ✅ UserRole 타입으로 명시적 캐스팅
       const user: AuthUser = {
         id: googleUser.id,
         email: googleUser.email,
         name: googleUser.name,
         avatarUrl: googleUser.picture,
-        role: "staff" as UserRole, // ✅ 타입 명시
+        role: "staff" as UserRole,
       };
-
-      login(user);
+      login(user); // auth-storage에 즉시 저장
 
       if (workspaces.length === 0) {
-        createUserWorkspace(googleUser);
+        const ws = createWorkspace({
+          name: `${user.name.split(" ")[0]}의 워크스페이스`,
+          description: "개인 재고 관리",
+          type: "DEFAULT",
+        } as any);
+        setCurrentWorkspaceId(ws.id);
+        claimOwnerIfMissing(ws.id, user.id); // ← 안전 보정
       } else {
-        setCurrentWorkspaceId(workspaces[0].id);
+        const id = workspaces[0].id;
+        setCurrentWorkspaceId(id);
+        claimOwnerIfMissing(id, user.id); // ← 기존 워크스페이스에도 보정
       }
     } catch (error) {
       console.error("Google 로그인 실패:", error);
@@ -100,7 +78,13 @@ export const useGoogleAuth = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [login, workspaces, createUserWorkspace, setCurrentWorkspaceId]);
+  }, [
+    login,
+    workspaces,
+    createWorkspace,
+    setCurrentWorkspaceId,
+    claimOwnerIfMissing,
+  ]);
 
   return {
     signInWithGoogle,

@@ -14,6 +14,7 @@ export interface Item {
   sku?: string;
   barcode?: string;
   stock: number;
+  lowStockThreshold?: number;
   category?: string;
   minStock?: number;
   maxStock?: number;
@@ -58,6 +59,7 @@ interface ItemsActions {
   addMany: (
     items: Array<Omit<Item, "id" | "createdAt" | "workspaceId" | "stock">>
   ) => Item[];
+  clearItems: () => void;
 }
 
 type ItemsStore = ItemsState & ItemsActions;
@@ -124,7 +126,7 @@ export const useItemsStore = create<ItemsStore>()(
         );
         return workspaceItems;
       },
-
+      clearItems: () => set({ items: {} }),
       upsert: (item) => {
         if (!item.workspaceId) {
           console.error("❌ 워크스페이스 ID가 없는 아이템:", item);

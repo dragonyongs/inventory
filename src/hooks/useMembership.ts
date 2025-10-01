@@ -1,6 +1,7 @@
 // src/hooks/useMembership.ts
+import { useEffect } from "react";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useAuthStore } from "@/stores/authStore";
-import { useWorkspaceStore, WorkspaceRole } from "@/stores/workspaceStore";
 import {
   getEffectiveRole,
   can as canFn,
@@ -12,11 +13,18 @@ export function useMembership() {
   const user = useAuthStore((s) => s.user);
   const workspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
   const getUserRole = useWorkspaceStore((s) => s.getUserRole);
+  const claimOwnerIfMissing = useWorkspaceStore(
+    (s) => (s as any).claimOwnerIfMissing
+  );
 
   const rawRole =
-    workspaceId && user
-      ? (getUserRole(workspaceId, user.id) as WorkspaceRole | null)
-      : null;
+    workspaceId && user ? getUserRole(workspaceId, user.id) ?? null : null;
+
+  useEffect(() => {
+    if (workspaceId && user && !rawRole) {
+      claimOwnerIfMissing?.(workspaceId, user.id); // ← 최초 진입 시 자동 보정
+    }
+  }, [workspaceId, user?.id, rawRole, claimOwnerIfMissing]);
   const role = getEffectiveRole(rawRole);
 
   return {

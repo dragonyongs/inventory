@@ -9,6 +9,7 @@ import {
   X,
   Trash2,
 } from "lucide-react";
+import { useAuthStore } from "../stores/authStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import type { WorkspaceType } from "../stores/workspaceStore";
 import { getWorkspaceTypeOptions } from "../utils/workspaceLabels";
@@ -26,7 +27,9 @@ export default function WorkspaceSelector({
     switchWorkspace,
     deleteWorkspace,
     getCurrentWorkspace,
+    claimOwnerIfMissing,
   } = useWorkspaceStore();
+  const userId = useAuthStore((s) => s.user?.id);
 
   const [isOpen, setIsOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -114,6 +117,7 @@ export default function WorkspaceSelector({
                     key={ws.id}
                     onClick={() => {
                       switchWorkspace(ws.id);
+                      if (userId) claimOwnerIfMissing(ws.id, userId); // ← 전환 즉시 보정
                       setIsOpen(false);
                     }}
                     className="w-full flex items-center justify-between px-3 py-2 

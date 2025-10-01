@@ -47,6 +47,7 @@ interface MovementsActions {
   reset: () => void;
   getWorkspaceMovements: () => Movement[];
   initializeWorkspace: (workspaceId: string) => void;
+  clearMovements: () => void;
 }
 
 type MovementsStore = MovementsState & MovementsActions;
@@ -182,6 +183,12 @@ export const useMovementsStore = create<MovementsStore>()(
       setQuery: (query) => set({ query }),
 
       reset: () => set({ byId: {}, query: "" }),
+
+      // ✅ 이 메서드 추가
+      clearMovements: () => {
+        console.log("🧹 모든 움직임 데이터 삭제");
+        set({ byId: {}, query: "" });
+      },
 
       initializeWorkspace: (workspaceId) => {
         console.log("움직임 스토어 초기화 (워크스페이스):", workspaceId);

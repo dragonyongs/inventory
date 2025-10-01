@@ -59,6 +59,8 @@ interface WorkspaceActions {
     userId: string,
     role: WorkspaceRole
   ) => void;
+  claimOwnerIfMissing: (workspaceId: string, userId: string) => void;
+  ensureMembershipForCurrentUser: (workspaceId: string) => void;
 }
 
 export type WorkspaceStore = WorkspaceState &
@@ -94,6 +96,51 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       isInitialized: false,
       memberships: {},
 
+      claimOwnerIfMissing: (workspaceId: string, userId: string) => {
+        const s = get();
+        const wsMembers = s.memberships[workspaceId] ?? {};
+        const hasAny = Object.keys(wsMembers).length > 0;
+        const already = wsMembers[userId];
+
+        if (!hasAny || !already) {
+          set((st) => ({
+            memberships: {
+              ...st.memberships,
+              [workspaceId]: {
+                ...(st.memberships[workspaceId] ?? {}),
+                [userId]: "owner",
+              },
+            },
+          }));
+        }
+      },
+
+      // 현재 사용자 ID를 auth-storage에서 얻는 내부 유틸 (기존 tryGetAuthUserId 사용)
+      ensureMembershipForCurrentUser: (workspaceId: string) => {
+        const userId = (() => {
+          try {
+            const raw = localStorage.getItem("auth-storage");
+            return raw ? JSON.parse(raw).state?.user?.id ?? null : null;
+          } catch {
+            return null;
+          }
+        })();
+        if (!userId) return;
+
+        const role = get().memberships[workspaceId]?.[userId];
+        if (!role) {
+          set((s) => ({
+            memberships: {
+              ...s.memberships,
+              [workspaceId]: {
+                ...(s.memberships[workspaceId] ?? {}),
+                [userId]: "owner",
+              },
+            },
+          }));
+        }
+      },
+
       // 워크스페이스 생성
       createWorkspace: (data) => {
         const w: Workspace = {
@@ -116,13 +163,14 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             },
           },
         }));
-        queueMicrotask(() =>
-          window.dispatchEvent(
-            new CustomEvent("workspace-changed", {
-              detail: { workspaceId: w.id },
-            })
-          )
-        );
+        // queueMicrotask(() =>
+        //   window.dispatchEvent(
+        //     new CustomEvent("workspace-changed", {
+        //       detail: { workspaceId: w.id },
+        //     })
+        //   )
+        // );
+        queueMicrotask(() => get().ensureMembershipForCurrentUser(w.id));
         return w;
       },
 
