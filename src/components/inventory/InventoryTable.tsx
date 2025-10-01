@@ -58,7 +58,7 @@ export default function InventoryTable({
                     <th className="text-left py-4 px-6 text-sm font-semibold text-gray-700 text-nowrap">
                       상태
                     </th>
-                    <th className="text-center py-4 px-6 text-sm font-semibold text-gray-700 text-nowrap">
+                    <th className="text-left py-4 px-6 text-sm font-semibold text-gray-700 text-nowrap">
                       작업
                     </th>
                   </tr>

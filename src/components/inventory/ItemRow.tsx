@@ -281,7 +281,7 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
             )}
             {!isLowStock &&
               (!expiryStatus || expiryStatus.status === "safe") && (
-                <span className="inline-flex justify-center items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                <span className="inline-flex justify-center items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 max-w-24">
                   정상
                 </span>
               )}

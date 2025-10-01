@@ -14,6 +14,7 @@ const Inventory = lazy(() => import("@/pages/Inventory"));
 const Movements = lazy(() => import("@/pages/Movements"));
 const Settings = lazy(() => import("@/pages/Settings"));
 const SharedInventory = lazy(() => import("@/pages/SharedInventory"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
 const NewItemPage = lazy(() =>
   import("@/components/inventory/NewItemPage").then((m) => ({
     default: m.NewItemPage,
@@ -32,7 +33,9 @@ const PageLoader = () => (
 );
 
 const router = createBrowserRouter([
-  // Public
+  // ============================================
+  // 공개 라우트 (인증 불필요)
+  // ============================================
   {
     path: "/login",
     element: (
@@ -43,11 +46,28 @@ const router = createBrowserRouter([
       </AuthLayout>
     ),
   },
-  // Protected
+  // ✅ 공유 페이지 라우트 (인증 불필요, ProtectedLayout 외부)
+  {
+    path: "/share/:token",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <SharedInventory />
+      </Suspense>
+    ),
+  },
+
+  // ============================================
+  // 보호된 라우트 (인증 필요)
+  // ============================================
   {
     element: <ProtectedLayout />,
     children: [
-      { index: true, element: <Navigate to="/dashboard" replace /> },
+      // 루트 리다이렉션
+      {
+        index: true,
+        element: <Navigate to="/dashboard" replace />,
+      },
+      // 대시보드
       {
         path: "/dashboard",
         element: (
@@ -56,27 +76,12 @@ const router = createBrowserRouter([
           </Suspense>
         ),
       },
+      // 재고 관리
       {
         path: "/inventory",
         element: (
           <Suspense fallback={<PageLoader />}>
             <Inventory />
-          </Suspense>
-        ),
-      },
-      {
-        path: "/movements",
-        element: (
-          <Suspense fallback={<PageLoader />}>
-            <Movements />
-          </Suspense>
-        ),
-      },
-      {
-        path: "/settings",
-        element: (
-          <Suspense fallback={<PageLoader />}>
-            <Settings />
           </Suspense>
         ),
       },
@@ -96,22 +101,36 @@ const router = createBrowserRouter([
           </Suspense>
         ),
       },
+      // 입출고 내역
       {
-        path: "/shared/:workspaceId",
+        path: "/movements",
         element: (
           <Suspense fallback={<PageLoader />}>
-            <SharedInventory />
+            <Movements />
+          </Suspense>
+        ),
+      },
+      // 설정
+      {
+        path: "/settings",
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <Settings />
           </Suspense>
         ),
       },
     ],
   },
+
+  // ============================================
+  // 404 Not Found (모든 매칭 안 된 경로)
+  // ============================================
   {
     path: "*",
     element: (
-      <div className="min-h-screen grid place-items-center">
-        페이지를 찾을 수 없습니다
-      </div>
+      <Suspense fallback={<PageLoader />}>
+        <NotFound />
+      </Suspense>
     ),
   },
 ]);

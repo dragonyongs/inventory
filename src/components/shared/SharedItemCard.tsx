@@ -226,16 +226,28 @@ export const SharedItemCard: React.FC<SharedItemCardProps> = React.memo(
                 {/* 🎯 메인 정보 영역 - 2x2 그리드, flex-1로 공간 확보 */}
                 <div className="grid grid-cols-2 gap-2 flex-1">
                   {/* 재고 수량 */}
-                  <div className="bg-slate-50 rounded-lg p-3 flex flex-col items-center justify-center border border-slate-100">
+                  <div
+                    className={`rounded-lg p-3 flex flex-col items-center justify-center border ${
+                      statusInfo.severity > 0
+                        ? "bg-white border-slate-200"
+                        : "bg-slate-50 border-slate-100"
+                    }`}
+                  >
                     <div className="text-2xl font-bold text-slate-900">
                       {item.stock.toLocaleString()}
                     </div>
                     <div className="text-xs text-slate-600 mt-1">재고</div>
                   </div>
 
-                  {/* 🔧 단가 정보 - 없을 때도 회색 박스 유지하며 '-' 표시 */}
+                  {/* 🔧 단가 정보 */}
                   {item.defaultPrice ? (
-                    <div className="bg-slate-50 rounded-lg p-3 flex flex-col items-center justify-center border border-slate-100">
+                    <div
+                      className={`rounded-lg p-3 flex flex-col items-center justify-center border ${
+                        statusInfo.severity > 0
+                          ? "bg-white border-slate-200"
+                          : "bg-slate-50 border-slate-100"
+                      }`}
+                    >
                       <div className="text-2xl font-bold text-slate-900">
                         {item.defaultPrice.toLocaleString()}
                       </div>
@@ -244,7 +256,13 @@ export const SharedItemCard: React.FC<SharedItemCardProps> = React.memo(
                       </div>
                     </div>
                   ) : (
-                    <div className="bg-slate-50 rounded-lg p-3 flex flex-col items-center justify-center border border-slate-100">
+                    <div
+                      className={`rounded-lg p-3 flex flex-col items-center justify-center border ${
+                        statusInfo.severity > 0
+                          ? "bg-white border-slate-200"
+                          : "bg-slate-50 border-slate-100"
+                      }`}
+                    >
                       <div className="text-2xl font-bold text-slate-400">-</div>
                       <div className="text-xs text-slate-600 mt-1">
                         단가 (원)
@@ -252,9 +270,15 @@ export const SharedItemCard: React.FC<SharedItemCardProps> = React.memo(
                     </div>
                   )}
 
-                  {/* 🔧 유통기한 - 없을 때도 회색 박스 유지하며 '-' 표시 */}
+                  {/* 🔧 유통기한 */}
                   {item.expiryDate ? (
-                    <div className="col-span-2 bg-slate-50 rounded-lg p-3 flex flex-col items-center justify-center border border-slate-100">
+                    <div
+                      className={`col-span-2 rounded-lg p-3 flex flex-col items-center justify-center border ${
+                        statusInfo.severity > 0
+                          ? "bg-white border-slate-200"
+                          : "bg-slate-50 border-slate-100"
+                      }`}
+                    >
                       <div className="text-base font-semibold text-slate-900">
                         {new Date(item.expiryDate).toLocaleDateString("ko-KR")}
                       </div>
@@ -263,7 +287,13 @@ export const SharedItemCard: React.FC<SharedItemCardProps> = React.memo(
                       </div>
                     </div>
                   ) : (
-                    <div className="col-span-2 bg-slate-50 rounded-lg p-3 flex flex-col items-center justify-center border border-slate-200">
+                    <div
+                      className={`col-span-2 rounded-lg p-3 flex flex-col items-center justify-center border ${
+                        statusInfo.severity > 0
+                          ? "bg-white border-slate-200"
+                          : "bg-slate-50 border-slate-100"
+                      }`}
+                    >
                       <div className="text-base font-semibold text-slate-400">
                         -
                       </div>

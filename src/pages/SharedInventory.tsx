@@ -8,9 +8,6 @@ import {
   Minus,
   AlertTriangle,
   User,
-  Search,
-  Grid3X3,
-  List,
   ExternalLink,
   Shield,
   Smartphone,
@@ -25,6 +22,7 @@ import { generateId } from "@/utils/generateId";
 import { SharedItemCard } from "@/components/shared/SharedItemCard";
 import { SharedItemList } from "@/components/shared/SharedItemList";
 import { UseItemModal } from "@/components/shared/UseItemModal";
+import { SharedInventoryFilters } from "@/components/shared/SharedInventoryFilters";
 
 type SharePermission = "view" | "use";
 type ViewMode = "grid" | "list";
@@ -212,7 +210,7 @@ const SharedInventory: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       {/* 헤더 */}
       <header className="border-b border-gray-200 sticky top-0 z-40 backdrop-blur-sm bg-white/95">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -290,52 +288,13 @@ const SharedInventory: React.FC = () => {
       {/* 메인 컨텐츠 */}
       <main className="min-h-[calc(100vh-182px)] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* 검색 및 뷰 모드 */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-            {/* 검색 */}
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="상품명, SKU, 바코드로 검색..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* 뷰 모드 선택 */}
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600 hidden sm:inline">
-                {filteredItems.length}개 상품
-              </span>
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode("grid")}
-                  className={`p-2 rounded ${
-                    viewMode === "grid"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-800"
-                  }`}
-                  title="그리드 보기"
-                >
-                  <Grid3X3 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setViewMode("list")}
-                  className={`p-2 rounded ${
-                    viewMode === "list"
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-600 hover:text-gray-800"
-                  }`}
-                  title="리스트 보기"
-                >
-                  <List className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <SharedInventoryFilters
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          itemCount={filteredItems.length}
+        />
 
         {/* 상품 목록 */}
         {filteredItems.length > 0 ? (
