@@ -1,21 +1,43 @@
-// src/app/router.tsx - 완전 수정
+// src/app/router.tsx - Lazy Loading 적용 버전 (빌드 오류 완전 수정)
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
-import { RouterProvider } from "react-router-dom"; // ✅ 별도 import로 명확하게
-import { Component, ReactNode } from "react";
+import { RouterProvider } from "react-router-dom";
+import { Component, ReactNode, Suspense, lazy } from "react";
 
-// 레이아웃 & 페이지
+// 레이아웃 & 인증 가드는 즉시 로드 (초기 구조 필수)
 import { RootLayout } from "@/components/RootLayout";
 import { AuthGuard } from "@/components/AuthGuard";
-import Login from "@/pages/Login";
-import Dashboard from "@/pages/Dashboard";
-import Inventory from "@/pages/Inventory";
-import Movements from "@/pages/Movements";
-import Settings from "@/pages/Settings";
-import { NewItemPage } from "@/components/inventory/NewItemPage";
-import { BulkImportPage } from "@/components/inventory/BulkImportPage";
-import SharedInventory from "@/pages/SharedInventory";
 
-// 강화된 Error Boundary
+// ========== Lazy Loading 페이지 ==========
+const Login = lazy(() => import("@/pages/Login"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Inventory = lazy(() => import("@/pages/Inventory"));
+const Movements = lazy(() => import("@/pages/Movements"));
+const Settings = lazy(() => import("@/pages/Settings"));
+const SharedInventory = lazy(() => import("@/pages/SharedInventory"));
+
+// 인벤토리 하위 페이지
+const NewItemPage = lazy(() =>
+  import("@/components/inventory/NewItemPage").then((mod) => ({
+    default: mod.NewItemPage,
+  }))
+);
+const BulkImportPage = lazy(() =>
+  import("@/components/inventory/BulkImportPage").then((mod) => ({
+    default: mod.BulkImportPage,
+  }))
+);
+
+// ========== 로딩 Fallback 컴포넌트 ==========
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-screen bg-gray-50">
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      <p className="text-sm text-gray-600">로딩 중...</p>
+    </div>
+  </div>
+);
+
+// ========== 강화된 Error Boundary ==========
 class RouteErrorBoundary extends Component<
   { children: ReactNode; fallback?: ReactNode },
   { hasError: boolean; error?: Error; errorInfo?: any }
@@ -48,56 +70,28 @@ class RouteErrorBoundary extends Component<
       }
 
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full text-center">
-            <div className="mb-4">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg
-                  className="w-8 h-8 text-red-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
-                  />
-                </svg>
-              </div>
-              <h1 className="text-xl font-bold text-gray-900 mb-2">
-                애플리케이션 오류
-              </h1>
-              <p className="text-gray-600 text-sm mb-4">
-                예상치 못한 오류가 발생했습니다. 페이지를 새로고침해 주세요.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <button
-                onClick={this.handleReload}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              >
-                페이지 새로고침
-              </button>
-
-              <button
-                onClick={() => (window.location.href = "/login")}
-                className="w-full px-4 py-2 text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50 transition-colors"
-              >
-                로그인 페이지로
-              </button>
-            </div>
-
-            {/* 개발 환경에서만 상세 오류 표시 */}
+        <div className="flex items-center justify-center min-h-screen bg-gray-50">
+          <div className="max-w-md p-6 bg-white rounded-lg shadow-lg">
+            <h2 className="mb-4 text-xl font-semibold text-red-600">
+              예상치 못한 오류가 발생했습니다
+            </h2>
+            <p className="mb-4 text-sm text-gray-600">
+              페이지를 새로고침해 주세요.
+            </p>
+            <button
+              onClick={this.handleReload}
+              className="w-full px-4 py-2 text-white bg-blue-500 rounded hover:bg-blue-600"
+            >
+              새로고침
+            </button>
             {import.meta.env.DEV && this.state.error && (
-              <details className="mt-4 text-left">
-                <summary className="cursor-pointer text-sm text-gray-500">
-                  오류 상세보기
+              <details className="mt-4 text-xs">
+                <summary className="cursor-pointer text-gray-500">
+                  개발자 정보
                 </summary>
-                <pre className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded overflow-auto">
+                <pre className="mt-2 p-2 bg-gray-100 rounded overflow-auto">
                   {this.state.error.message}
+                  {"\n\n"}
                   {this.state.error.stack}
                 </pre>
               </details>
@@ -111,157 +105,144 @@ class RouteErrorBoundary extends Component<
   }
 }
 
-// 보호된 레이아웃 컴포넌트 (기존과 동일하게 유지)
-function ProtectedLayout() {
+// ========== Protected Layout (Suspense 적용) ==========
+const ProtectedLayout = () => {
   return (
     <RouteErrorBoundary>
       <AuthGuard>
         <RootLayout>
-          <Outlet />
+          <Suspense fallback={<PageLoader />}>
+            <Outlet />
+          </Suspense>
         </RootLayout>
       </AuthGuard>
     </RouteErrorBoundary>
   );
-}
+};
 
-// 404 페이지 컴포넌트
-function NotFound({ error }: { error?: any }) {
+// ========== Shared Route Error Handling ==========
+const SharedRouteErrorHandler = ({ error }: { error?: unknown }) => {
+  // ✅ unknown 타입을 안전하게 처리
+  const getErrorMessage = (err: unknown): string => {
+    if (err instanceof Error) return err.message;
+    if (typeof err === "string") return err;
+    return "알 수 없는 오류";
+  };
+
+  const errorMessage = getErrorMessage(error);
+
+  // ✅ error 존재 여부를 boolean으로 명시적 변환
+  const hasError = error !== undefined && error !== null;
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <h1 className="text-6xl font-bold text-gray-300">404</h1>
-        <p className="text-xl text-gray-600 mt-4">
-          {error
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="max-w-md p-6 bg-white rounded-lg shadow-lg text-center">
+        <h2 className="mb-4 text-xl font-semibold text-red-600">
+          {hasError
             ? "페이지에서 오류가 발생했습니다"
             : "페이지를 찾을 수 없습니다"}
+        </h2>
+        <p className="mb-4 text-sm text-gray-600">
+          {hasError
+            ? errorMessage
+            : "링크가 유효하지 않거나 만료되었을 수 있습니다."}
         </p>
-        <div className="mt-6 space-x-4">
-          <button
-            onClick={() => (window.location.href = "/dashboard")}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            대시보드로 돌아가기
-          </button>
-          <button
-            onClick={() => (window.location.href = "/login")}
-            className="px-4 py-2 text-blue-600 border border-blue-600 rounded hover:bg-blue-50"
-          >
-            로그인 페이지로
-          </button>
-        </div>
-
-        {/* 개발 환경에서만 오류 상세정보 표시 */}
-        {import.meta.env.DEV && error && (
-          <details className="mt-6 text-left max-w-2xl mx-auto">
-            <summary className="cursor-pointer text-sm text-gray-500">
-              오류 상세보기
+        {/* ✅ boolean 변수로 조건 체크 */}
+        {import.meta.env.DEV && hasError ? (
+          <details className="mt-4 text-xs text-left">
+            <summary className="cursor-pointer text-gray-500">
+              오류 상세
             </summary>
-            <pre className="mt-2 text-xs text-red-600 bg-red-50 p-4 rounded overflow-auto">
-              {JSON.stringify(error, null, 2)}
+            <pre className="mt-2 p-2 bg-gray-100 rounded overflow-auto">
+              {error instanceof Error
+                ? error.stack
+                : JSON.stringify(error, null, 2)}
             </pre>
           </details>
-        )}
+        ) : null}
       </div>
     </div>
   );
-}
+};
 
-// ✅ 라우터 설정 (변수명 변경하여 충돌 방지)
-const appRouter = createBrowserRouter([
-  // 로그인 페이지
+// ========== Router 정의 ==========
+const router = createBrowserRouter([
   {
     path: "/login",
     element: (
       <RouteErrorBoundary>
-        <Login />
+        <Suspense fallback={<PageLoader />}>
+          <Login />
+        </Suspense>
       </RouteErrorBoundary>
     ),
-    errorElement: <NotFound />,
   },
-
-  // 보호된 라우트들
   {
     path: "/",
     element: <ProtectedLayout />,
-    errorElement: <NotFound />,
     children: [
-      // 메인 페이지 → 대시보드로 리다이렉트
-      { index: true, element: <Navigate to="/dashboard" replace /> },
-      { path: "dashboard", element: <Dashboard /> },
-      { path: "inventory", element: <Inventory /> },
-      { path: "movements", element: <Movements /> },
-      { path: "settings", element: <Settings /> },
-      { path: "/inventory/new", element: <NewItemPage /> },
-      { path: "/inventory/bulk", element: <BulkImportPage /> },
+      {
+        index: true,
+        element: <Navigate to="/dashboard" replace />,
+      },
+      {
+        path: "dashboard",
+        element: <Dashboard />,
+      },
+      {
+        path: "inventory",
+        element: <Inventory />,
+      },
+      {
+        path: "inventory/new",
+        element: <NewItemPage />,
+      },
+      {
+        path: "inventory/bulk-import",
+        element: <BulkImportPage />,
+      },
+      {
+        path: "movements",
+        element: <Movements />,
+      },
+      {
+        path: "settings",
+        element: <Settings />,
+      },
     ],
   },
   {
-    path: "/share/:token",
+    path: "/shared/:shareId",
     element: (
       <RouteErrorBoundary>
-        <SharedInventory />
+        <Suspense fallback={<PageLoader />}>
+          <SharedInventory />
+        </Suspense>
       </RouteErrorBoundary>
     ),
-    errorElement: (
-      <RouteErrorBoundary>
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-          <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              공유 페이지를 불러올 수 없습니다
-            </h2>
-            <p className="text-gray-600 mb-4">
-              링크가 유효하지 않거나 만료되었을 수 있습니다.
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              다시 시도
-            </button>
-          </div>
-        </div>
-      </RouteErrorBoundary>
-    ),
+    errorElement: <SharedRouteErrorHandler />,
   },
-  // 404 처리
   {
     path: "*",
-    element: <NotFound />,
+    element: (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold mb-4">404</h1>
+          <p className="text-gray-600 mb-4">페이지를 찾을 수 없습니다</p>
+          <a href="/" className="text-blue-500 hover:underline">
+            홈으로 이동
+          </a>
+        </div>
+      </div>
+    ),
   },
 ]);
 
-// ✅ 기존 방식과 호환되는 default export (AppRouter 컴포넌트)
+// ========== Router Provider Export ==========
 export function AppRouter() {
-  try {
-    return <RouterProvider router={appRouter} />;
-  } catch (error) {
-    console.error("❌ Router Provider Error:", error);
-    return (
-      <RouteErrorBoundary>
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">
-              라우팅 시스템을 불러올 수 없습니다
-            </h1>
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-            >
-              페이지 새로고침
-            </button>
-            {process.env.NODE_ENV === "development" && (
-              <details className="mt-4">
-                <summary className="cursor-pointer text-sm text-gray-500">
-                  오류 세부사항
-                </summary>
-                <pre className="text-xs text-red-600 mt-2 overflow-auto max-w-md">
-                  {JSON.stringify(error, null, 2)}
-                </pre>
-              </details>
-            )}
-          </div>
-        </div>
-      </RouteErrorBoundary>
-    );
-  }
+  return (
+    <RouteErrorBoundary>
+      <RouterProvider router={router} />
+    </RouteErrorBoundary>
+  );
 }
