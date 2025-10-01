@@ -1,7 +1,6 @@
 // src/components/RootLayout.tsx
-
 import { Outlet, NavLink } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   BarChart3,
   Package,
@@ -18,7 +17,11 @@ import { useScrollDirection } from "@/hooks/useScrollDirection";
 
 export function RootLayout({ children }: { children?: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const scrollDirection = useScrollDirection({ threshold: 10 });
+
+  const scrollDirection = useScrollDirection({
+    threshold: 10,
+    scrollContainerSelector: "main", // 또는 ".main-content", "#app-container" 등
+  });
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     `group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
@@ -100,7 +103,7 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
 
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Mobile Header - 스크롤 방향에 따라 숨김/표시 */}
+        {/* 모바일 헤더 - 스크롤 시 숨김 */}
         <div
           className={`fixed top-0 left-0 right-0 z-30 border-b border-gray-200 bg-white transition-transform duration-300 ease-in-out md:hidden ${
             scrollDirection === "down" ? "-translate-y-full" : "translate-y-0"
@@ -186,9 +189,7 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
         )}
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto pt-16 md:pt-0">
-          {children || <Outlet />}
-        </main>
+        <main className="flex-1 overflow-y-auto">{children || <Outlet />}</main>
       </div>
 
       <DevTools />
