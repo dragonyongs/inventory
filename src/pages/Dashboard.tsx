@@ -1,22 +1,16 @@
 // src/pages/Dashboard.tsx
 import React, { useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Plus,
-  Package,
-  TrendingUp,
-  AlertTriangle,
-  Calendar,
-  ArrowUpRight,
-  ArrowDownRight,
-  ChevronRight,
-} from "lucide-react";
+import { Plus, AlertTriangle } from "lucide-react";
 
 // 분리된 컴포넌트들 import
 import { OnboardingCard } from "../components/dashboard/OnboardingCard";
 import { TipsCard } from "../components/dashboard/TipsCard";
 import { EmptyState } from "../components/dashboard/EmptyState";
 import { buildOnboardingState } from "../services/onboarding";
+import { RecentActivity } from "../components/dashboard/RecentActivity";
+import { AlertItem } from "../components/dashboard/AlertItem";
+import { StatsCards } from "@/components/dashboard";
 
 // Store hooks
 import {
@@ -26,135 +20,6 @@ import {
   useAllExpiringItems,
 } from "../stores/selectors";
 import { useWorkspaceStore } from "../stores/workspaceStore";
-
-// Modern Stats Card Component
-const StatsCard: React.FC<{
-  title: string;
-  value: string | number;
-  icon: React.ReactNode;
-  trend?: { value: number; label: string };
-  onClick?: () => void;
-}> = ({ title, value, icon, trend, onClick }) => (
-  <div
-    className={`bg-white border border-gray-200 rounded-lg p-6 hover:border-gray-300 transition-colors ${
-      onClick ? "cursor-pointer" : ""
-    }`}
-    onClick={onClick}
-  >
-    <div className="flex items-center justify-between">
-      <div className="flex items-center space-x-3">
-        <div className="p-2 bg-gray-50 rounded-lg text-gray-600">{icon}</div>
-        <div>
-          <p className="text-sm text-gray-500 font-medium">{title}</p>
-          <p className="text-2xl font-semibold text-gray-900">{value}</p>
-        </div>
-      </div>
-      {trend && (
-        <div className="text-right">
-          <div className="flex items-center space-x-1">
-            {trend.value > 0 ? (
-              <ArrowUpRight className="w-4 h-4 text-green-500" />
-            ) : (
-              <ArrowDownRight className="w-4 h-4 text-red-500" />
-            )}
-            <span
-              className={`text-sm font-medium ${
-                trend.value > 0 ? "text-green-500" : "text-red-500"
-              }`}
-            >
-              {Math.abs(trend.value)}%
-            </span>
-          </div>
-          <p className="text-xs text-gray-400 mt-1">{trend.label}</p>
-        </div>
-      )}
-    </div>
-  </div>
-);
-
-// Modern Activity Item Component
-const ActivityItem: React.FC<{
-  activity: any;
-  isLast?: boolean;
-}> = ({ activity, isLast }) => {
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case "in":
-        return <ArrowDownRight className="w-4 h-4 text-green-500" />;
-      case "out":
-        return <ArrowUpRight className="w-4 h-4 text-red-500" />;
-      default:
-        return <Package className="w-4 h-4 text-gray-400" />;
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = Math.floor(
-      (now.getTime() - date.getTime()) / (1000 * 60 * 60)
-    );
-
-    if (diffInHours < 1) return "방금 전";
-    if (diffInHours < 24) return `${diffInHours}시간 전`;
-    return date.toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
-  };
-
-  return (
-    <div
-      className={`flex items-center space-x-3 py-3 ${
-        !isLast ? "border-b border-gray-100" : ""
-      }`}
-    >
-      <div className="p-1.5 bg-gray-50 rounded-md">
-        {getActivityIcon(activity.type)}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">
-          {activity.itemName}
-        </p>
-        <p className="text-xs text-gray-500">
-          {activity.type === "in" ? "입고" : "출고"} • {activity.quantity}개
-        </p>
-      </div>
-      <div className="text-right">
-        <p className="text-xs text-gray-400">
-          {formatDate(activity.createdAt)}
-        </p>
-      </div>
-    </div>
-  );
-};
-
-// Modern Alert Item Component
-const AlertItem: React.FC<{
-  alert: any;
-  type: "low_stock" | "expiring";
-  isLast?: boolean;
-}> = ({ alert, type, isLast }) => (
-  <div
-    className={`flex items-center space-x-3 py-3 ${
-      !isLast ? "border-b border-gray-100" : ""
-    }`}
-  >
-    <div className="p-1.5 bg-amber-50 rounded-md">
-      <AlertTriangle className="w-4 h-4 text-amber-500" />
-    </div>
-    <div className="flex-1 min-w-0">
-      <p className="text-sm font-medium text-gray-900 truncate">{alert.name}</p>
-      <p className="text-xs text-gray-500">
-        {type === "low_stock"
-          ? `재고 부족 • ${alert.currentStock}개 남음`
-          : `유통기한 임박 • ${
-              alert.expiryDate
-                ? new Date(alert.expiryDate).toLocaleDateString("ko-KR")
-                : "날짜 미확인"
-            }`}
-      </p>
-    </div>
-    <ChevronRight className="w-4 h-4 text-gray-400" />
-  </div>
-);
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -434,9 +299,6 @@ const Dashboard: React.FC = () => {
     );
   }
 
-  const totalAlerts =
-    alertData.lowStockItems.length + alertData.expiringItems.length;
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto p-6 lg:p-8">
@@ -462,109 +324,56 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatsCard
-            title="전체 상품"
-            value={stats.totalItems}
-            icon={<Package className="w-5 h-5" />}
-            onClick={() => navigate("/inventory")}
-          />
-          <StatsCard
-            title="총 재고"
-            value={stats.totalStock.toLocaleString()}
-            icon={<TrendingUp className="w-5 h-5" />}
-          />
-          <StatsCard
-            title="주의 알림"
-            value={totalAlerts}
-            icon={<AlertTriangle className="w-5 h-5" />}
-          />
-          <StatsCard
-            title="최근 활동"
-            value={stats.recentMovements}
-            icon={<Calendar className="w-5 h-5" />}
-            trend={{ value: 12, label: "지난 주 대비" }}
-          />
+        <div className="mb-8">
+          <StatsCards stats={stats} />
         </div>
 
         {/* Main Content */}
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Recent Activity */}
           <div className="lg:col-span-2">
-            <div className="bg-white border border-gray-200 rounded-lg">
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  최근 활동
-                </h3>
-                <button
-                  onClick={() => navigate("/movements")}
-                  className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  전체 보기
-                </button>
-              </div>
-              <div className="p-6">
-                {recentActivity.length > 0 ? (
-                  <div className="space-y-0">
-                    {recentActivity.map((activity, index) => (
-                      <ActivityItem
-                        key={activity.id}
-                        activity={activity}
-                        isLast={index === recentActivity.length - 1}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">최근 활동이 없습니다</p>
-                    <p className="text-sm text-gray-400">
-                      상품을 추가하고 입출고를 기록해보세요
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
+            <RecentActivity
+              activities={recentActivity}
+              currentWorkspace={currentWorkspace}
+            />
           </div>
-
           {/* Alerts */}
-          <div>
-            <div className="bg-white border border-gray-200 rounded-lg">
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  주의 알림
-                </h3>
-                {totalAlerts > 0 && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                    {totalAlerts}
-                  </span>
-                )}
-              </div>
-              <div className="p-6">
-                {totalAlerts > 0 ? (
-                  <div className="space-y-0">
-                    {[...alertData.lowStockItems, ...alertData.expiringItems]
-                      .slice(0, 8)
-                      .map((alert, index, array) => (
-                        <AlertItem
-                          key={alert.id}
-                          alert={alert}
-                          type={alert.type}
-                          isLast={index === array.length - 1}
-                        />
-                      ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <AlertTriangle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">알림이 없습니다</p>
-                    <p className="text-sm text-gray-400">
-                      모든 상품이 정상 상태입니다
-                    </p>
-                  </div>
-                )}
-              </div>
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">알림</h3>
+              {(alertData.lowStockItems.length > 0 ||
+                alertData.expiringItems.length > 0) && (
+                <span className="bg-red-100 text-red-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                  {alertData.lowStockItems.length +
+                    alertData.expiringItems.length}
+                </span>
+              )}
             </div>
+
+            {alertData.lowStockItems.length === 0 &&
+            alertData.expiringItems.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-gray-400 mb-2">
+                  <AlertTriangle className="w-12 h-12 mx-auto" />
+                </div>
+                <p className="text-gray-600 font-medium">알림이 없습니다</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  모든 상품이 정상 상태입니다
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {/* 재고 부족 알림 */}
+                {alertData.lowStockItems.map((alert) => (
+                  <AlertItem key={`low-${alert.id}`} alert={alert} />
+                ))}
+
+                {/* 유통기한 임박 알림 */}
+                {alertData.expiringItems.map((alert) => (
+                  <AlertItem key={`exp-${alert.id}`} alert={alert} />
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

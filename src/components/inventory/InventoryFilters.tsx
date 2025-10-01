@@ -96,7 +96,7 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = React.memo(
     ]);
 
     return (
-      <div className="bg-white border-b border-gray-100 sticky top-0 z-40">
+      <div className="bg-white border-b border-gray-100 sticky top-0 z-30">
         {/* 검색바 섹션 */}
         <div className="px-4 lg:px-6 py-4">
           <div className="max-w-7xl mx-auto">

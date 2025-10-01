@@ -1,24 +1,12 @@
-// src/components/AuthGuard.tsx (개선된 버전)
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+// src/components/AuthGuard.tsx
+import { Outlet } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
 import { Package, Loader2 } from "lucide-react";
 
-interface AuthGuardProps {
-  children: React.ReactNode;
-}
-
-export const AuthGuard = ({ children }: AuthGuardProps) => {
-  const navigate = useNavigate();
+export const AuthGuard = () => {
   const { isAuthenticated, user } = useAuthStore();
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigate("/login");
-    }
-  }, [isAuthenticated, navigate]);
-
-  // 로딩 중일 때 개선된 UI
+  // 로딩 중일 때 개선된 UI (기존 유지)
   if (!isAuthenticated || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -45,5 +33,6 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
     );
   }
 
-  return <>{children}</>;
+  // ✅ children 대신 Outlet으로 변경
+  return <Outlet />;
 };

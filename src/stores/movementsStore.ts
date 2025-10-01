@@ -1,8 +1,10 @@
-// src/stores/movementsStore.ts
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { useActivityStore } from "./activityStore";
+import { useAuthStore } from "./authStore";
+import { generateId } from "../utils/generateId";
 
-// ✅ DELETE 타입 추가
+// MovementType 정의 (DELETE 타입 포함)
 export type MovementType =
   | "IN"
   | "OUT"
@@ -11,7 +13,7 @@ export type MovementType =
   | "TRANSFER"
   | "DELETE";
 
-// ✅ itemSnapshot 속성 추가
+// Movement 인터페이스
 export interface Movement {
   id: string;
   type: MovementType;
@@ -19,12 +21,11 @@ export interface Movement {
   qty: number;
   reason?: string;
   createdAt: string;
-  userName?: string; // 사용자 이름 (로그인/비로그인 모두)
-  userId?: string; // 로그인한 경우 사용자 ID
-  userEmail?: string; // 로그인한 경우 이메일
-  isSharedAccess?: boolean; // 공유 페이지에서 접근한 경우
-  shareToken?: string; // 공유 토큰
-  // ✅ 삭제된 아이템 정보 보존용
+  userName?: string;
+  userId?: string;
+  userEmail?: string;
+  isSharedAccess?: boolean;
+  shareToken?: string;
   itemSnapshot?: {
     name: string;
     sku?: string;
@@ -32,6 +33,7 @@ export interface Movement {
   };
 }
 
+// Movements 상태 및 액션 인터페이스
 interface MovementsState {
   byId: Record<string, Movement>;
   query: string;
@@ -49,7 +51,7 @@ interface MovementsActions {
 
 type MovementsStore = MovementsState & MovementsActions;
 
-// 워크스페이스 ID 가져오기 함수
+// 워크스페이스 ID 가져오는 함수
 const getCurrentWorkspaceId = (): string | null => {
   try {
     const workspaceStorage = localStorage.getItem("inventory-workspaces");
@@ -63,6 +65,16 @@ const getCurrentWorkspaceId = (): string | null => {
   }
 };
 
+// Activity 타입과 불일치 문제 해결을 위한 변환 함수
+const movementTypeMap: Record<MovementType, string> = {
+  IN: "INBOUND",
+  OUT: "OUTBOUND",
+  USE: "USE",
+  ADJUST: "ADJUST",
+  TRANSFER: "TRANSFER",
+  DELETE: "DELETE",
+};
+
 export const useMovementsStore = create<MovementsStore>()(
   persist(
     (set, get) => ({
@@ -73,7 +85,6 @@ export const useMovementsStore = create<MovementsStore>()(
         const currentWorkspaceId = getCurrentWorkspaceId();
         if (!currentWorkspaceId) return [];
 
-        // 현재 워크스페이스의 아이템들과 연결된 움직임만 필터링
         try {
           const itemsStorage = localStorage.getItem("inventory-items");
           if (!itemsStorage) return [];
@@ -108,6 +119,45 @@ export const useMovementsStore = create<MovementsStore>()(
         set((state) => ({
           byId: { ...state.byId, [movement.id]: movement },
         }));
+
+        // 활동 로그 추가 부분
+        const user = useAuthStore.getState().user;
+
+        if (user && user.role) {
+          const activityType = movementTypeMap[movement.type];
+          useActivityStore.getState().addActivity({
+            id: generateId(),
+            type: activityType as any,
+            movement: {
+              id: movement.id,
+              itemId: movement.itemId,
+              quantity: movement.qty,
+              beforeQty: 0, // 실제 이전 재고는 별도 로직 필요
+              afterQty: 0, // 실제 이후 재고도 별도 로직 필요
+              movementType: activityType as any,
+              createdBy: user.id,
+              createdAt: movement.createdAt,
+              reason: movement.reason,
+              warehouseId: "", // 필요시 창고정보 추가
+              note: undefined,
+            },
+            user,
+            itemId: movement.itemId,
+            itemName: movement.itemSnapshot?.name || "",
+            change:
+              movement.type === "OUT" ||
+              movement.type === "USE" ||
+              movement.type === "DELETE"
+                ? -movement.qty
+                : movement.qty,
+            beforeQty: 0,
+            afterQty: 0,
+            actionTime: movement.createdAt,
+            location: "",
+            reason: movement.reason,
+            memo: undefined,
+          });
+        }
       },
 
       removeMovement: (id) => {
@@ -141,7 +191,7 @@ export const useMovementsStore = create<MovementsStore>()(
     {
       name: "inventory-movements",
       storage: createJSONStorage(() => localStorage),
-      version: 3, // ✅ 버전 업그레이드
+      version: 3,
       partialize: (state) => ({ byId: state.byId }),
       onRehydrateStorage: () => (state) => {
         if (state) {

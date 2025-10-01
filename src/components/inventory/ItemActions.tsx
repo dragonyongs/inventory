@@ -15,53 +15,55 @@ interface ItemActionsProps {
 export const ItemActions: React.FC<ItemActionsProps> = React.memo(
   ({ editing, onEdit, onSave, onCancel, onAdjust, onDelete }) => {
     return (
-      <td className="p-4">
+      <div className="flex items-center gap-2">
         {editing ? (
-          <div className="flex items-center space-x-2">
+          <>
             <button
+              type="button"
               onClick={onSave}
-              className="flex items-center px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+              aria-label="저장"
             >
-              <CheckCircle className="w-3 h-3 mr-1" />
-              저장
+              <CheckCircle className="h-5 w-5" />
             </button>
             <button
+              type="button"
               onClick={onCancel}
-              className="flex items-center px-3 py-1 bg-gray-500 text-white text-xs rounded hover:bg-gray-600 transition-colors"
+              className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="취소"
             >
-              <X className="w-3 h-3 mr-1" />
-              취소
+              <X className="h-5 w-5" />
             </button>
-          </div>
+          </>
         ) : (
-          <div className="flex items-center space-x-1">
+          <>
             <button
+              type="button"
               onClick={onEdit}
-              className="flex items-center px-2 py-1 text-blue-600 hover:bg-blue-50 rounded text-xs transition-colors min-w-14"
-              title="수정"
+              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              aria-label="수정"
             >
-              <Edit className="w-3 h-3 mr-1" />
-              수정
+              <Edit className="h-5 w-5" />
             </button>
             <button
+              type="button"
               onClick={onAdjust}
-              className="flex items-center px-2 py-1 text-green-600 hover:bg-green-50 rounded text-xs transition-colors min-w-14"
-              title="조정"
+              className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+              aria-label="조정"
             >
-              <Settings className="w-3 h-3 mr-1" />
-              조정
+              <Settings className="h-5 w-5" />
             </button>
             <button
+              type="button"
               onClick={onDelete}
-              className="flex items-center px-2 py-1 text-red-600 hover:bg-red-50 rounded text-xs transition-colors min-w-14"
-              title="삭제"
+              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              aria-label="삭제"
             >
-              <Trash2 className="w-3 h-3 mr-1" />
-              삭제
+              <Trash2 className="h-5 w-5" />
             </button>
-          </div>
+          </>
         )}
-      </td>
+      </div>
     );
   }
 );

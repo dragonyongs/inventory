@@ -187,7 +187,7 @@ export const useAllStockByItems = () => {
   const items = useItemList();
 
   return useMemo(() => {
-    console.log("useAllStockByItems 계산 시작");
+    // console.log("useAllStockByItems 계산 시작");
 
     const stockMap: Record<string, number> = {};
 
@@ -196,8 +196,8 @@ export const useAllStockByItems = () => {
       stockMap[item.id] = item.stock || 0;
     });
 
-    console.log("useAllStockByItems 계산 완료:", Object.keys(stockMap).length);
-    console.log("stockMap:", stockMap);
+    // console.log("useAllStockByItems 계산 완료:", Object.keys(stockMap).length);
+    // console.log("stockMap:", stockMap);
     return stockMap;
   }, [items]);
 };

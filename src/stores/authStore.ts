@@ -1,16 +1,20 @@
 // src/stores/authStore.ts
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { UserRole } from "../types/user";
 
 export interface AuthUser {
   id: string;
   email: string;
-  name?: string;
+  name: string;
   avatarUrl?: string;
+  role: UserRole;
 }
 
 interface AuthState {
   user: AuthUser | null;
+  setUser: (user: AuthUser) => void;
+  clearUser: () => void;
   isAuthenticated: boolean;
 }
 
@@ -26,6 +30,8 @@ export const useAuthStore = create<AuthStore>()(
   persist(
     (set, get) => ({
       user: null,
+      setUser: (user) => set({ user }),
+      clearUser: () => set({ user: null }),
       isAuthenticated: false,
 
       login: (u) => {
@@ -46,15 +52,16 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: "auth-storage",
-      version: 2,
+      version: 3,
       // 이전 구조 → 현재 구조로의 안전한 마이그레이션
       migrate: (persisted: any, fromVersion: number) => {
         console.log("🔄 AuthStore migrate", { fromVersion, persisted });
         if (!persisted || typeof persisted !== "object") {
           return { user: null, isAuthenticated: false };
         }
-        // v1 형태 호환 처리
-        const user = persisted.user ?? null;
+        const user = persisted.user
+          ? { ...persisted.user, role: persisted.user.role || "staff" }
+          : null;
         const isAuthenticated = Boolean(persisted.isAuthenticated && user);
         return { user, isAuthenticated };
       },

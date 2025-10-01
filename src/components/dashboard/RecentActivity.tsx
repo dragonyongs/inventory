@@ -1,15 +1,11 @@
 // src/components/dashboard/RecentActivity.tsx
-import React from "react";
-import {
-  ArrowUpRight,
-  ArrowDownLeft,
-  Activity,
-  Clock,
-  Package,
-} from "lucide-react";
 
-// 기존 코드에서 사용하는 타입 정의
-type MovementType = "IN" | "OUT" | "USE" | "ADJUST" | "TRANSFER";
+import React from "react";
+import { Clock, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useRelativeTime } from "../../hooks/useRelativeTime";
+
+type MovementType = "IN" | "OUT" | "USE" | "ADJUST" | "TRANSFER" | "DELETE";
 
 interface RecentActivityItem {
   id: string;
@@ -20,8 +16,10 @@ interface RecentActivityItem {
   itemId: string;
   qty: number;
   reason?: string;
-  createdAt: string; // timestamp가 아닌 createdAt 사용
+  createdAt: string;
   itemSnapshot?: any;
+  userName?: string;
+  userId?: string;
 }
 
 interface RecentActivityProps {
@@ -31,169 +29,61 @@ interface RecentActivityProps {
 
 export const RecentActivity: React.FC<RecentActivityProps> = React.memo(
   ({ activities }) => {
-    const getMovementIcon = (type: MovementType) => {
-      switch (type) {
-        case "IN":
-          return <ArrowDownLeft className="w-4 h-4" />;
-        case "OUT":
-        case "USE":
-          return <ArrowUpRight className="w-4 h-4" />;
-        case "ADJUST":
-          return <Activity className="w-4 h-4" />;
-        default:
-          return <Activity className="w-4 h-4" />;
-      }
-    };
-
-    const getMovementColor = (type: MovementType) => {
-      switch (type) {
-        case "IN":
-          return "text-green-600 bg-green-50 border-green-100";
-        case "OUT":
-        case "USE":
-          return "text-red-600 bg-red-50 border-red-100";
-        case "ADJUST":
-          return "text-blue-600 bg-blue-50 border-blue-100";
-        default:
-          return "text-gray-600 bg-gray-50 border-gray-100";
-      }
-    };
-
     const getMovementLabel = (type: MovementType) => {
-      const defaultLabels = {
+      const labels: Record<MovementType, string> = {
         IN: "입고",
         OUT: "출고",
         USE: "사용",
         ADJUST: "조정",
         TRANSFER: "이동",
+        DELETE: "삭제",
       };
-
-      return defaultLabels[type] || type;
+      return labels[type] || type;
     };
 
-    const formatDate = (dateString: string) => {
-      const date = new Date(dateString);
-      const now = new Date();
-      const diffInHours = Math.floor(
-        (now.getTime() - date.getTime()) / (1000 * 60 * 60)
-      );
-
-      if (diffInHours < 1) return "방금 전";
-      if (diffInHours < 24) return `${diffInHours}시간 전`;
-      return date.toLocaleDateString("ko-KR", {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    };
-
-    if (activities.length === 0) {
+    if (!activities || activities.length === 0) {
       return (
-        <div className="bg-white border border-gray-200 rounded-lg">
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">최근 활동</h3>
+        <div className="rounded-xl border border-slate-200 bg-white p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-slate-900">최근 활동</h3>
           </div>
-          <div className="p-6">
-            <div className="text-center py-8">
-              <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">최근 활동이 없습니다</p>
-              <p className="text-sm text-gray-400 mt-1">
-                상품을 추가하고 입출고를 기록해보세요
-              </p>
+
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50">
+              <Clock className="h-8 w-8 text-slate-300" />
             </div>
+            <p className="mb-1 text-sm font-medium text-slate-900">
+              최근 활동이 없습니다
+            </p>
+            <p className="text-sm text-slate-500">
+              상품을 추가하고 입출고를 기록해보세요
+            </p>
           </div>
         </div>
       );
     }
 
     return (
-      <div className="bg-white border border-gray-200 rounded-lg">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">최근 활동</h3>
+      <div className="rounded-xl border border-slate-200 bg-white p-6">
+        <div className="mb-5 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-slate-900">최근 활동</h3>
+          <Link
+            to="/movements"
+            className="group flex items-center gap-1.5 text-sm font-medium text-indigo-600 transition-colors hover:text-indigo-700"
+          >
+            전체 보기
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+          </Link>
         </div>
 
-        <div className="p-6">
-          <div className="space-y-0">
-            {activities.map((activity, index) => (
-              <div
-                key={`${activity.id}-${index}`}
-                className={`flex items-center space-x-3 py-3 hover:bg-gray-50 transition-colors rounded-lg -mx-2 px-2 ${
-                  index !== activities.length - 1
-                    ? "border-b border-gray-100"
-                    : ""
-                }`}
-              >
-                <div
-                  className={`p-1.5 rounded-md border ${getMovementColor(
-                    activity.type
-                  )}`}
-                >
-                  {getMovementIcon(activity.type)}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <p
-                    className={`text-sm font-medium truncate ${
-                      activity.itemName === "알 수 없는 상품"
-                        ? "text-gray-500 italic"
-                        : "text-gray-900"
-                    }`}
-                  >
-                    {activity.itemName || "알 수 없는 상품"}
-                    {activity.isItemDeleted && (
-                      <span className="text-xs ml-2 text-red-500 bg-red-100 px-2 py-0.5 rounded-full">
-                        삭제됨
-                      </span>
-                    )}
-                  </p>
-
-                  <div className="flex items-center space-x-2 mt-1">
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        activity.type === "IN"
-                          ? "bg-green-100 text-green-800"
-                          : activity.type === "OUT" || activity.type === "USE"
-                          ? "bg-red-100 text-red-800"
-                          : "bg-blue-100 text-blue-800"
-                      }`}
-                    >
-                      {getMovementLabel(activity.type)}
-                    </span>
-                    {activity.reason && (
-                      <span className="text-xs text-gray-500 truncate">
-                        {activity.reason}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="text-right flex-shrink-0">
-                  <div
-                    className={`text-sm font-semibold mb-1 ${
-                      activity.type === "IN"
-                        ? "text-green-600"
-                        : activity.type === "OUT" || activity.type === "USE"
-                        ? "text-red-600"
-                        : "text-blue-600"
-                    }`}
-                  >
-                    {activity.type === "IN"
-                      ? "+"
-                      : activity.type === "OUT" || activity.type === "USE"
-                      ? "-"
-                      : ""}
-                    {activity.qty}
-                  </div>
-
-                  <div className="flex items-center text-xs text-gray-400">
-                    <Clock className="w-3 h-3 mr-1" />
-                    {formatDate(activity.createdAt)}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="space-y-3">
+          {activities.map((activity) => (
+            <ActivityItem
+              key={activity.id}
+              activity={activity}
+              getMovementLabel={getMovementLabel}
+            />
+          ))}
         </div>
       </div>
     );
@@ -201,3 +91,76 @@ export const RecentActivity: React.FC<RecentActivityProps> = React.memo(
 );
 
 RecentActivity.displayName = "RecentActivity";
+
+// 개별 활동 아이템 컴포넌트
+interface ActivityItemProps {
+  activity: RecentActivityItem;
+  getMovementLabel: (type: MovementType) => string;
+}
+
+const ActivityItem: React.FC<ActivityItemProps> = React.memo(
+  ({ activity, getMovementLabel }) => {
+    const { relativeTime, absoluteTime, isWithin24Hours } = useRelativeTime(
+      activity.createdAt
+    );
+
+    const getTypeColor = (type: MovementType) => {
+      const colors: Record<MovementType, string> = {
+        IN: "bg-emerald-50 text-emerald-700 border-emerald-100",
+        OUT: "bg-rose-50 text-rose-700 border-rose-100",
+        USE: "bg-blue-50 text-blue-700 border-blue-100",
+        ADJUST: "bg-amber-50 text-amber-700 border-amber-100",
+        TRANSFER: "bg-purple-50 text-purple-700 border-purple-100",
+        DELETE: "bg-slate-50 text-slate-700 border-slate-100",
+      };
+      return colors[type] || "bg-slate-50 text-slate-700 border-slate-100";
+    };
+
+    return (
+      <div className="group flex items-start gap-3 rounded-lg border border-transparent p-3 transition-all hover:border-slate-200 hover:bg-slate-50/50">
+        {/* 타입 배지 */}
+        <div
+          className={`
+            mt-0.5 flex-shrink-0 rounded-md border px-2.5 py-1 text-xs font-medium
+            ${getTypeColor(activity.type)}
+          `}
+        >
+          {getMovementLabel(activity.type)}
+        </div>
+
+        {/* 활동 정보 */}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-slate-900">
+            {activity.itemName || "알 수 없는 상품"}
+          </p>
+
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+            <span>{activity.userName || "알 수 없음"}</span>
+            <span className="text-slate-300">•</span>
+            <span
+              className={`font-medium ${
+                activity.type === "IN" ? "text-emerald-600" : "text-rose-600"
+              }`}
+            >
+              {activity.type === "IN" ? "+" : "-"}
+              {activity.qty}개
+            </span>
+          </div>
+
+          {activity.reason && (
+            <p className="mt-1.5 text-xs text-slate-500">
+              사유: {activity.reason}
+            </p>
+          )}
+        </div>
+
+        {/* 시간 */}
+        <div className="flex-shrink-0 text-xs text-slate-400">
+          {isWithin24Hours ? relativeTime : absoluteTime}
+        </div>
+      </div>
+    );
+  }
+);
+
+ActivityItem.displayName = "ActivityItem";
