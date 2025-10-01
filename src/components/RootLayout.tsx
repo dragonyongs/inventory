@@ -105,8 +105,9 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* 모바일 헤더 - 스크롤 시 숨김 */}
         <div
-          className={`fixed top-0 left-0 right-0 z-30 border-b border-gray-200 bg-white transition-transform duration-300 ease-in-out md:hidden ${
-            scrollDirection === "down" ? "-translate-y-full" : "translate-y-0"
+          className={`border-b border-gray-200 bg-white transition-transform duration-300 ease-in-out md:hidden ${
+            scrollDirection === "down" &&
+            "fixed -translate-y-full top-0 left-0 right-0 z-30 "
           }`}
         >
           <div className="flex items-center justify-between px-4 py-3">
