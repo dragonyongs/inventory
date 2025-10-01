@@ -1,6 +1,6 @@
 // src/components/RootLayout.tsx
 import { Outlet, NavLink } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   BarChart3,
   Package,
