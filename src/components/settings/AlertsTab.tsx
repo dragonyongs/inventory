@@ -1,4 +1,3 @@
-// src/components/settings/AlertsTab.tsx
 import React, {
   useCallback,
   useState,
@@ -9,7 +8,6 @@ import React, {
 import {
   Bell,
   AlertTriangle,
-  Package,
   Calendar,
   TrendingDown,
   Volume2,
@@ -17,9 +15,11 @@ import {
   Smartphone,
   Clock,
   TestTube,
+  Save,
+  RotateCcw,
 } from "lucide-react";
-import { useSettingsStore } from "@/stores/settingsStore";
-import { useVisibleItems } from "@/stores/selectors";
+import { useSettingsStore } from "../../stores/settingsStore";
+import { useVisibleItems } from "../../stores/selectors";
 
 interface NotificationSetting {
   id: string;
@@ -48,7 +48,6 @@ export const AlertsTab: React.FC = React.memo(() => {
   const [hasChanges, setHasChanges] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 변경사항 감지만
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -68,7 +67,6 @@ export const AlertsTab: React.FC = React.memo(() => {
     setHasChanges(changed);
   }, [tempNotifications, settings.notifications]);
 
-  // 통계 계산
   const alertStats = useMemo(() => {
     const enabledAlerts = Object.values(tempNotifications).filter(
       (v) => v === true
@@ -185,269 +183,242 @@ export const AlertsTab: React.FC = React.memo(() => {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* 저장 알림 바 */}
-      {hasChanges && (
-        <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
-          <div className="flex items-center space-x-2">
-            <Bell className="h-4 w-4 text-blue-600" />
-            <span className="text-sm font-medium text-blue-900">
-              알림 설정이 변경되었습니다
-            </span>
-          </div>
-          <div className="flex space-x-2">
-            <button
-              onClick={handleReset}
-              className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-white"
-            >
-              취소
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={isLoading}
-              className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
-            >
-              {isLoading ? "저장 중..." : "저장"}
-            </button>
-          </div>
-        </div>
-      )}
+    <div className="max-w-5xl mx-auto">
+      {/* 헤더 */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-semibold text-gray-900 mb-2">알림 설정</h2>
+        <p className="text-sm text-gray-500">
+          재고 관리에 필요한 핵심 알림들을 설정하세요
+        </p>
+      </div>
 
       {/* 통계 카드 */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white px-5 py-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Bell className="h-8 w-8 text-blue-600" />
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="p-5 bg-white border border-gray-200 rounded-xl">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+              <Bell className="w-5 h-5 text-blue-600" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">활성 알림</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {alertStats.enabledAlerts}
-              </p>
-            </div>
+            <span className="text-sm font-medium text-gray-600">활성 알림</span>
           </div>
+          <p className="text-2xl font-semibold text-gray-900">
+            {alertStats.enabledAlerts}
+          </p>
         </div>
 
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white px-5 py-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <TrendingDown
-                className={`h-8 w-8 ${
-                  alertStats.lowStockItems > 0
-                    ? "text-red-600"
-                    : "text-green-600"
-                }`}
-              />
+        <div className="p-5 bg-white border border-gray-200 rounded-xl">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
+              <TrendingDown className="w-5 h-5 text-red-600" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">재고 부족</p>
-              <p
-                className={`text-2xl font-semibold ${
-                  alertStats.lowStockItems > 0
-                    ? "text-red-600"
-                    : "text-green-600"
-                }`}
-              >
-                {alertStats.lowStockItems}
-              </p>
-            </div>
+            <span className="text-sm font-medium text-gray-600">재고 부족</span>
           </div>
+          <p
+            className={`text-2xl font-semibold ${
+              alertStats.lowStockItems > 0 ? "text-red-600" : "text-green-600"
+            }`}
+          >
+            {alertStats.lowStockItems}
+          </p>
         </div>
 
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white px-5 py-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Package className="h-8 w-8 text-gray-600" />
+        <div className="p-5 bg-white border border-gray-200 rounded-xl">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+              <TrendingDown className="w-5 h-5 text-gray-600" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">관리 상품</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {alertStats.totalItems}
-              </p>
-            </div>
+            <span className="text-sm font-medium text-gray-600">관리 상품</span>
           </div>
+          <p className="text-2xl font-semibold text-gray-900">
+            {alertStats.totalItems}
+          </p>
         </div>
       </div>
 
       {/* 핵심 알림 설정 */}
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-        <div className="border-b border-gray-200 px-6 py-4">
-          <h3 className="text-base font-semibold text-gray-900">핵심 알림</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            재고 관리에 필요한 핵심 알림들을 설정하세요
-          </p>
-        </div>
-        <div className="divide-y divide-gray-200">
+      <div className="mb-6 p-6 bg-white border border-gray-200 rounded-xl">
+        <h3 className="text-base font-semibold text-gray-900 mb-4">
+          핵심 알림
+        </h3>
+        <div className="space-y-3">
           {coreNotifications.map((notification) => {
-            const Icon = notification.icon;
+            const IconComponent = notification.icon;
             return (
-              <div key={notification.id} className="px-6 py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-start">
-                    <div
-                      className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-${notification.color}-100`}
-                    >
-                      <Icon
-                        className={`h-5 w-5 text-${notification.color}-600`}
-                      />
-                    </div>
-                    <div className="ml-4">
-                      <h4 className="text-sm font-medium text-gray-900">
-                        {notification.label}
-                      </h4>
-                      <p className="mt-1 text-sm text-gray-500">
-                        {notification.description}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setTempNotifications((prev) => ({
-                        ...prev,
-                        [notification.id]:
-                          !prev[notification.id as keyof typeof prev],
-                      }))
-                    }
-                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${
-                      notification.enabled ? "bg-blue-600" : "bg-gray-200"
+              <div
+                key={notification.id}
+                className="flex items-start justify-between p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+              >
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <div
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                      notification.color === "red"
+                        ? "bg-red-50"
+                        : "bg-orange-50"
                     }`}
                   >
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        notification.enabled ? "translate-x-5" : "translate-x-0"
+                    <IconComponent
+                      className={`w-5 h-5 ${
+                        notification.color === "red"
+                          ? "text-red-600"
+                          : "text-orange-600"
                       }`}
                     />
-                  </button>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-medium text-gray-900 mb-1">
+                      {notification.label}
+                    </h4>
+                    <p className="text-xs text-gray-500">
+                      {notification.description}
+                    </p>
+                  </div>
                 </div>
+                <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={notification.enabled}
+                    onChange={(e) =>
+                      setTempNotifications({
+                        ...tempNotifications,
+                        [notification.id]: e.target.checked,
+                      })
+                    }
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
+                </label>
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* 알림 방식 */}
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-        <div className="border-b border-gray-200 px-6 py-4">
-          <h3 className="text-base font-semibold text-gray-900">알림 방식</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            알림을 받을 방법을 선택하세요
-          </p>
-        </div>
-        <div className="divide-y divide-gray-200">
+      {/* 알림 전달 방법 */}
+      <div className="mb-6 p-6 bg-white border border-gray-200 rounded-xl">
+        <h3 className="text-base font-semibold text-gray-900 mb-4">
+          알림 전달 방법
+        </h3>
+        <div className="space-y-3">
           {deliveryMethods.map((method) => {
-            const Icon = method.icon;
+            const IconComponent = method.icon;
             return (
-              <div key={method.id} className="px-6 py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-start">
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100">
-                      <Icon className="h-5 w-5 text-gray-600" />
-                    </div>
-                    <div className="ml-4">
-                      <h4 className="text-sm font-medium text-gray-900">
-                        {method.label}
-                      </h4>
-                      <p className="mt-1 text-sm text-gray-500">
-                        {method.description}
-                      </p>
-                    </div>
+              <div
+                key={method.id}
+                className="flex items-start justify-between p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+              >
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    <IconComponent className="w-5 h-5 text-gray-600" />
                   </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setTempNotifications((prev) => ({
-                        ...prev,
-                        [method.id]: !prev[method.id as keyof typeof prev],
-                      }))
-                    }
-                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${
-                      method.enabled ? "bg-blue-600" : "bg-gray-200"
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        method.enabled ? "translate-x-5" : "translate-x-0"
-                      }`}
-                    />
-                  </button>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-medium text-gray-900 mb-1">
+                      {method.label}
+                    </h4>
+                    <p className="text-xs text-gray-500">
+                      {method.description}
+                    </p>
+                  </div>
                 </div>
+                <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={method.enabled}
+                    onChange={(e) =>
+                      setTempNotifications({
+                        ...tempNotifications,
+                        [method.id]: e.target.checked,
+                      })
+                    }
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
+                </label>
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* 방해 금지 시간 */}
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-start">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-purple-100">
-                <Clock className="h-5 w-5 text-purple-600" />
-              </div>
-              <div className="ml-4">
-                <h4 className="text-sm font-medium text-gray-900">
-                  방해 금지 시간
-                </h4>
-                <p className="mt-1 text-sm text-gray-500">
-                  설정된 시간에만 알림을 받습니다 (오전 9시 ~ 오후 6시)
-                </p>
-              </div>
+      {/* 조용한 시간 */}
+      <div className="mb-6 p-6 bg-white border border-gray-200 rounded-xl">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <Clock className="w-5 h-5 text-gray-600" />
             </div>
-            <button
-              type="button"
-              onClick={() =>
-                setTempNotifications((prev) => ({
-                  ...prev,
-                  quietHours: !prev.quietHours,
-                }))
-              }
-              className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${
-                tempNotifications.quietHours ? "bg-blue-600" : "bg-gray-200"
-              }`}
-            >
-              <span
-                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                  tempNotifications.quietHours
-                    ? "translate-x-5"
-                    : "translate-x-0"
-                }`}
-              />
-            </button>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base font-semibold text-gray-900 mb-1">
+                조용한 시간
+              </h3>
+              <p className="text-sm text-gray-600">
+                설정된 시간에만 알림을 받습니다 (오전 9시 ~ 오후 6시)
+              </p>
+            </div>
           </div>
+          <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
+            <input
+              type="checkbox"
+              checked={tempNotifications.quietHours}
+              onChange={(e) =>
+                setTempNotifications({
+                  ...tempNotifications,
+                  quietHours: e.target.checked,
+                })
+              }
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
+          </label>
         </div>
       </div>
 
       {/* 테스트 알림 */}
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-        <div className="px-6 py-5">
-          <div className="flex items-start">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-blue-100">
-              <TestTube className="h-5 w-5 text-blue-600" />
-            </div>
-            <div className="ml-4 flex-1">
-              <h3 className="text-base font-semibold text-gray-900">
-                알림 테스트
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                알림 설정을 테스트해보세요
-              </p>
-              <button
-                onClick={handleTestNotification}
-                className="mt-3 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
-              >
-                테스트 알림 보내기
-              </button>
-              <p className="mt-3 text-xs text-gray-400">
-                💡 브라우저에서 알림 권한을 허용해야 푸시 알림을 받을 수
-                있습니다
-              </p>
-            </div>
+      <div className="mb-6 p-6 bg-blue-50 border border-blue-100 rounded-xl">
+        <div className="flex items-start gap-3 mb-4">
+          <TestTube className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base font-semibold text-gray-900 mb-1">
+              알림 설정 테스트
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              알림 설정을 테스트해보세요
+            </p>
+            <button
+              onClick={handleTestNotification}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              테스트 알림 보내기
+            </button>
           </div>
         </div>
+        <p className="text-xs text-blue-700 flex items-start gap-2">
+          <span>💡</span>
+          <span>
+            브라우저에서 알림 권한을 허용해야 푸시 알림을 받을 수 있습니다.
+          </span>
+        </p>
       </div>
+
+      {/* 저장/초기화 버튼 */}
+      {hasChanges && (
+        <div className="flex gap-3 sticky bottom-4">
+          <button
+            onClick={handleSave}
+            disabled={isLoading}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+          >
+            <Save className="w-4 h-4" />
+            {isLoading ? "저장 중..." : "변경사항 저장"}
+          </button>
+          <button
+            onClick={handleReset}
+            disabled={isLoading}
+            className="px-4 py-3 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 });

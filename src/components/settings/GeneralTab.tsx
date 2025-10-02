@@ -1,7 +1,22 @@
-// src/components/settings/GeneralTab.tsx
 import React, { useCallback, useState, useEffect, useRef } from "react";
-import { AlertTriangle, Package, Zap, Palette, Check } from "lucide-react";
+import {
+  AlertTriangle,
+  Package,
+  Zap,
+  Palette,
+  Check,
+  Sun,
+  Moon,
+  Monitor,
+  Save,
+  RotateCcw,
+} from "lucide-react";
 import { useSettingsStore } from "../../stores/settingsStore";
+
+// ✅ settingsStore에서 타입 import (타입이 export 되어 있다면)
+// 또는 settingsStore의 실제 타입에 맞춰 정의
+type UpdateMode = "auto" | "manual"; // ✅ "notify" 제거 (settingsStore에 없을 수 있음)
+type Theme = "auto" | "light" | "dark"; // ✅ "system" 대신 "auto" 사용
 
 export const GeneralTab: React.FC = React.memo(() => {
   const settings = useSettingsStore();
@@ -11,12 +26,12 @@ export const GeneralTab: React.FC = React.memo(() => {
     expiringDays: settings.expiringDays,
     pageSize: settings.pageSize,
     updateMode: settings.updateMode,
-    theme: settings.theme || "light",
+    theme: settings.theme || ("light" as Theme),
   });
+
   const [hasChanges, setHasChanges] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 변경사항 감지만
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -60,248 +75,257 @@ export const GeneralTab: React.FC = React.memo(() => {
       expiringDays: settings.expiringDays,
       pageSize: settings.pageSize,
       updateMode: settings.updateMode,
-      theme: settings.theme || "light",
+      theme: settings.theme || ("light" as Theme),
     });
     setHasChanges(false);
   }, [settings]);
 
+  const themeOptions = [
+    {
+      value: "light" as const, // ✅ as const 사용
+      label: "라이트 모드",
+      description: "밝은 테마로 표시합니다",
+      icon: Sun,
+    },
+    {
+      value: "dark" as const,
+      label: "다크 모드",
+      description: "어두운 테마로 표시합니다",
+      icon: Moon,
+    },
+    {
+      value: "auto" as const, // ✅ "system" → "auto" 변경
+      label: "자동 설정",
+      description: "기기 설정을 따릅니다",
+      icon: Monitor,
+    },
+  ];
+
+  const updateModeOptions = [
+    {
+      value: "auto" as const,
+      label: "자동 업데이트",
+      description: "새 버전이 있으면 자동으로 업데이트합니다",
+    },
+    {
+      value: "manual" as const,
+      label: "수동 업데이트",
+      description: "업데이트를 확인 후 진행합니다",
+    },
+  ]; // ✅ "notify" 옵션 제거 (settingsStore에 없음)
+
+  const pageSizeOptions = [10, 20, 30, 50, 100];
+
   return (
-    <div className="space-y-6">
-      {/* 저장 알림 바 */}
-      {hasChanges && (
-        <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
-          <div className="flex items-center space-x-2">
-            <AlertTriangle className="h-4 w-4 text-blue-600" />
-            <span className="text-sm font-medium text-blue-900">
-              변경사항이 저장되지 않았습니다
+    <div className="max-w-5xl mx-auto">
+      {/* 헤더 */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-semibold text-gray-900 mb-2">일반 설정</h2>
+        <p className="text-sm text-gray-500">
+          앱의 기본 동작과 외관을 설정하세요
+        </p>
+      </div>
+
+      {/* 유통기한 임박 기준 */}
+      <div className="mb-6 p-6 bg-white border border-gray-200 rounded-xl">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle className="w-5 h-5 text-orange-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base font-semibold text-gray-900 mb-1">
+              유통기한 임박 기준
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              이 기간 내에 만료되는 상품에 대해 알림을 표시합니다
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <input
+            type="range"
+            min="1"
+            max="90"
+            value={tempSettings.expiringDays}
+            onChange={(e) =>
+              setTempSettings({
+                ...tempSettings,
+                expiringDays: Number(e.target.value),
+              })
+            }
+            className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-900"
+          />
+          <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+            <span className="text-2xl font-semibold text-gray-900">
+              {tempSettings.expiringDays}
             </span>
-          </div>
-          <div className="flex space-x-2">
-            <button
-              onClick={handleReset}
-              className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-white"
-            >
-              취소
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={isLoading}
-              className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
-            >
-              {isLoading ? "저장 중..." : "저장"}
-            </button>
+            <span className="text-sm text-gray-500">일</span>
           </div>
         </div>
-      )}
+        <p className="text-xs text-gray-500 mt-3">
+          {tempSettings.expiringDays}일 내에 만료되는 상품에 대해 알림을
+          표시합니다
+        </p>
+      </div>
 
-      {/* 유통기한 알림 */}
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-        <div className="px-6 py-5">
-          <div className="flex items-start">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-orange-100">
-              <AlertTriangle className="h-5 w-5 text-orange-600" />
-            </div>
-            <div className="ml-4 flex-1">
-              <h3 className="text-base font-semibold text-gray-900">
-                유통기한 알림
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                이 기간 내에 만료되는 상품에 대해 알림을 표시합니다
-              </p>
-              <div className="mt-4 flex items-center space-x-2">
-                <input
-                  type="number"
-                  min="1"
-                  max="365"
-                  value={tempSettings.expiringDays}
-                  onChange={(e) =>
-                    setTempSettings((prev) => ({
-                      ...prev,
-                      expiringDays: Number(e.target.value),
-                    }))
-                  }
-                  className="w-20 rounded-md border-gray-300 text-center text-sm shadow-sm transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-600">일</span>
-              </div>
-              <p className="mt-2 text-xs text-gray-400">
-                {tempSettings.expiringDays}일 내에 만료되는 상품에 대해 알림을
-                표시합니다
-              </p>
-            </div>
+      {/* 페이지 크기 */}
+      <div className="mb-6 p-6 bg-white border border-gray-200 rounded-xl">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+            <Package className="w-5 h-5 text-blue-600" />
           </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base font-semibold text-gray-900 mb-1">
+              페이지당 항목 수
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              페이지당 표시할 항목 수를 설정합니다
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-5 gap-3">
+          {pageSizeOptions.map((size) => (
+            <button
+              key={size}
+              onClick={() =>
+                setTempSettings({ ...tempSettings, pageSize: size })
+              }
+              className={`px-4 py-3 text-sm font-medium rounded-lg border-2 transition-all ${
+                tempSettings.pageSize === size
+                  ? "border-gray-900 bg-gray-900 text-white"
+                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              {size}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* 페이징 설정 */}
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-        <div className="px-6 py-5">
-          <div className="flex items-start">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-blue-100">
-              <Package className="h-5 w-5 text-blue-600" />
-            </div>
-            <div className="ml-4 flex-1">
-              <h3 className="text-base font-semibold text-gray-900">
-                페이징 설정
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                페이지당 표시할 항목 수를 설정합니다
-              </p>
-              <div className="mt-4">
-                <select
-                  value={tempSettings.pageSize}
-                  onChange={(e) =>
-                    setTempSettings((prev) => ({
-                      ...prev,
-                      pageSize: Number(e.target.value),
-                    }))
-                  }
-                  className="block w-full max-w-xs rounded-md border-gray-300 text-sm shadow-sm transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value={10}>10개</option>
-                  <option value={20}>20개</option>
-                  <option value={50}>50개</option>
-                  <option value={100}>100개</option>
-                </select>
-              </div>
-            </div>
+      {/* 업데이트 방식 */}
+      <div className="mb-6 p-6 bg-white border border-gray-200 rounded-xl">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
+            <Zap className="w-5 h-5 text-purple-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base font-semibold text-gray-900 mb-1">
+              업데이트 방식
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              새 버전이 있을 때 업데이트 방식을 선택하세요
+            </p>
           </div>
         </div>
-      </div>
 
-      {/* 업데이트 모드 */}
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-        <div className="px-6 py-5">
-          <div className="flex items-start">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-green-100">
-              <Zap className="h-5 w-5 text-green-600" />
-            </div>
-            <div className="ml-4 flex-1">
-              <h3 className="text-base font-semibold text-gray-900">
-                업데이트 모드
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                새 버전이 있을 때 업데이트 방식을 선택하세요
-              </p>
-              <div className="mt-4 space-y-3">
-                {[
-                  {
-                    value: "auto",
-                    label: "자동 업데이트",
-                    desc: "새 버전이 있으면 자동으로 업데이트합니다",
-                  },
-                  {
-                    value: "manual",
-                    label: "수동 업데이트",
-                    desc: "수동으로 업데이트를 확인하고 적용합니다",
-                  },
-                ].map((mode) => (
-                  <label
-                    key={mode.value}
-                    className={`relative flex cursor-pointer rounded-lg border p-4 transition-all ${
-                      tempSettings.updateMode === mode.value
-                        ? "border-blue-600 bg-blue-50"
-                        : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="updateMode"
-                      value={mode.value}
-                      checked={tempSettings.updateMode === mode.value}
-                      onChange={(e) =>
-                        setTempSettings((prev) => ({
-                          ...prev,
-                          updateMode: e.target.value as "auto" | "manual",
-                        }))
-                      }
-                      className="h-4 w-4 flex-shrink-0 border-gray-300 text-blue-600 focus:ring-blue-600"
-                    />
-                    <div className="ml-3 flex-1">
-                      <span
-                        className={`block text-sm font-medium ${
-                          tempSettings.updateMode === mode.value
-                            ? "text-blue-900"
-                            : "text-gray-900"
-                        }`}
-                      >
-                        {mode.label}
-                      </span>
-                      <span
-                        className={`mt-1 block text-sm ${
-                          tempSettings.updateMode === mode.value
-                            ? "text-blue-700"
-                            : "text-gray-500"
-                        }`}
-                      >
-                        {mode.desc}
-                      </span>
-                    </div>
-                    {tempSettings.updateMode === mode.value && (
-                      <Check className="ml-3 h-5 w-5 flex-shrink-0 text-blue-600" />
-                    )}
-                  </label>
-                ))}
+        <div className="space-y-3">
+          {updateModeOptions.map((option) => (
+            <button
+              key={option.value}
+              onClick={() =>
+                setTempSettings({ ...tempSettings, updateMode: option.value })
+              }
+              className={`w-full flex items-start justify-between p-4 border-2 rounded-lg transition-all ${
+                tempSettings.updateMode === option.value
+                  ? "border-gray-900 bg-gray-50"
+                  : "border-gray-200 bg-white hover:border-gray-300"
+              }`}
+            >
+              <div className="flex-1 min-w-0 text-left">
+                <h4 className="text-sm font-medium text-gray-900 mb-1">
+                  {option.label}
+                </h4>
+                <p className="text-xs text-gray-500">{option.description}</p>
               </div>
-            </div>
-          </div>
+              {tempSettings.updateMode === option.value && (
+                <Check className="w-5 h-5 text-gray-900 flex-shrink-0 ml-3" />
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* 테마 설정 */}
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-        <div className="px-6 py-5">
-          <div className="flex items-start">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-purple-100">
-              <Palette className="h-5 w-5 text-purple-600" />
-            </div>
-            <div className="ml-4 flex-1">
-              <h3 className="text-base font-semibold text-gray-900">앱 테마</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                앱의 외관 테마를 선택하세요
-              </p>
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                {[
-                  { value: "light", label: "라이트", icon: "☀️" },
-                  { value: "dark", label: "다크", icon: "🌙" },
-                  { value: "auto", label: "시스템", icon: "💻" },
-                ].map((theme) => (
-                  <button
-                    key={theme.value}
-                    onClick={() =>
-                      setTempSettings((prev) => ({
-                        ...prev,
-                        theme: theme.value as "light" | "dark" | "auto",
-                      }))
-                    }
-                    className={`relative flex flex-col items-center justify-center rounded-lg border p-4 transition-all ${
-                      tempSettings.theme === theme.value
-                        ? "border-blue-600 bg-blue-50"
-                        : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
-                    }`}
-                  >
-                    <span className="text-2xl">{theme.icon}</span>
-                    <span
-                      className={`mt-2 text-sm font-medium ${
-                        tempSettings.theme === theme.value
-                          ? "text-blue-900"
-                          : "text-gray-700"
-                      }`}
-                    >
-                      {theme.label}
-                    </span>
-                    {tempSettings.theme === theme.value && (
-                      <div className="absolute right-2 top-2">
-                        <Check className="h-4 w-4 text-blue-600" />
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
+      <div className="mb-6 p-6 bg-white border border-gray-200 rounded-xl">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg bg-pink-50 flex items-center justify-center flex-shrink-0">
+            <Palette className="w-5 h-5 text-pink-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base font-semibold text-gray-900 mb-1">
+              외관 테마
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              앱의 외관 테마를 선택하세요
+            </p>
           </div>
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {themeOptions.map((option) => {
+            const IconComponent = option.icon;
+            return (
+              <button
+                key={option.value}
+                onClick={() =>
+                  setTempSettings({ ...tempSettings, theme: option.value })
+                }
+                className={`p-4 border-2 rounded-lg transition-all ${
+                  tempSettings.theme === option.value
+                    ? "border-gray-900 bg-gray-50"
+                    : "border-gray-200 bg-white hover:border-gray-300"
+                }`}
+              >
+                <div className="flex flex-col items-center gap-3">
+                  <div
+                    className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                      tempSettings.theme === option.value
+                        ? "bg-gray-900 text-white"
+                        : "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    <IconComponent className="w-6 h-6" />
+                  </div>
+                  <div className="text-center">
+                    <h4 className="text-sm font-medium text-gray-900 mb-1">
+                      {option.label}
+                    </h4>
+                    <p className="text-xs text-gray-500">
+                      {option.description}
+                    </p>
+                  </div>
+                  {tempSettings.theme === option.value && (
+                    <Check className="w-5 h-5 text-gray-900" />
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {/* 저장/초기화 버튼 */}
+      {hasChanges && (
+        <div className="flex gap-3 sticky bottom-4">
+          <button
+            onClick={handleSave}
+            disabled={isLoading}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+          >
+            <Save className="w-4 h-4" />
+            {isLoading ? "저장 중..." : "변경사항 저장"}
+          </button>
+          <button
+            onClick={handleReset}
+            disabled={isLoading}
+            className="px-4 py-3 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 });
