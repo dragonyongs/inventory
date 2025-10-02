@@ -1,4 +1,5 @@
 // src/stores/workspaceStore.ts
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -41,17 +42,15 @@ interface WorkspaceActions {
     description?: string;
     type: WorkspaceType;
   }) => Workspace;
-  updateWorkspace: (
-    id: string,
-    data: Partial<Pick<Workspace, "name" | "description" | "type">>
-  ) => void;
+  updateWorkspace: (id: string, data: Partial<Omit<Workspace, "id">>) => void;
   deleteWorkspace: (id: string) => void;
   switchWorkspace: (id: string) => void;
   setCurrentWorkspaceId: (id: string | null) => void;
   getCurrentWorkspace: () => Workspace | null;
+  // ✅ 추가: ID로 워크스페이스 조회
+  getWorkspaceById: (id: string) => Workspace | undefined;
   ensureDefaultWorkspace: () => void;
   initialize: () => void;
-
   // 멤버십 관련
   getUserRole: (workspaceId: string, userId: string) => WorkspaceRole | null;
   setUserRole: (
@@ -101,7 +100,6 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         const wsMembers = s.memberships[workspaceId] ?? {};
         const hasAny = Object.keys(wsMembers).length > 0;
         const already = wsMembers[userId];
-
         if (!hasAny || !already) {
           set((st) => ({
             memberships: {
@@ -115,7 +113,6 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         }
       },
 
-      // 현재 사용자 ID를 auth-storage에서 얻는 내부 유틸 (기존 tryGetAuthUserId 사용)
       ensureMembershipForCurrentUser: (workspaceId: string) => {
         const userId = (() => {
           try {
@@ -126,7 +123,6 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           }
         })();
         if (!userId) return;
-
         const role = get().memberships[workspaceId]?.[userId];
         if (!role) {
           set((s) => ({
@@ -163,13 +159,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             },
           },
         }));
-        // queueMicrotask(() =>
-        //   window.dispatchEvent(
-        //     new CustomEvent("workspace-changed", {
-        //       detail: { workspaceId: w.id },
-        //     })
-        //   )
-        // );
+
         queueMicrotask(() => get().ensureMembershipForCurrentUser(w.id));
         return w;
       },
@@ -213,6 +203,11 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       getCurrentWorkspace: () => {
         const s = get();
         return s.workspaces.find((w) => w.id === s.currentWorkspaceId) ?? null;
+      },
+
+      // ✅ 추가: ID로 워크스페이스 조회
+      getWorkspaceById: (id: string) => {
+        return get().workspaces.find((w) => w.id === id);
       },
 
       ensureDefaultWorkspace: () => {

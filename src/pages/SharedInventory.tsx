@@ -7,8 +7,6 @@ import {
   Eye,
   Minus,
   AlertTriangle,
-  User,
-  ExternalLink,
   Shield,
   Smartphone,
   Monitor,
@@ -28,22 +26,31 @@ type SharePermission = "view" | "use";
 type ViewMode = "grid" | "list";
 
 const SharedInventory: React.FC = () => {
-  const { token } = useParams<{ token: string }>();
+  const { token, workspaceId: workspaceIdParam } = useParams<{
+    token?: string;
+    workspaceId?: string;
+  }>();
   const [searchParams] = useSearchParams();
+
   const permission =
     (searchParams.get("permission") as SharePermission) || "view";
-  const workspaceId = searchParams.get("workspace");
+
+  const workspaceId = workspaceIdParam || searchParams.get("workspace");
   const categoryId = searchParams.get("category");
 
   // Stores
   const { user, isAuthenticated } = useAuthStore();
   const items = useItemsStore((s) => s.items);
   const { addMovement } = useMovementsStore();
+
   const workspace = useWorkspaceStore((s) =>
-    s.workspaces.find((w) => w.id === workspaceId)
+    workspaceId ? s.getWorkspaceById(workspaceId) : null
   );
+
   const category = useCategoriesStore((s) =>
-    Object.values(s.categories).find((c) => c.id === categoryId)
+    categoryId
+      ? Object.values(s.categories).find((c) => c.id === categoryId)
+      : null
   );
 
   // Local state
@@ -60,10 +67,8 @@ const SharedInventory: React.FC = () => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-
     checkMobile();
     window.addEventListener("resize", checkMobile);
-
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
@@ -73,17 +78,40 @@ const SharedInventory: React.FC = () => {
       try {
         setIsLoading(true);
 
-        if (!token || !workspaceId || !categoryId) {
-          throw new Error("잘못된 공유 링크입니다.");
+        // 케이스 1: 워크스페이스 전체 공유
+        if (workspaceIdParam) {
+          if (!workspace) {
+            throw new Error("워크스페이스를 찾을 수 없습니다.");
+          }
+          console.log("✅ 워크스페이스 전체 공유 모드:", workspace.name);
+          setError(null);
+          return;
         }
 
-        // 실제 환경에서는 서버에서 토큰 검증
-        // 현재는 클라이언트에서 기본 검증만 수행
-        if (token.length < 10) {
-          throw new Error("유효하지 않은 공유 토큰입니다.");
+        // 케이스 2: 특정 카테고리 공유
+        if (token) {
+          if (!workspaceId || !categoryId) {
+            throw new Error("잘못된 공유 링크입니다.");
+          }
+
+          if (token.length < 10) {
+            throw new Error("유효하지 않은 공유 토큰입니다.");
+          }
+
+          if (!workspace) {
+            throw new Error("워크스페이스를 찾을 수 없습니다.");
+          }
+
+          if (!category) {
+            throw new Error("카테고리를 찾을 수 없습니다.");
+          }
+
+          console.log("✅ 카테고리 공유 모드:", category.name);
+          setError(null);
+          return;
         }
 
-        setError(null);
+        throw new Error("잘못된 공유 링크입니다.");
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다."
@@ -94,27 +122,35 @@ const SharedInventory: React.FC = () => {
     };
 
     validateAndLoadData();
-  }, [token, workspaceId, categoryId]);
+  }, [token, workspaceIdParam, workspaceId, categoryId, workspace, category]);
 
   // 필터링된 아이템 목록
   const filteredItems = useMemo(() => {
-    const categoryItems = Object.values(items).filter(
-      (item) =>
-        item.workspaceId === workspaceId &&
-        item.categoryId === categoryId &&
-        !item.isDeleted
-    );
+    let baseItems: Item[] = [];
 
-    if (!searchQuery.trim()) return categoryItems;
+    if (workspaceIdParam && workspaceId) {
+      baseItems = Object.values(items).filter(
+        (item) => item.workspaceId === workspaceId && !item.isDeleted
+      );
+    } else if (workspaceId && categoryId) {
+      baseItems = Object.values(items).filter(
+        (item) =>
+          item.workspaceId === workspaceId &&
+          item.categoryId === categoryId &&
+          !item.isDeleted
+      );
+    }
+
+    if (!searchQuery.trim()) return baseItems;
 
     const query = searchQuery.toLowerCase();
-    return categoryItems.filter(
+    return baseItems.filter(
       (item) =>
         item.name.toLowerCase().includes(query) ||
         item.sku?.toLowerCase().includes(query) ||
         item.barcode?.toLowerCase().includes(query)
     );
-  }, [items, workspaceId, categoryId, searchQuery]);
+  }, [items, workspaceId, workspaceIdParam, categoryId, searchQuery]);
 
   // 아이템 사용 처리
   const handleUseItem = useCallback(
@@ -127,16 +163,13 @@ const SharedInventory: React.FC = () => {
       const item = items[itemId];
       if (!item || quantity <= 0 || quantity > item.stock) return;
 
-      // 재고 차감
       const newStock = item.stock - quantity;
       useItemsStore.getState().updateItem(itemId, { stock: newStock });
 
-      // 사용자 정보 결정
       const finalUserName = isAuthenticated
         ? user?.name || user?.email || "인증된 사용자"
         : userName || "익명 사용자";
 
-      // 사용 기록 추가 - 사용자 정보 포함
       const movement = {
         id: generateId("movement"),
         type: "USE" as const,
@@ -144,7 +177,6 @@ const SharedInventory: React.FC = () => {
         qty: -quantity,
         reason: reason || "공유 페이지에서 사용",
         createdAt: new Date().toISOString(),
-        // ✅ 사용자 정보 기록
         userName: finalUserName,
         userId: isAuthenticated ? user?.id : undefined,
         userEmail: isAuthenticated ? user?.email : undefined,
@@ -154,7 +186,6 @@ const SharedInventory: React.FC = () => {
 
       addMovement(movement);
 
-      // 성공 피드백
       console.log(
         `✅ ${item.name} ${quantity}개 사용 완료 (사용자: ${finalUserName})`
       );
@@ -179,7 +210,7 @@ const SharedInventory: React.FC = () => {
   // 로딩 상태
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">공유 페이지를 불러오는 중...</p>
@@ -191,13 +222,15 @@ const SharedInventory: React.FC = () => {
   // 에러 상태
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
-          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center max-w-md mx-auto p-8 bg-white rounded-xl shadow-lg">
+          <div className="mb-4">
+            <AlertTriangle className="mx-auto h-16 w-16 text-red-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
             접근할 수 없습니다
           </h2>
-          <p className="text-gray-600 mb-4">{error}</p>
+          <p className="text-gray-600 mb-6">{error}</p>
           <button
             onClick={() => window.location.reload()}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -209,85 +242,55 @@ const SharedInventory: React.FC = () => {
     );
   }
 
+  const shareTitle = workspaceIdParam
+    ? `${workspace?.name || "워크스페이스"} - 전체 품목`
+    : `${category?.name || "카테고리"} - 품목`;
+
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gray-50">
       {/* 헤더 */}
-      <header className="border-b border-gray-200 sticky top-0 z-40 backdrop-blur-sm bg-white/95">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* 좌측: 로고 및 정보 */}
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center">
-                <Package className="w-8 h-8 text-blue-600" />
-                <div className="ml-3">
-                  <h1 className="text-lg font-semibold text-gray-900">
-                    {workspace?.name || "재고 관리"}
-                  </h1>
-                  <p className="text-sm text-gray-600 hidden sm:block">
-                    {category?.name || "카테고리"} • 공유 페이지
-                  </p>
-                </div>
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Package className="h-8 w-8 text-blue-600" />
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">
+                  {shareTitle}
+                </h1>
+                <p className="text-sm text-gray-500">
+                  {workspace?.name || "공유된 품목"}
+                </p>
               </div>
             </div>
-
-            {/* 우측: 권한 및 사용자 정보 */}
-            <div className="flex items-center space-x-3">
-              {/* 권한 표시 */}
-              <div
-                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                  permission === "use"
-                    ? "bg-green-100 text-green-800"
-                    : "bg-blue-100 text-blue-800"
+            <div className="flex items-center gap-2">
+              <span
+                className={`flex items-center justify-center px-3 py-1.5 rounded-full text-xs font-medium ${
+                  permission === "view"
+                    ? "bg-blue-100 text-blue-700"
+                    : "bg-green-100 text-green-700"
                 }`}
               >
-                {permission === "use" ? (
+                {permission === "view" ? (
                   <>
-                    <Minus className="w-4 h-4 mr-1" />
-                    사용 가능
-                  </>
-                ) : (
-                  <>
-                    <Eye className="w-4 h-4 mr-1" />
+                    <Eye className="inline h-3 w-3 mr-1" />
                     보기 전용
                   </>
-                )}
-              </div>
-
-              {/* 디바이스 표시 */}
-              <div className="hidden sm:flex items-center text-gray-500">
-                {isMobile ? (
-                  <Smartphone className="w-4 h-4" />
                 ) : (
-                  <Monitor className="w-4 h-4" />
+                  <>
+                    <Minus className="inline h-3 w-3 mr-1" />
+                    사용 가능
+                  </>
                 )}
-              </div>
-
-              {/* 사용자 정보 */}
-              {isAuthenticated && user ? (
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                    <span className="text-sm font-medium text-white">
-                      {user.name?.[0] || user.email[0].toUpperCase()}
-                    </span>
-                  </div>
-                  <span className="hidden sm:inline text-sm text-gray-700">
-                    {user.name || user.email}
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center space-x-2 text-gray-600">
-                  <User className="w-5 h-5" />
-                  <span className="hidden sm:inline text-sm">게스트</span>
-                </div>
-              )}
+              </span>
             </div>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* 메인 컨텐츠 */}
-      <main className="min-h-[calc(100vh-182px)] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* 검색 및 뷰 모드 */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* 검색 및 필터 */}
         <SharedInventoryFilters
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -297,76 +300,80 @@ const SharedInventory: React.FC = () => {
         />
 
         {/* 상품 목록 */}
-        {filteredItems.length > 0 ? (
-          viewMode === "grid" ? (
-            <SharedItemCard
-              items={filteredItems}
-              permission={permission}
-              onUseItem={openUseModal}
-            />
+        <div className="mt-6">
+          {filteredItems.length > 0 ? (
+            viewMode === "grid" ? (
+              // ✅ 수정: SharedItemCard는 items 배열을 받으므로 filteredItems를 그대로 전달
+              <SharedItemCard
+                items={filteredItems}
+                permission={permission}
+                onUseItem={openUseModal}
+              />
+            ) : (
+              // ✅ 수정: SharedItemList의 prop 이름 확인 필요 (onUseClick -> onUseItem)
+              <SharedItemList
+                items={filteredItems}
+                permission={permission}
+                onUseItem={openUseModal}
+              />
+            )
           ) : (
-            <SharedItemList
-              items={filteredItems}
-              permission={permission}
-              onUseItem={openUseModal}
-            />
-          )
-        ) : (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchQuery ? "검색 결과가 없습니다" : "등록된 상품이 없습니다"}
-            </h3>
-            <p className="text-gray-600">
-              {searchQuery
-                ? "다른 키워드로 검색해보세요"
-                : "이 카테고리에는 아직 상품이 등록되지 않았습니다"}
-            </p>
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="mt-4 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              >
-                전체 상품 보기
-              </button>
-            )}
-          </div>
-        )}
-      </main>
-
-      {/* 사용 모달 */}
-      {selectedItem && (
-        <UseItemModal
-          isOpen={useModalOpen}
-          onClose={closeUseModal}
-          item={selectedItem}
-          onConfirm={handleUseItem}
-          isAuthenticated={isAuthenticated}
-          user={user}
-        />
-      )}
-
-      {/* 하단 정보 */}
-      <footer className="mt-12 border-t border-gray-200 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-            <div className="flex items-center space-x-2 text-gray-600">
-              <Shield className="w-4 h-4" />
-              <span className="text-sm">안전한 공유 페이지</span>
+            <div className="text-center py-16 bg-white rounded-lg shadow">
+              <Package className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+              <p className="text-lg font-medium text-gray-900 mb-2">
+                {searchQuery
+                  ? "검색 결과가 없습니다"
+                  : "등록된 상품이 없습니다"}
+              </p>
+              <p className="text-gray-500">
+                {searchQuery
+                  ? "다른 키워드로 검색해보세요"
+                  : workspaceIdParam
+                  ? "이 워크스페이스에는 아직 상품이 등록되지 않았습니다"
+                  : "이 카테고리에는 아직 상품이 등록되지 않았습니다"}
+              </p>
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="mt-4 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                >
+                  전체 상품 보기
+                </button>
+              )}
             </div>
-            <div className="flex items-center space-x-4 text-sm text-gray-500">
-              <span>마지막 업데이트: 방금 전</span>
-              <a
-                href="/"
-                className="flex items-center space-x-1 text-blue-600 hover:text-blue-700"
-              >
-                <ExternalLink className="w-4 h-4" />
-                <span>관리 페이지</span>
-              </a>
+          )}
+        </div>
+
+        {/* UseItemModal */}
+        {selectedItem && (
+          <UseItemModal
+            isOpen={useModalOpen}
+            onClose={closeUseModal}
+            item={selectedItem}
+            onConfirm={handleUseItem}
+            isAuthenticated={isAuthenticated}
+            user={user}
+          />
+        )}
+
+        {/* 하단 정보 */}
+        <div className="mt-8 pt-6 border-t border-gray-200">
+          <div className="flex items-center justify-center gap-6 text-sm text-gray-500">
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              <span>안전한 공유</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {isMobile ? (
+                <Smartphone className="h-4 w-4" />
+              ) : (
+                <Monitor className="h-4 w-4" />
+              )}
+              <span>모든 기기에서 접근 가능</span>
             </div>
           </div>
         </div>
-      </footer>
+      </div>
     </div>
   );
 };

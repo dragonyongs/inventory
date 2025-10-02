@@ -12,10 +12,18 @@ interface ShareModalProps {
   onGenerate: (permission: SharePermission) => void;
   shareUrl?: string;
   currentPermission?: SharePermission;
+  shareContext?: string;
 }
 
 export const ShareModal: React.FC<ShareModalProps> = React.memo(
-  ({ isOpen, onClose, onGenerate, shareUrl, currentPermission }) => {
+  ({
+    isOpen,
+    onClose,
+    onGenerate,
+    shareUrl,
+    currentPermission,
+    shareContext = "현재 페이지",
+  }) => {
     const [permission, setPermission] = useState<SharePermission>("view");
     const [copied, setCopied] = useState(false);
     const [qrCodeData, setQrCodeData] = useState<string | null>(null);
@@ -122,7 +130,7 @@ export const ShareModal: React.FC<ShareModalProps> = React.memo(
           {/* 헤더 */}
           <div className="p-6 border-b border-gray-100">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">재고 공유</h3>
+              <h3 className="text-lg font-semibold text-gray-900">공유하기</h3>
               <button
                 onClick={onClose}
                 className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
@@ -130,6 +138,14 @@ export const ShareModal: React.FC<ShareModalProps> = React.memo(
               >
                 <X className="w-5 h-5" />
               </button>
+            </div>
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-600">
+                공유 대상:{" "}
+                <span className="font-medium text-gray-900">
+                  {shareContext}
+                </span>
+              </p>
             </div>
             <p className="text-sm text-gray-600 mt-1">
               현재 카테고리의 재고를 외부에 공유할 수 있습니다

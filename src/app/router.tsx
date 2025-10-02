@@ -61,17 +61,6 @@ const router = createBrowserRouter([
       </AuthLayout>
     ),
   },
-
-  // ✅ 공유 페이지 라우트 (인증 불필요, ProtectedLayout 외부)
-  {
-    path: "/share/:token",
-    element: (
-      <Suspense fallback={<PageLoader />}>
-        <SharedInventory />
-      </Suspense>
-    ),
-  },
-
   // ============================================
   // 보호된 라우트 (인증 필요)
   // ============================================
@@ -150,6 +139,24 @@ const router = createBrowserRouter([
         ),
       },
     ],
+  },
+
+  // ✅ 공유 페이지 라우트 (인증 불필요, ProtectedLayout 외부)
+  {
+    path: "/share/workspace/:workspaceId",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <SharedInventory />
+      </Suspense>
+    ),
+  },
+  {
+    path: "/share/:token",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <SharedInventory />
+      </Suspense>
+    ),
   },
 
   // ============================================
