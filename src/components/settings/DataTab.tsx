@@ -2,7 +2,6 @@ import React, { useState, useMemo, useCallback } from "react";
 import {
   Download,
   Upload,
-  Trash2,
   AlertCircle,
   CheckCircle,
   Package,
@@ -11,15 +10,15 @@ import {
   Clock,
   RefreshCw,
 } from "lucide-react";
-import { useItemsStore } from "@/stores/itemsStore"; // ✅ 수정
-import { useMovementsStore } from "@/stores/movementsStore"; // ✅ 수정
-import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { useItemsStore } from "../../stores/itemsStore";
+import { useMovementsStore } from "../../stores/movementsStore";
+import { useWorkspaceStore } from "../../stores/workspaceStore";
 
 type ConfirmModalType = "clear" | "reset" | null;
 
 export const DataTab: React.FC = React.memo(() => {
-  const itemsStore = useItemsStore(); // ✅ 수정
-  const movementsStore = useMovementsStore(); // ✅ 수정
+  const itemsStore = useItemsStore();
+  const movementsStore = useMovementsStore();
   const workspaceStore = useWorkspaceStore();
 
   const [showConfirmModal, setShowConfirmModal] =
@@ -29,16 +28,8 @@ export const DataTab: React.FC = React.memo(() => {
   const currentWorkspaceId = workspaceStore.currentWorkspaceId;
 
   const backupStats = useMemo(() => {
-    // ✅ itemsStore의 getWorkspaceItems() 사용
     const items = itemsStore.getWorkspaceItems();
-
-    // ✅ movementsStore에서 현재 워크스페이스 movements 필터링
-    const allMovements = Object.values(movementsStore.byId || {});
-    const movements = currentWorkspaceId
-      ? allMovements.filter(
-          (movement) => movement.workspaceId === currentWorkspaceId
-        )
-      : [];
+    const movements = movementsStore.getWorkspaceMovements(); // ✅ 워크스페이스별 movements
 
     const dataSize = new Blob([JSON.stringify({ items, movements })]).size;
 
@@ -48,18 +39,13 @@ export const DataTab: React.FC = React.memo(() => {
       pendingSync: 0,
       dataSize: `${(dataSize / 1024).toFixed(2)} KB`,
     };
-  }, [itemsStore.items, movementsStore.byId, currentWorkspaceId]); // ✅ 의존성 수정
+  }, [itemsStore.items, movementsStore.byId, currentWorkspaceId]); // ✅ currentWorkspaceId 의존성 추가
 
   const handleBackup = useCallback(() => {
     try {
       setIsProcessing(true);
       const items = itemsStore.getWorkspaceItems();
-      const allMovements = Object.values(movementsStore.byId || {});
-      const movements = currentWorkspaceId
-        ? allMovements.filter(
-            (movement) => movement.workspaceId === currentWorkspaceId
-          )
-        : [];
+      const movements = movementsStore.getWorkspaceMovements();
 
       const backupData = {
         version: "1.0",
@@ -87,7 +73,7 @@ export const DataTab: React.FC = React.memo(() => {
     } finally {
       setIsProcessing(false);
     }
-  }, [itemsStore, movementsStore.byId, currentWorkspaceId]);
+  }, [itemsStore, movementsStore, currentWorkspaceId]);
 
   const handleRestore = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -103,7 +89,7 @@ export const DataTab: React.FC = React.memo(() => {
 
           if (backupData.data?.items) {
             backupData.data.items.forEach((item: any) => {
-              itemsStore.upsert(item); // ✅ upsert 메서드 사용
+              itemsStore.upsert(item);
             });
           }
 
@@ -134,20 +120,17 @@ export const DataTab: React.FC = React.memo(() => {
     setIsProcessing(true);
     try {
       const items = itemsStore.getWorkspaceItems();
+      const movements = movementsStore.getWorkspaceMovements();
 
-      // ✅ 각 아이템 삭제
+      // ✅ 아이템 삭제
       items.forEach((item) =>
         itemsStore.removeItem(item.id, "워크스페이스 데이터 초기화")
       );
 
-      // ✅ movements 삭제
-      const allMovements = Object.values(movementsStore.byId || {});
-      const movements = allMovements.filter(
-        (movement) => movement.workspaceId === currentWorkspaceId
-      );
-      movements.forEach((movement) =>
-        movementsStore.deleteMovement(movement.id)
-      );
+      // ✅ movements 삭제 - removeMovement 메서드 사용
+      movements.forEach((movement) => {
+        movementsStore.removeMovement(movement.id);
+      });
 
       alert("워크스페이스 데이터가 삭제되었습니다.");
     } catch (error) {

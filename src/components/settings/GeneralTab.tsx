@@ -13,11 +13,6 @@ import {
 } from "lucide-react";
 import { useSettingsStore } from "../../stores/settingsStore";
 
-// ✅ settingsStore에서 타입 import (타입이 export 되어 있다면)
-// 또는 settingsStore의 실제 타입에 맞춰 정의
-type UpdateMode = "auto" | "manual"; // ✅ "notify" 제거 (settingsStore에 없을 수 있음)
-type Theme = "auto" | "light" | "dark"; // ✅ "system" 대신 "auto" 사용
-
 export const GeneralTab: React.FC = React.memo(() => {
   const settings = useSettingsStore();
   const isInitialMount = useRef(true);
@@ -26,7 +21,7 @@ export const GeneralTab: React.FC = React.memo(() => {
     expiringDays: settings.expiringDays,
     pageSize: settings.pageSize,
     updateMode: settings.updateMode,
-    theme: settings.theme || ("light" as Theme),
+    theme: settings.theme || ("light" as const),
   });
 
   const [hasChanges, setHasChanges] = useState(false);
@@ -75,14 +70,14 @@ export const GeneralTab: React.FC = React.memo(() => {
       expiringDays: settings.expiringDays,
       pageSize: settings.pageSize,
       updateMode: settings.updateMode,
-      theme: settings.theme || ("light" as Theme),
+      theme: settings.theme || ("light" as const),
     });
     setHasChanges(false);
   }, [settings]);
 
   const themeOptions = [
     {
-      value: "light" as const, // ✅ as const 사용
+      value: "light" as const,
       label: "라이트 모드",
       description: "밝은 테마로 표시합니다",
       icon: Sun,
@@ -94,7 +89,7 @@ export const GeneralTab: React.FC = React.memo(() => {
       icon: Moon,
     },
     {
-      value: "auto" as const, // ✅ "system" → "auto" 변경
+      value: "auto" as const,
       label: "자동 설정",
       description: "기기 설정을 따릅니다",
       icon: Monitor,
@@ -112,7 +107,7 @@ export const GeneralTab: React.FC = React.memo(() => {
       label: "수동 업데이트",
       description: "업데이트를 확인 후 진행합니다",
     },
-  ]; // ✅ "notify" 옵션 제거 (settingsStore에 없음)
+  ];
 
   const pageSizeOptions = [10, 20, 30, 50, 100];
 

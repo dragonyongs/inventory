@@ -2,6 +2,7 @@
 import type { ItemImage } from "@/types/image";
 
 const DROPBOX_APP_KEY = import.meta.env.VITE_DROPBOX_APP_KEY || "";
+const DROPBOX_APP_SECRET = import.meta.env.VITE_DROPBOX_APP_SECRET || "";
 const DROPBOX_REDIRECT_URI =
   import.meta.env.VITE_DROPBOX_REDIRECT_URI || window.location.origin;
 
@@ -16,14 +17,17 @@ class DropboxService {
 
   constructor() {
     this.loadTokens();
-    // ✅ 추가: 환경변수에서 토큰 자동 로드 및 저장
+
+    // ✅ 환경변수에서 리프레시 토큰 로드
     if (
-      !this.tokens?.accessToken &&
-      import.meta.env.VITE_DROPBOX_ACCESS_TOKEN
+      !this.tokens?.refreshToken &&
+      import.meta.env.VITE_DROPBOX_REFRESH_TOKEN
     ) {
-      console.log("환경변수에서 Dropbox 토큰을 로드합니다...");
+      console.log("환경변수에서 Dropbox 리프레시 토큰을 로드합니다...");
       this.saveTokens({
-        accessToken: import.meta.env.VITE_DROPBOX_ACCESS_TOKEN,
+        accessToken: "", // 빈 값으로 초기화
+        refreshToken: import.meta.env.VITE_DROPBOX_REFRESH_TOKEN,
+        expiresAt: 0,
       });
     }
   }
@@ -40,34 +44,135 @@ class DropboxService {
     }
   }
 
+  // ✅ 토큰 만료 확인
+  private isTokenExpired(): boolean {
+    if (!this.tokens?.expiresAt) return true;
+    // 만료 5분 전에 갱신
+    return Date.now() >= this.tokens.expiresAt - 5 * 60 * 1000;
+  }
+
+  // ✅ 액세스 토큰 갱신
+  private async refreshAccessToken(): Promise<void> {
+    if (!this.tokens?.refreshToken) {
+      throw new Error("리프레시 토큰이 없습니다");
+    }
+
+    try {
+      const params = new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: this.tokens.refreshToken,
+      });
+
+      const response = await fetch("https://api.dropboxapi.com/oauth2/token", {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${btoa(
+            `${DROPBOX_APP_KEY}:${DROPBOX_APP_SECRET}`
+          )}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: params.toString(),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`토큰 갱신 실패: ${error}`);
+      }
+
+      const data = await response.json();
+
+      // 새 액세스 토큰 저장 (리프레시 토큰은 그대로 유지)
+      this.saveTokens({
+        accessToken: data.access_token,
+        refreshToken: this.tokens.refreshToken,
+        expiresAt: Date.now() + data.expires_in * 1000, // 초를 밀리초로 변환
+      });
+
+      console.log("액세스 토큰 갱신 완료");
+    } catch (error) {
+      console.error("토큰 갱신 실패:", error);
+      throw error;
+    }
+  }
+
+  // ✅ 유효한 액세스 토큰 확보
+  private async ensureValidAccessToken(): Promise<string> {
+    if (this.isTokenExpired()) {
+      console.log("토큰이 만료되었습니다. 갱신합니다...");
+      await this.refreshAccessToken();
+    }
+
+    if (!this.tokens?.accessToken) {
+      throw new Error("액세스 토큰을 가져올 수 없습니다");
+    }
+
+    return this.tokens.accessToken;
+  }
+
+  // OAuth 인증 시작 (리프레시 토큰 받기 위해 offline 모드 추가)
+  public startAuth() {
+    const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${DROPBOX_APP_KEY}&response_type=code&token_access_type=offline&redirect_uri=${encodeURIComponent(
+      DROPBOX_REDIRECT_URI
+    )}`;
+    window.location.href = authUrl;
+  }
+
+  // ✅ 인증 코드로 토큰 교환 (리프레시 토큰 포함)
+  public async exchangeCodeForToken(code: string): Promise<void> {
+    const params = new URLSearchParams({
+      code,
+      grant_type: "authorization_code",
+      redirect_uri: DROPBOX_REDIRECT_URI,
+    });
+
+    try {
+      const response = await fetch("https://api.dropboxapi.com/oauth2/token", {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${btoa(
+            `${DROPBOX_APP_KEY}:${DROPBOX_APP_SECRET}`
+          )}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: params.toString(),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`토큰 교환 실패: ${error}`);
+      }
+
+      const data = await response.json();
+
+      this.saveTokens({
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+        expiresAt: Date.now() + data.expires_in * 1000,
+      });
+
+      console.log("토큰 교환 완료, 리프레시 토큰 저장됨");
+    } catch (error) {
+      console.error("토큰 교환 실패:", error);
+      throw error;
+    }
+  }
+
   // 토큰 저장
   private saveTokens(tokens: DropboxTokens) {
     this.tokens = tokens;
     localStorage.setItem("dropbox-tokens", JSON.stringify(tokens));
   }
 
-  // OAuth 인증 시작
-  public startAuth() {
-    const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${DROPBOX_APP_KEY}&response_type=code&redirect_uri=${encodeURIComponent(
-      DROPBOX_REDIRECT_URI
-    )}`;
-    window.location.href = authUrl;
-  }
-
-  // 인증 코드로 액세스 토큰 교환
-  public async exchangeCodeForToken(_code: string): Promise<void> {
-    // 실제 구현 시 백엔드 API를 통해 처리해야 함 (클라이언트 시크릿 노출 방지)
-    console.warn("토큰 교환은 백엔드에서 처리해야 합니다");
-
-    // 임시로 하드코딩된 토큰 사용 (개발용)
-    this.saveTokens({
-      accessToken: "YOUR_DROPBOX_ACCESS_TOKEN",
-    });
-  }
-
   // 인증 여부 확인
   public isAuthenticated(): boolean {
-    return !!this.tokens?.accessToken;
+    return !!this.tokens?.refreshToken || !!this.tokens?.accessToken;
+  }
+
+  private encodeHeaderSafeJson(obj: unknown): string {
+    const jsonString = JSON.stringify(obj);
+    return jsonString.replace(/[\u007F-\uFFFF]/g, (char) => {
+      return "\\u" + ("0000" + char.charCodeAt(0).toString(16)).slice(-4);
+    });
   }
 
   // 파일 업로드
@@ -76,27 +181,26 @@ class DropboxService {
     itemId: string,
     onProgress?: (progress: number) => void
   ): Promise<ItemImage> {
-    if (!this.isAuthenticated()) {
-      throw new Error("Dropbox 인증이 필요합니다");
-    }
+    const accessToken = await this.ensureValidAccessToken();
 
     const fileName = `${Date.now()}_${file.name}`;
     const path = `/${itemId}/${fileName}`;
 
     try {
-      // 파일 업로드 (Dropbox API v2)
+      const apiArg = this.encodeHeaderSafeJson({
+        path,
+        mode: "add",
+        autorename: true,
+        mute: false,
+      });
+
       const response = await fetch(
         "https://content.dropboxapi.com/2/files/upload",
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${this.tokens!.accessToken}`,
-            "Dropbox-API-Arg": JSON.stringify({
-              path,
-              mode: "add",
-              autorename: true,
-              mute: false,
-            }),
+            Authorization: `Bearer ${accessToken}`,
+            "Dropbox-API-Arg": apiArg,
             "Content-Type": "application/octet-stream",
           },
           body: file,
@@ -109,8 +213,6 @@ class DropboxService {
       }
 
       const data = await response.json();
-
-      // 공유 링크 생성
       const directUrl = await this.createSharedLink(data.path_display);
 
       const itemImage: ItemImage = {
@@ -134,16 +236,18 @@ class DropboxService {
 
   // 공유 링크 생성 및 직접 URL로 변환
   private async createSharedLink(path: string): Promise<string> {
+    const accessToken = await this.ensureValidAccessToken();
+
     try {
       const response = await fetch(
         "https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings",
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${this.tokens!.accessToken}`,
+            Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
+          body: this.encodeHeaderSafeJson({
             path,
             settings: {
               requested_visibility: "public",
@@ -154,28 +258,18 @@ class DropboxService {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("공유 링크 생성 API 실패:", {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData,
-        });
 
-        // ✅ shared_link_already_exists 에러 처리
         if (errorData.error?.[".tag"] === "shared_link_already_exists") {
-          console.log("이미 공유 링크가 존재합니다. 기존 링크를 가져옵니다...");
           const existingLink =
             errorData.error?.shared_link_already_exists?.metadata?.url;
           if (existingLink) {
             return this.convertToDirectUrl(existingLink);
           }
-        }
 
-        // 기존 링크 목록에서 찾기 시도
-        const existingLinks = await this.listSharedLinks(path);
-        console.log("기존 공유 링크 목록:", existingLinks);
-
-        if (existingLinks.length > 0) {
-          return this.convertToDirectUrl(existingLinks[0].url);
+          const existingLinks = await this.listSharedLinks(path);
+          if (existingLinks.length > 0) {
+            return this.convertToDirectUrl(existingLinks[0].url);
+          }
         }
 
         throw new Error(`공유 링크 생성 실패: ${JSON.stringify(errorData)}`);
@@ -199,7 +293,7 @@ class DropboxService {
           Authorization: `Bearer ${this.tokens!.accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ path }),
+        body: this.encodeHeaderSafeJson({ path }),
       }
     );
 
@@ -220,9 +314,7 @@ class DropboxService {
 
   // 파일 삭제
   public async deleteFile(dropboxPath: string): Promise<void> {
-    if (!this.isAuthenticated()) {
-      throw new Error("Dropbox 인증이 필요합니다");
-    }
+    const accessToken = await this.ensureValidAccessToken();
 
     try {
       const response = await fetch(
@@ -230,10 +322,10 @@ class DropboxService {
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${this.tokens!.accessToken}`,
+            Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ path: dropboxPath }),
+          body: this.encodeHeaderSafeJson({ path: dropboxPath }),
         }
       );
 

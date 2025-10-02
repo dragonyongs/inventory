@@ -150,7 +150,7 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
                     {item.images!.length}
                   </div>
                 )}
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 rounded-lg transition-all flex items-center justify-center">
+                <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-30 rounded-lg transition-all flex items-center justify-center">
                   <Camera className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               </button>

@@ -186,7 +186,7 @@ export const AddCategoryModal: React.FC<AddCategoryModalProps> = React.memo(
               </div>
 
               {/* 콘텐츠 */}
-              <div className="p-6 space-y-5">
+              <div className="p-6 space-y-5 overflow-y-auto max-h-96 md:max-h-auto">
                 {/* 카테고리 이름 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-900 mb-2">
@@ -223,7 +223,7 @@ export const AddCategoryModal: React.FC<AddCategoryModalProps> = React.memo(
                   <label className="block text-sm font-medium text-gray-900 mb-3">
                     아이콘
                   </label>
-                  <div className="grid grid-cols-8 gap-2">
+                  <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
                     {CATEGORY_ICONS.map((icon) => (
                       <button
                         key={icon}
