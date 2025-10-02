@@ -1,5 +1,5 @@
 // public/sw.js - 최적화된 Service Worker
-const CACHE_NAME = "inventory-pwa-v3"; // ✅ 버전 업그레이드
+const CACHE_NAME = "inventory-pwa-v3.1"; // ✅ 버전 업그레이드
 const STATIC_CACHE = "inventory-static-v3";
 const DYNAMIC_CACHE = "inventory-dynamic-v3";
 

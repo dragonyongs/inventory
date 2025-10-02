@@ -23,6 +23,7 @@ import { AddCategoryModal } from "@/components/inventory/AddCategoryModal";
 import { ImageUploader } from "@/components/inventory/ImageUploader";
 import { ImageGallery } from "@/components/inventory/ImageGallery";
 import type { ItemImage } from "@/types/image";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 // zod 스키마에 categoryId 추가
 const schema = z.object({
@@ -42,6 +43,7 @@ type FormData = z.infer<typeof schema>;
 
 export const NewItemPage: React.FC = () => {
   const navigate = useNavigate();
+  const isMobile = useMediaQuery("(max-width: 768px)");
   const addItem = useItemsStore((s) => s.addItem);
   const createMovement = useCreateMovement();
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
@@ -178,18 +180,24 @@ export const NewItemPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
       {/* 헤더 */}
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link
-              to="/inventory"
-              className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 
-                       font-medium transition-colors duration-200 group"
-            >
-              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform duration-200" />
-              <span className="text-sm">목록으로</span>
-            </Link>
-          </div>
+      <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
+        <div className="flex items-center justify-between px-4 py-3 max-w-7xl mx-auto">
+          <Link
+            to="/inventory"
+            className="flex items-center gap-2 text-gray-700 hover:text-gray-900"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span className={isMobile ? "text-sm" : "text-base"}>
+              {isMobile ? "목록" : "목록으로"}
+            </span>
+          </Link>
+          {/* 모바일에서만 제목 표시 */}
+          {isMobile && (
+            <h1 className="text-lg font-semibold text-gray-900">
+              새 상품 등록
+            </h1>
+          )}
+          <div className="w-20" /> {/* 균형을 위한 spacer */}
         </div>
       </header>
 
@@ -197,7 +205,7 @@ export const NewItemPage: React.FC = () => {
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* 타이틀 섹션 */}
-          <div className="text-center space-y-3">
+          {/* <div className="text-center space-y-3">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg shadow-blue-500/25">
               <PackagePlus className="w-8 h-8 text-white" />
             </div>
@@ -207,7 +215,19 @@ export const NewItemPage: React.FC = () => {
             <p className="text-gray-500 text-sm sm:text-base">
               상품을 등록하고 재고를 효율적으로 관리하세요
             </p>
-          </div>
+          </div> */}
+
+          {!isMobile && (
+            <div className="text-center space-y-2">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-2xl mb-4">
+                <PackagePlus className="w-8 h-8 text-blue-600" />
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900">새 상품 등록</h1>
+              <p className="text-gray-600">
+                상품을 등록하고 재고를 효율적으로 관리하세요
+              </p>
+            </div>
+          )}
 
           {/* 기본 정보 카드 */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">

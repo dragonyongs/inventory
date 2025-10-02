@@ -75,9 +75,9 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
           </div>
 
           {/* App Title */}
-          <div className="border-b border-gray-100 px-4 py-3">
+          {/* <div className="border-b border-gray-100 px-4 py-3">
             <h1 className="text-base font-semibold text-gray-800">재고관리</h1>
-          </div>
+          </div> */}
 
           {/* Navigation */}
           <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
@@ -123,7 +123,7 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
                   <Menu className="h-6 w-6" />
                 )}
               </button>
-              <h1 className="text-lg font-semibold text-gray-900">재고관리</h1>
+              <h1 className="text-lg font-semibold text-gray-900">물품관리</h1>
             </div>
           </div>
         </div>
@@ -145,16 +145,16 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
             >
               <div className="flex h-full flex-col">
                 {/* Workspace Selector - 모바일도 최상단 */}
-                <div className="px-4 pb-3 pt-6">
+                <div className="px-4 py-6 border-b border-gray-100 ">
                   <WorkspaceSelector variant="compact" />
                 </div>
 
                 {/* App Title */}
-                <div className="border-b border-gray-100 px-4 py-3">
+                {/* <div className="border-b border-gray-100 px-4 py-3">
                   <h1 className="text-base font-semibold text-gray-800">
                     재고관리
                   </h1>
-                </div>
+                </div> */}
 
                 {/* Navigation */}
                 <nav className="flex-1 space-y-2 overflow-y-auto px-4 pb-4 pt-6">
