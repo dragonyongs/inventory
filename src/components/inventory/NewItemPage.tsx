@@ -20,6 +20,9 @@ import { useCreateMovement } from "@/hooks/useCreateMovement";
 import { useCategoriesStore } from "@/stores/categoriesStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { AddCategoryModal } from "@/components/inventory/AddCategoryModal";
+import { ImageUploader } from "@/components/inventory/ImageUploader";
+import { ImageGallery } from "@/components/inventory/ImageGallery";
+import type { ItemImage } from "@/types/image";
 
 // zod 스키마에 categoryId 추가
 const schema = z.object({
@@ -46,6 +49,7 @@ export const NewItemPage: React.FC = () => {
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<ItemImage[]>([]);
 
   const categories = useMemo(() => {
     if (!currentWorkspaceId) return [];
@@ -87,8 +91,33 @@ export const NewItemPage: React.FC = () => {
     [errors]
   );
 
+  // 이미지 업로드 핸들러 추가
+  const handleImageUploaded = useCallback((image: ItemImage) => {
+    setUploadedImages((prev) => {
+      const isPrimary = prev.length === 0;
+      return [...prev, { ...image, isPrimary }];
+    });
+  }, []);
+
+  // 대표 이미지 설정 핸들러
+  const handleSetPrimaryImage = useCallback((imageId: string) => {
+    setUploadedImages((prev) =>
+      prev.map((img) => ({
+        ...img,
+        isPrimary: img.id === imageId,
+      }))
+    );
+  }, []);
+
+  // 이미지 삭제 핸들러
+  const handleDeleteImage = useCallback((imageId: string) => {
+    setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const primaryImage = uploadedImages.find((img) => img.isPrimary);
 
     const result = schema.safeParse(form);
     if (!result.success) {
@@ -110,6 +139,8 @@ export const NewItemPage: React.FC = () => {
     setIsSubmitting(true);
 
     try {
+      const primaryImage = uploadedImages.find((img) => img.isPrimary);
+
       const item = addItem({
         name: form.name,
         sku: form.sku || undefined,
@@ -121,6 +152,8 @@ export const NewItemPage: React.FC = () => {
         batchNumber: form.batchNumber || undefined,
         receivedDate: form.receivedDate || undefined,
         categoryId: form.categoryId || undefined,
+        images: uploadedImages,
+        thumbnailUrl: primaryImage?.directUrl,
       });
 
       const qty = Number(form.qty);
@@ -132,7 +165,7 @@ export const NewItemPage: React.FC = () => {
           reason: "초기 입고",
         });
       }
-
+      setUploadedImages([]);
       navigate("/inventory");
     } catch (error) {
       console.error("상품 등록 실패:", error);
@@ -339,6 +372,35 @@ export const NewItemPage: React.FC = () => {
                              transition-all duration-200"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-3 bg-gray-50 p-4 rounded-lg">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <Package className="w-4 h-4" />
+                  상품 이미지
+                </label>
+
+                {/* 이미지 업로더 */}
+                <ImageUploader
+                  itemId="temp-new-item"
+                  onImageUploaded={handleImageUploaded}
+                  currentImagesCount={uploadedImages.length}
+                  maxImages={5}
+                />
+
+                {/* 업로드된 이미지 갤러리 */}
+                {uploadedImages.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-xs text-gray-500 mb-2">
+                      업로드된 이미지 ({uploadedImages.length}개)
+                    </p>
+                    <ImageGallery
+                      images={uploadedImages}
+                      onSetPrimary={handleSetPrimaryImage}
+                      onDelete={handleDeleteImage}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>

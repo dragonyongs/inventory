@@ -10,7 +10,7 @@ interface PageHeaderProps {
 export const PageHeader = memo<PageHeaderProps>(
   ({ title, description, actions }) => {
     return (
-      <header className="bg-white border-b border-gray-100 px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+      <header className="bg-white px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         {/* 모바일: 세로 레이아웃, 데스크탑: 가로 레이아웃 */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           {/* 타이틀 영역 */}

@@ -7,7 +7,7 @@ import { useMovementsStore } from "./movementsStore";
 import { useWorkspaceStore } from "./workspaceStore";
 import { useCategoriesStore } from "./categoriesStore";
 import { generateId } from "@/utils/generateId";
-
+import type { ItemImage } from "@/types/image";
 export interface Item {
   id: string;
   name: string;
@@ -29,6 +29,8 @@ export interface Item {
   deletedBy?: string;
   deletedReason?: string;
   isDeleted?: boolean;
+  images?: ItemImage[];
+  thumbnailUrl?: string;
 }
 
 interface ItemsState {
@@ -60,6 +62,9 @@ interface ItemsActions {
     items: Array<Omit<Item, "id" | "createdAt" | "workspaceId" | "stock">>
   ) => Item[];
   clearItems: () => void;
+  addImageToItem: (itemId: string, image: ItemImage) => void;
+  removeImageFromItem: (itemId: string, imageId: string) => void;
+  setPrimaryImage: (itemId: string, imageId: string) => void;
 }
 
 type ItemsStore = ItemsState & ItemsActions;
@@ -105,6 +110,81 @@ export const useItemsStore = create<ItemsStore>()(
     (set, get) => ({
       items: {},
       query: "",
+
+      // ✅ 이미지 추가
+      addImageToItem: (itemId, image) => {
+        set((state) => {
+          const item = state.items[itemId];
+          if (!item) return state;
+
+          const images = item.images || [];
+          const updatedImages = [...images, image];
+
+          // 첫 이미지면 자동으로 썸네일 설정
+          const thumbnailUrl =
+            images.length === 0 ? image.directUrl : item.thumbnailUrl;
+
+          return {
+            items: {
+              ...state.items,
+              [itemId]: {
+                ...item,
+                images: updatedImages,
+                thumbnailUrl,
+              },
+            },
+          };
+        });
+      },
+
+      // ✅ 이미지 제거
+      removeImageFromItem: (itemId, imageId) => {
+        set((state) => {
+          const item = state.items[itemId];
+          if (!item || !item.images) return state;
+
+          const updatedImages = item.images.filter((img) => img.id !== imageId);
+          const primaryImage = updatedImages.find((img) => img.isPrimary);
+
+          return {
+            items: {
+              ...state.items,
+              [itemId]: {
+                ...item,
+                images: updatedImages,
+                thumbnailUrl:
+                  primaryImage?.directUrl || updatedImages[0]?.directUrl,
+              },
+            },
+          };
+        });
+      },
+
+      // ✅ 대표 이미지 설정
+      setPrimaryImage: (itemId, imageId) => {
+        set((state) => {
+          const item = state.items[itemId];
+          if (!item || !item.images) return state;
+
+          const updatedImages = item.images.map((img) => ({
+            ...img,
+            isPrimary: img.id === imageId,
+          }));
+
+          const primaryImage = updatedImages.find((img) => img.isPrimary);
+
+          return {
+            items: {
+              ...state.items,
+              [itemId]: {
+                ...item,
+                images: updatedImages,
+                thumbnailUrl: primaryImage?.directUrl,
+              },
+            },
+          };
+        });
+      },
 
       getWorkspaceItems: () => {
         const currentWorkspaceId = getCurrentWorkspaceId();

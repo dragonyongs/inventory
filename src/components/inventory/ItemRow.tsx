@@ -5,6 +5,7 @@ import { type Item } from "@/stores/itemsStore";
 import { useCategoriesStore } from "@/stores/categoriesStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { ItemActions } from "./ItemActions";
+import { Image } from "lucide-react";
 
 interface ItemRowProps {
   item: Item;
@@ -31,6 +32,7 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
       batchNumber: item.batchNumber ?? "",
       receivedDate: item.receivedDate ?? "",
       categoryId: item.categoryId ?? "",
+      thumbnailUrl: item.thumbnailUrl ?? "",
     });
 
     const availableCategories = useMemo(() => {
@@ -57,6 +59,7 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
         batchNumber: form.batchNumber || undefined,
         receivedDate: form.receivedDate || undefined,
         categoryId: form.categoryId || undefined,
+        thumbnailUrl: form.thumbnailUrl || undefined,
       });
       setEditing(false);
     }, [onEdit, form]);
@@ -74,6 +77,7 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
         batchNumber: item.batchNumber ?? "",
         receivedDate: item.receivedDate ?? "",
         categoryId: item.categoryId ?? "",
+        thumbnailUrl: item.thumbnailUrl ?? "",
       });
     }, [item]);
 
@@ -92,6 +96,38 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
           editing && "bg-gray-50"
         }`}
       >
+        <td className="py-4 px-6">
+          {editing ? (
+            item.thumbnailUrl ? (
+              <img
+                src={item.thumbnailUrl}
+                alt={item.name}
+                className="w-12 h-12 object-cover rounded border border-gray-200"
+                loading="lazy"
+              />
+            ) : (
+              <div className="w-12 h-12 flex items-center justify-center bg-gray-100 rounded border border-gray-200">
+                <Image className="w-6 h-6 text-gray-400" />
+              </div>
+            )
+          ) : (
+            <div>
+              {item.thumbnailUrl ? (
+                <img
+                  src={item.thumbnailUrl}
+                  alt={item.name}
+                  className="w-12 h-12 object-cover rounded border border-gray-200"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="w-12 h-12 flex items-center justify-center bg-gray-100 rounded border border-gray-200">
+                  <Image className="w-6 h-6 text-gray-400" />
+                </div>
+              )}
+            </div>
+          )}
+        </td>
+
         {/* 상품 정보 */}
         <td className="py-4 px-6">
           {editing ? (

@@ -23,7 +23,7 @@ export const useItemList = () => {
         item && item.workspaceId === currentWorkspaceId && !item.isDeleted
     );
 
-    console.log("useItemList:", allItems.length, "->", workspaceItems.length);
+    console.log("useItemList:", allItems.length, "→", workspaceItems.length);
 
     if (!query) return workspaceItems;
 

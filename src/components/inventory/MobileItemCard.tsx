@@ -15,6 +15,7 @@ import { getExpiryStatus } from "@/utils/expiryUtils";
 import { type Item } from "@/stores/itemsStore";
 import { useCategoriesStore } from "@/stores/categoriesStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { Image as ImageIcon } from "lucide-react";
 
 interface MobileItemCardProps {
   item: Item;
@@ -382,12 +383,38 @@ export const MobileItemCard: React.FC<MobileItemCardProps> = React.memo(
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {/* 헤더 영역 */}
         <div className="p-4 border-b border-gray-100">
-          <div className="flex gap-3 items-center">
+          <div
+            className={`flex gap-3 ${
+              item.images && item.images.length > 0
+                ? "flex-col items-start"
+                : "items-center"
+            }`}
+          >
             {/* 좌측: 상품 이미지 영역 (추후 이미지 추가용) */}
-            <div className="flex-shrink-0 w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center">
-              {/* item.imageUrl이 있으면 <img src={item.imageUrl} /> 사용 */}
-              <Package className="w-7 h-7 text-gray-400" />
-            </div>
+            {item.thumbnailUrl && (
+              <div className="h-32 w-full bg-gray-100 flex items-center justify-center rounded-t-lg border-b border-gray-200">
+                <img
+                  src={item.thumbnailUrl}
+                  alt={item.name}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+                {/* 이미지 개수 뱃지 */}
+                {item.images && item.images.length > 1 && (
+                  <div className="absolute bottom-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
+                    +{item.images.length - 1}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 이미지가 없을 때 플레이스홀더 */}
+            {!item.thumbnailUrl && (
+              <div className="flex-shrink-0 w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center">
+                {/* <ImageIcon className="w-12 h-12 text-gray-300" /> */}
+                <Package className="w-7 h-7 text-gray-400" />
+              </div>
+            )}
 
             {/* 우측: 상품 정보 */}
             <div className="flex-1 min-w-0">

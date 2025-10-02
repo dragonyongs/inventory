@@ -43,22 +43,25 @@ export default function InventoryTable({
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50/50 border-b border-gray-100">
-                    <th className="text-left py-4 px-6 text-sm font-semibold text-gray-700 text-nowrap">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      이미지
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       상품 정보
                     </th>
-                    <th className="text-left py-4 px-6 text-sm font-semibold text-gray-700 text-nowrap">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       재고량
                     </th>
-                    <th className="text-left py-4 px-6 text-sm font-semibold text-gray-700 text-nowrap">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       입고일
                     </th>
-                    <th className="text-left py-4 px-6 text-sm font-semibold text-gray-700 text-nowrap">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       유통기한
                     </th>
-                    <th className="text-left py-4 px-6 text-sm font-semibold text-gray-700 text-nowrap">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       상태
                     </th>
-                    <th className="text-left py-4 px-6 text-sm font-semibold text-gray-700 text-nowrap">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       작업
                     </th>
                   </tr>
