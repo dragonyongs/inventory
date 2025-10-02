@@ -139,7 +139,7 @@ export function CategorySelector() {
   }, [checkScrollButtons]);
 
   return (
-    <div className="relative">
+    <div className="relative px-3 md:px-6">
       {/* 메인 카테고리 네비게이션 */}
       <div className="flex items-center gap-1 p-1 bg-white rounded-xl border border-gray-100 overflow-x-auto scrollbar-hide">
         {/* 좌측 스크롤 버튼 */}

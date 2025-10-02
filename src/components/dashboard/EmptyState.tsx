@@ -39,7 +39,7 @@ export const EmptyState: React.FC<EmptyStateProps> = React.memo(
 
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center max-w-lg mx-auto px-4">
+        <div className="text-center max-w-2xl mx-auto px-4">
           <div className="w-32 h-32 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-8">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
               <Building2 className="w-8 h-8 text-blue-600" />
