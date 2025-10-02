@@ -1,15 +1,15 @@
 // src/components/DevTools.tsx
-
 import React, { useState, useEffect } from "react";
 import {
   Trash2,
   Download,
   Upload,
+  Eye,
+  EyeOff,
   RefreshCw,
   Settings,
-  X,
-  ChevronDown,
-  ChevronUp,
+  AlertTriangle,
+  CheckCircle,
 } from "lucide-react";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { useItemsStore } from "../stores/itemsStore";
@@ -49,6 +49,7 @@ export const DevTools: React.FC = () => {
   const refreshStorageInfo = () => {
     const info: StorageInfo = {};
 
+    // localStorage 모든 항목 조사
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key) {
@@ -101,10 +102,10 @@ export const DevTools: React.FC = () => {
     ) {
       const removedCount = cleanupWorkspaceKeys(currentWorkspaceId);
 
+      // 현재 워크스페이스 아이템만 삭제
       const currentItems = Object.values(items).filter(
         (item) => item.workspaceId === currentWorkspaceId
       );
-
       const updatedItems = Object.fromEntries(
         Object.entries(items).filter(
           ([_, item]) => item.workspaceId !== currentWorkspaceId
@@ -113,6 +114,7 @@ export const DevTools: React.FC = () => {
 
       useItemsStore.setState({ items: updatedItems, query: "" });
 
+      // 현재 워크스페이스 움직임만 삭제
       const updatedMovements = Object.fromEntries(
         Object.entries(movements).filter(([_, movement]) => {
           const item = items[movement.itemId];
@@ -133,6 +135,7 @@ export const DevTools: React.FC = () => {
     if (confirm("⚠️ 모든 데이터를 삭제하시겠습니까? (복구 불가능)")) {
       const removedCount = cleanupAllWorkspaceKeys();
 
+      // 모든 스토어들 리셋
       useWorkspaceStore.setState({
         workspaces: [],
         currentWorkspaceId: null,
@@ -142,6 +145,7 @@ export const DevTools: React.FC = () => {
       useMovementsStore.setState({ byId: {}, query: "" });
       useLotsStore.setState({ lots: {} });
 
+      // auth-storage도 초기화할지 확인
       if (confirm("사용자 로그인 정보도 삭제하시겠습니까? (로그아웃됩니다)")) {
         localStorage.removeItem("auth-storage");
       }
@@ -149,6 +153,7 @@ export const DevTools: React.FC = () => {
       alert(`모든 데이터 삭제 완료: ${removedCount}개 저장소 키`);
       refreshStorageInfo();
 
+      // 페이지 새로고침하여 완전 초기화
       setTimeout(() => {
         window.location.reload();
       }, 1000);
@@ -210,6 +215,7 @@ export const DevTools: React.FC = () => {
               `현재 데이터는 덮어씌워집니다.`
           )
         ) {
+          // 스토어들에 데이터 복원
           if (importData.workspaces) {
             useWorkspaceStore.setState({
               workspaces: importData.workspaces,
@@ -239,6 +245,7 @@ export const DevTools: React.FC = () => {
           alert("백업 데이터 복원 완료");
           refreshStorageInfo();
 
+          // 페이지 새로고침하여 완전 적용
           setTimeout(() => {
             window.location.reload();
           }, 1000);
@@ -249,6 +256,8 @@ export const DevTools: React.FC = () => {
       }
     };
     reader.readAsText(file);
+
+    // 파일 입력 초기화
     event.target.value = "";
   };
 
@@ -262,10 +271,10 @@ export const DevTools: React.FC = () => {
     return (
       <button
         onClick={() => setIsVisible(true)}
-        className="fixed bottom-4 right-4 bg-gray-900 text-white p-3 rounded-full hover:bg-gray-800 z-50 transition-colors"
+        className="fixed bottom-4 right-4 bg-purple-600 text-white p-3 rounded-full shadow-lg hover:bg-purple-700 z-50 transition-colors"
         title="개발자 도구"
       >
-        <Settings size={20} />
+        <Settings className="h-5 w-5" />
       </button>
     );
   }
@@ -281,222 +290,211 @@ export const DevTools: React.FC = () => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        {/* 헤더 */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">개발자 도구</h2>
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900 flex items-center">
+            <Settings className="h-6 w-6 mr-2" />
+            개발자 도구
+          </h2>
           <button
             onClick={() => setIsVisible(false)}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600"
           >
-            <X size={20} />
+            <EyeOff className="h-5 w-5" />
           </button>
         </div>
 
-        {/* 컨텐츠 */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="p-6 space-y-6">
           {/* 현재 상태 정보 */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">
-              현재 상태
-            </h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">사용자</span>
-                <span className="text-gray-900 font-medium">
-                  {user?.email || "미로그인"}
-                </span>
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="font-semibold text-gray-900 mb-3">현재 상태</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="text-gray-500">사용자:</span>
+                <div className="font-medium">{user?.email || "미로그인"}</div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">워크스페이스</span>
-                <span className="text-gray-900 font-medium">
-                  {workspaces.length}개
-                </span>
+              <div>
+                <span className="text-gray-500">워크스페이스:</span>
+                <div className="font-medium">{workspaces.length}개</div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">아이템</span>
-                <span className="text-gray-900 font-medium">
-                  {Object.keys(items).length}개
-                </span>
+              <div>
+                <span className="text-gray-500">아이템:</span>
+                <div className="font-medium">{Object.keys(items).length}개</div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">움직임</span>
-                <span className="text-gray-900 font-medium">
+              <div>
+                <span className="text-gray-500">움직임:</span>
+                <div className="font-medium">
                   {Object.keys(movements).length}개
-                </span>
-              </div>
-              {currentWorkspace && (
-                <div className="pt-2 border-t border-gray-200">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">현재 워크스페이스</span>
-                    <span className="text-gray-900 font-medium">
-                      {currentWorkspace.name}
-                    </span>
-                  </div>
                 </div>
-              )}
+              </div>
             </div>
+
+            {currentWorkspace && (
+              <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
+                <div className="text-sm">
+                  <span className="text-blue-700 font-medium">
+                    현재 워크스페이스:
+                  </span>
+                  <span className="ml-2">{currentWorkspace.name}</span>
+                  <span className="ml-2 text-blue-600">
+                    ({currentWorkspaceId})
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 스토리지 정보 */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">
-              스토리지 정보
-            </h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">전체 항목</span>
-                <span className="text-gray-900 font-medium">
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="font-semibold text-gray-900 mb-3">스토리지 정보</h3>
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div>
+                <span className="text-gray-500">전체 항목:</span>
+                <div className="font-medium">
                   {Object.keys(storageInfo).length}개
-                </span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">재고관리 키</span>
-                <span className="text-gray-900 font-medium">
-                  {inventoryKeys.length}개
-                </span>
+              <div>
+                <span className="text-gray-500">재고관리 키:</span>
+                <div className="font-medium">{inventoryKeys.length}개</div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">전체 크기</span>
-                <span className="text-gray-900 font-medium">
+              <div>
+                <span className="text-gray-500">전체 크기:</span>
+                <div className="font-medium">
                   {totalStorageSize.toFixed(2)}KB
-                </span>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* 액션 버튼들 - 2열 그리드 */}
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">액션</h3>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={handleForceRefresh}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-              >
-                <RefreshCw size={16} />
-                <span>새로고침</span>
-              </button>
+          {/* 액션 버튼들 */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <button
+              onClick={handleForceRefresh}
+              className="flex items-center justify-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              새로고침
+            </button>
 
-              <button
-                onClick={handleCleanupTempKeys}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-              >
-                <Trash2 size={16} />
-                <span>임시 키 정리</span>
-              </button>
+            <button
+              onClick={handleCleanupTempKeys}
+              className="flex items-center justify-center px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              임시 키 정리
+            </button>
 
-              <button
-                onClick={handleClearCurrentWorkspace}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-orange-600 rounded-lg hover:bg-orange-50 transition-colors text-sm"
-              >
-                <Trash2 size={16} />
-                <span>현재 WS 삭제</span>
-              </button>
+            <button
+              onClick={handleClearCurrentWorkspace}
+              className="flex items-center justify-center px-4 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+              disabled={!currentWorkspaceId}
+            >
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              현재 WS 삭제
+            </button>
 
-              <button
-                onClick={handleClearAllData}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors text-sm"
-              >
-                <Trash2 size={16} />
-                <span>모든 데이터 삭제</span>
-              </button>
-            </div>
+            <button
+              onClick={handleClearAllData}
+              className="flex items-center justify-center px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              모든 데이터 삭제
+            </button>
           </div>
 
           {/* 백업/복원 */}
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">
-              백업/복원
-            </h3>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={handleExportData}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-              >
-                <Download size={16} />
-                <span>데이터 내보내기</span>
-              </button>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={handleExportData}
+              className="flex items-center justify-center px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              데이터 내보내기
+            </button>
 
-              <label className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm cursor-pointer">
-                <Upload size={16} />
-                <span>데이터 가져오기</span>
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={handleImportData}
-                  className="hidden"
-                />
-              </label>
-            </div>
+            <label className="flex items-center justify-center px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors cursor-pointer">
+              <Upload className="h-4 w-4 mr-2" />
+              데이터 가져오기
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImportData}
+                className="hidden"
+              />
+            </label>
           </div>
 
           {/* 상세 정보 토글 */}
           <button
             onClick={() => setShowDetails(!showDetails)}
-            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-sm"
+            className="flex items-center justify-center w-full px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
           >
-            {showDetails ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            <span>{showDetails ? "상세 정보 숨기기" : "상세 정보 보기"}</span>
+            {showDetails ? (
+              <EyeOff className="h-4 w-4 mr-2" />
+            ) : (
+              <Eye className="h-4 w-4 mr-2" />
+            )}
+            {showDetails ? "상세 정보 숨기기" : "상세 정보 보기"}
           </button>
 
           {/* 스토리지 상세 정보 */}
           {showDetails && Object.keys(storageInfo).length > 0 && (
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-gray-900 mb-3">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="font-semibold text-gray-900 mb-3">
                 스토리지 상세 정보
               </h3>
-              <div className="space-y-2">
-                {Object.entries(storageInfo)
-                  .sort(([a], [b]) => {
-                    if (
-                      a.startsWith("inventory-") &&
-                      !b.startsWith("inventory-")
-                    )
-                      return -1;
-                    if (
-                      !a.startsWith("inventory-") &&
-                      b.startsWith("inventory-")
-                    )
-                      return 1;
-                    return a.localeCompare(b);
-                  })
-                  .map(([key, info]) => (
-                    <div
-                      key={key}
-                      className="bg-white rounded border border-gray-200 p-3"
-                    >
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <span className="text-xs font-mono text-gray-900 break-all flex-1">
-                          {key}
-                        </span>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">
-                            {info.type}
-                          </span>
-                          <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
-                            {info.size}
-                          </span>
-                        </div>
-                      </div>
+              <div className="max-h-96 overflow-y-auto">
+                <div className="space-y-2">
+                  {Object.entries(storageInfo)
+                    .sort(([a], [b]) => {
+                      // inventory- 키들을 먼저 보여주기
+                      if (
+                        a.startsWith("inventory-") &&
+                        !b.startsWith("inventory-")
+                      )
+                        return -1;
+                      if (
+                        !a.startsWith("inventory-") &&
+                        b.startsWith("inventory-")
+                      )
+                        return 1;
+                      return a.localeCompare(b);
+                    })
+                    .map(([key, info]) => (
                       <div
-                        className={`text-xs font-mono ${
-                          info.error ? "text-red-600" : "text-gray-500"
+                        key={key}
+                        className={`p-3 rounded border text-sm ${
+                          key.startsWith("inventory-")
+                            ? "bg-blue-50 border-blue-200"
+                            : "bg-white border-gray-200"
                         }`}
                       >
-                        {info.error ? info.error : info.preview}
+                        <div className="font-medium text-gray-900 mb-1">
+                          {key}
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500">
+                          <span>{info.type}</span>
+                          <span>{info.size}</span>
+                        </div>
+                        <div className="text-xs text-gray-600 mt-1 truncate">
+                          {info.error ? (
+                            <span className="text-red-600">{info.error}</span>
+                          ) : (
+                            info.preview
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                </div>
               </div>
             </div>
           )}
-        </div>
 
-        {/* 푸터 */}
-        <div className="px-6 py-4 border-t border-gray-200">
+          {/* 닫기 버튼 */}
           <button
             onClick={() => setIsVisible(false)}
-            className="w-full px-4 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
+            className="w-full px-4 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
           >
             닫기
           </button>
