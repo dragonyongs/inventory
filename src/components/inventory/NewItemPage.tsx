@@ -117,7 +117,7 @@ export const NewItemPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const primaryImage = uploadedImages.find((img) => img.isPrimary);
+    // const primaryImage = uploadedImages.find((img) => img.isPrimary);
 
     const result = schema.safeParse(form);
     if (!result.success) {

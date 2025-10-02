@@ -15,7 +15,6 @@ import { getExpiryStatus } from "@/utils/expiryUtils";
 import { type Item } from "@/stores/itemsStore";
 import { useCategoriesStore } from "@/stores/categoriesStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
-import { Image as ImageIcon } from "lucide-react";
 
 interface MobileItemCardProps {
   item: Item;
