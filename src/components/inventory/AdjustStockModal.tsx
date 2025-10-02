@@ -1,5 +1,4 @@
 // src/components/inventory/AdjustStockModal.tsx
-
 import React, { useState, useCallback, useEffect } from "react";
 import { Settings, X } from "lucide-react";
 import { useVisibleItems } from "@/stores/selectors";
@@ -24,15 +23,12 @@ export const AdjustStockModal: React.FC<AdjustStockModalProps> = React.memo(
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isAnimating, setIsAnimating] = useState(false);
 
-    // 현재 아이템 정보 가져오기
     const items = useVisibleItems();
     const currentItem = items.find((item) => item.id === itemId);
     const currentStock = currentItem?.stock || 0;
 
-    // 애니메이션 효과
     useEffect(() => {
       if (isOpen) {
-        // 모달 열릴 때 애니메이션
         requestAnimationFrame(() => {
           setIsAnimating(true);
         });
@@ -41,7 +37,6 @@ export const AdjustStockModal: React.FC<AdjustStockModalProps> = React.memo(
       }
     }, [isOpen]);
 
-    // ESC 키로 닫기
     useEffect(() => {
       const handleEsc = (e: KeyboardEvent) => {
         if (e.key === "Escape" && isOpen && !isSubmitting) {
@@ -95,79 +90,108 @@ export const AdjustStockModal: React.FC<AdjustStockModalProps> = React.memo(
     const currentWorkspace = getCurrentWorkspace();
     const actionLabels = getActionLabels(currentWorkspace?.type || "DEFAULT");
 
+    // ✅ 버튼 스타일 함수 (동적 클래스 문제 해결)
+    const getButtonStyle = (type: typeof adjustmentType, color: string) => {
+      const isActive = adjustmentType === type;
+
+      // 각 색상별로 완전한 클래스명 반환
+      const activeStyles = {
+        green:
+          "bg-green-500 text-white shadow-lg shadow-green-500/30 ring-2 ring-green-500 ring-offset-2",
+        red: "bg-red-500 text-white shadow-lg shadow-red-500/30 ring-2 ring-red-500 ring-offset-2",
+        blue: "bg-blue-500 text-white shadow-lg shadow-blue-500/30 ring-2 ring-blue-500 ring-offset-2",
+        orange:
+          "bg-orange-500 text-white shadow-lg shadow-orange-500/30 ring-2 ring-orange-500 ring-offset-2",
+      };
+
+      const inactiveStyle =
+        "bg-gray-50 text-gray-700 hover:bg-gray-100 active:scale-95";
+
+      return `relative overflow-hidden rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-200 ${
+        isActive
+          ? activeStyles[color as keyof typeof activeStyles]
+          : inactiveStyle
+      }`;
+    };
+
     if (!isOpen) return null;
 
     return (
       <>
-        {/* Backdrop with blur - 프리미엄 배경 효과 */}
+        {/* Backdrop */}
         <div
-          className={`fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm transition-opacity duration-300 ease-out sm:items-center sm:p-4 ${
+          className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
             isAnimating ? "opacity-100" : "opacity-0"
           }`}
           onClick={() => !isSubmitting && onClose()}
           aria-hidden="true"
-        >
-          {/* Modal Container - 모바일은 하단 슬라이드, 데스크톱은 중앙 */}
-          <div
-            className={`relative w-full max-w-lg transform rounded-t-3xl bg-white shadow-2xl transition-all duration-300 ease-out sm:rounded-2xl ${
+        />
+
+        {/* Modal Container */}
+        <div
+          className={`fixed inset-x-0 z-50 transition-all duration-300 ease-out
+            lg:inset-0 lg:flex lg:items-center lg:justify-center lg:p-4
+            ${
               isAnimating
-                ? "translate-y-0 opacity-100 sm:scale-100"
-                : "translate-y-full opacity-0 sm:translate-y-0 sm:scale-95"
+                ? "bottom-0 lg:opacity-100 lg:scale-100"
+                : "-bottom-full lg:opacity-0 lg:scale-95"
             }`}
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="modal-title"
-          >
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+        >
+          {/* ✅ 데스크톱에서 하단 보더 추가 */}
+          <div className="overflow-hidden w-full bg-white shadow-2xl lg:max-w-md lg:rounded-xl lg:border lg:border-gray-200 rounded-t-3xl max-h-[90vh] flex flex-col">
             {/* 모바일 드래그 핸들 */}
-            <div className="flex justify-center pb-2 pt-3 sm:hidden">
-              <div className="h-1.5 w-12 rounded-full bg-gray-300" />
+            <div className="flex justify-center pt-3 pb-2 lg:hidden">
+              <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
             </div>
 
             {/* Header */}
-            <div className="border-b border-gray-100 px-6 pb-4 pt-2 sm:pt-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
-                    <Settings className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <h2
-                    id="modal-title"
-                    className="text-xl font-bold text-gray-900"
-                  >
-                    재고 조정
-                  </h2>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <Settings className="w-5 h-5 text-blue-600" />
                 </div>
-                <button
-                  onClick={onClose}
-                  disabled={isSubmitting}
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-gray-400 transition-all duration-200 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
-                  aria-label="닫기"
+                <h2
+                  id="modal-title"
+                  className="text-lg font-bold text-gray-900"
                 >
-                  <X className="h-5 w-5" />
-                </button>
+                  재고 조정
+                </h2>
               </div>
+              <button
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                aria-label="닫기"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            {/* Content */}
-            <div className="max-h-[70vh] overflow-y-auto px-6 py-6">
-              {/* 현재 재고 - 카드 스타일 */}
-              <div className="mb-6 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
-                <p className="text-sm font-medium text-gray-600">현재 재고</p>
-                <p className="mt-1 text-3xl font-bold text-gray-900">
-                  {currentStock.toLocaleString()}
-                  <span className="ml-1 text-lg font-medium text-gray-600">
-                    개
+            {/* Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+              {/* 현재 재고 */}
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-5 border border-blue-200">
+                <div className="text-sm font-medium text-blue-700 mb-2">
+                  현재 재고
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-bold text-blue-900">
+                    {currentStock.toLocaleString()}
                   </span>
-                </p>
+                  <span className="text-lg font-medium text-blue-700">개</span>
+                </div>
               </div>
 
-              {/* 조정 유형 - 개선된 버튼 그룹 */}
-              <div className="mb-6">
-                <label className="mb-3 block text-sm font-semibold text-gray-700">
+              {/* 조정 유형 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
                   조정 유형
                 </label>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="grid grid-cols-2 gap-3">
                   {[
                     {
                       type: "IN" as const,
@@ -192,16 +216,13 @@ export const AdjustStockModal: React.FC<AdjustStockModalProps> = React.memo(
                   ].map(({ type, label, color }) => (
                     <button
                       key={type}
+                      type="button"
                       onClick={() => setAdjustmentType(type)}
-                      className={`relative overflow-hidden rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-200 ${
-                        adjustmentType === type
-                          ? `bg-${color}-500 text-white shadow-lg shadow-${color}-500/30 ring-2 ring-${color}-500 ring-offset-2`
-                          : "bg-gray-50 text-gray-700 hover:bg-gray-100 active:scale-95"
-                      }`}
+                      className={getButtonStyle(type, color)}
                     >
                       {label}
                       {adjustmentType === type && (
-                        <span className="absolute inset-0 bg-white/20" />
+                        <div className="absolute inset-0 bg-white/10 animate-pulse" />
                       )}
                     </button>
                   ))}
@@ -209,50 +230,46 @@ export const AdjustStockModal: React.FC<AdjustStockModalProps> = React.memo(
               </div>
 
               {/* 수량 입력 */}
-              <div className="mb-5">
-                <label
-                  htmlFor="qty-input"
-                  className="mb-2 block text-sm font-semibold text-gray-700"
-                >
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   {adjustmentType === "ADJUST" ? "최종 재고 수량" : "수량"}
                 </label>
-                <div className="relative">
-                  <input
-                    id="qty-input"
-                    type="number"
-                    value={qty}
-                    onChange={(e) =>
-                      setQty(e.target.value ? Number(e.target.value) : "")
-                    }
-                    min="0"
-                    className="w-full rounded-xl border-2 border-gray-200 bg-white px-4 py-3.5 text-base font-medium text-gray-900 transition-all duration-200 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10"
-                    placeholder={
-                      adjustmentType === "ADJUST"
-                        ? "최종 재고 수량 입력"
-                        : "수량 입력"
-                    }
-                  />
-                </div>
+                <input
+                  type="number"
+                  value={qty}
+                  onChange={(e) =>
+                    setQty(e.target.value ? Number(e.target.value) : "")
+                  }
+                  min="0"
+                  className="w-full rounded-xl border-2 border-gray-200 bg-white px-4 py-3.5 text-base font-medium text-gray-900 transition-all duration-200 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10"
+                  placeholder={
+                    adjustmentType === "ADJUST"
+                      ? "최종 재고 수량 입력"
+                      : "수량 입력"
+                  }
+                />
+              </div>
 
-                {/* ADJUST 모드일 때 변화량 표시 - 개선된 UI */}
-                {adjustmentType === "ADJUST" &&
-                  typeof qty === "number" &&
-                  qty !== currentStock && (
-                    <div
-                      className={`mt-3 flex items-center space-x-2 rounded-xl px-4 py-2.5 ${
-                        qty > currentStock ? "bg-green-50" : "bg-red-50"
-                      }`}
-                    >
+              {/* ADJUST 모드일 때 변화량 표시 */}
+              {adjustmentType === "ADJUST" &&
+                typeof qty === "number" &&
+                qty !== currentStock && (
+                  <div
+                    className={`rounded-xl border-2 p-4 ${
+                      qty > currentStock
+                        ? "bg-green-50 border-green-200"
+                        : "bg-red-50 border-red-200"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
                       <div
-                        className={`flex h-6 w-6 items-center justify-center rounded-full ${
+                        className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
                           qty > currentStock
                             ? "bg-green-500 text-white"
                             : "bg-red-500 text-white"
                         }`}
                       >
-                        <span className="text-xs font-bold">
-                          {qty > currentStock ? "+" : "-"}
-                        </span>
+                        {qty > currentStock ? "+" : "-"}
                       </div>
                       <span
                         className={`text-sm font-semibold ${
@@ -262,19 +279,15 @@ export const AdjustStockModal: React.FC<AdjustStockModalProps> = React.memo(
                         {Math.abs(qty - currentStock).toLocaleString()}개 변화
                       </span>
                     </div>
-                  )}
-              </div>
+                  </div>
+                )}
 
               {/* 사유 입력 */}
-              <div className="mb-2">
-                <label
-                  htmlFor="reason-input"
-                  className="mb-2 block text-sm font-semibold text-gray-700"
-                >
-                  사유 <span className="font-normal text-gray-500">(선택)</span>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  사유 (선택)
                 </label>
                 <textarea
-                  id="reason-input"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   rows={3}
@@ -285,53 +298,21 @@ export const AdjustStockModal: React.FC<AdjustStockModalProps> = React.memo(
             </div>
 
             {/* Footer - Sticky buttons */}
-            <div className="border-t border-gray-100 bg-gray-50 px-6 py-4">
-              <div className="flex space-x-3">
-                <button
-                  onClick={onClose}
-                  disabled={isSubmitting}
-                  className="flex-1 rounded-xl border-2 border-gray-200 bg-white px-4 py-3.5 font-semibold text-gray-700 transition-all duration-200 hover:bg-gray-50 active:scale-95 disabled:opacity-50"
-                >
-                  취소
-                </button>
-                <button
-                  onClick={submit}
-                  disabled={
-                    isSubmitting ||
-                    (typeof qty === "number" &&
-                      qty <= 0 &&
-                      adjustmentType !== "ADJUST")
-                  }
-                  className="flex-1 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 transition-all duration-200 hover:shadow-xl hover:shadow-blue-500/40 active:scale-95 disabled:opacity-50 disabled:shadow-none"
-                >
-                  {isSubmitting ? (
-                    <span className="flex items-center justify-center">
-                      <svg
-                        className="mr-2 h-5 w-5 animate-spin"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        />
-                      </svg>
-                      처리 중...
-                    </span>
-                  ) : (
-                    "적용"
-                  )}
-                </button>
-              </div>
+            <div className="flex gap-3 border-t border-gray-100 bg-white px-6 py-4">
+              <button
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="flex-1 rounded-xl bg-gray-100 px-6 py-3.5 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-200 disabled:opacity-50 active:scale-95"
+              >
+                취소
+              </button>
+              <button
+                onClick={submit}
+                disabled={isSubmitting}
+                className="flex-1 rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition-all hover:bg-blue-700 disabled:opacity-50 active:scale-95"
+              >
+                {isSubmitting ? "처리 중..." : "적용"}
+              </button>
             </div>
           </div>
         </div>

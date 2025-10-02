@@ -21,7 +21,7 @@ const NewItemPage = lazy(() =>
   }))
 );
 const BulkImportPage = lazy(() =>
-  import("@/components/inventory/BulkImportPage").then((m) => ({
+  import("@/pages/BulkImportPage").then((m) => ({
     default: m.BulkImportPage,
   }))
 );
@@ -94,7 +94,7 @@ const router = createBrowserRouter([
         ),
       },
       {
-        path: "/inventory/bulk-import",
+        path: "/inventory/bulk",
         element: (
           <Suspense fallback={<PageLoader />}>
             <BulkImportPage />

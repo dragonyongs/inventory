@@ -84,7 +84,7 @@ export default function WorkspaceSelector({
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg
+            className="w-full flex items-center justify-between rounded-lg
                      hover:bg-gray-50 transition-all duration-200 group"
             aria-expanded={isOpen}
           >
@@ -95,7 +95,7 @@ export default function WorkspaceSelector({
               >
                 {currentWorkspace.name.charAt(0).toUpperCase()}
               </div>
-              <span className="text-sm font-medium text-gray-700 truncate">
+              <span className="text-md font-medium text-gray-700 truncate">
                 {currentWorkspace.name}
               </span>
             </div>
