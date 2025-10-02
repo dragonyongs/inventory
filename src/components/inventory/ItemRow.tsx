@@ -5,7 +5,10 @@ import { type Item } from "@/stores/itemsStore";
 import { useCategoriesStore } from "@/stores/categoriesStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { ItemActions } from "./ItemActions";
-import { Image } from "lucide-react";
+import { Image, ZoomIn } from "lucide-react";
+import { ImageGalleryModal } from "./ImageGalleryModal";
+import { useItemsStore } from "@/stores/itemsStore";
+import type { ItemImage } from "@/types/image";
 
 interface ItemRowProps {
   item: Item;
@@ -35,6 +38,10 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
       thumbnailUrl: item.thumbnailUrl ?? "",
     });
 
+    const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+    const { addImageToItem, removeImageFromItem, setPrimaryImage } =
+      useItemsStore();
+
     const availableCategories = useMemo(() => {
       if (!currentWorkspaceId) return [];
       return getCategoriesByWorkspace(currentWorkspaceId);
@@ -63,6 +70,35 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
       });
       setEditing(false);
     }, [onEdit, form]);
+
+    // 이미지 관리 핸들러
+    const handleImageUploaded = useCallback(
+      (image: ItemImage) => {
+        addImageToItem(item.id, image);
+      },
+      [item.id, addImageToItem]
+    );
+
+    const handleImageDeleted = useCallback(
+      (imageId: string) => {
+        removeImageFromItem(item.id, imageId);
+      },
+      [item.id, removeImageFromItem]
+    );
+
+    const handleSetPrimaryImage = useCallback(
+      (imageId: string) => {
+        setPrimaryImage(item.id, imageId);
+      },
+      [item.id, setPrimaryImage]
+    );
+
+    // 썸네일 클릭 핸들러
+    const handleThumbnailClick = useCallback(() => {
+      if (item.images && item.images.length > 0) {
+        setIsGalleryOpen(true);
+      }
+    }, [item.images]);
 
     const handleCancel = useCallback(() => {
       setEditing(false);
@@ -99,32 +135,69 @@ export const ItemRow: React.FC<ItemRowProps> = React.memo(
         <td className="py-4 px-6">
           {editing ? (
             item.thumbnailUrl ? (
-              <img
-                src={item.thumbnailUrl}
-                alt={item.name}
-                className="w-12 h-12 object-cover rounded border border-gray-200"
-                loading="lazy"
-              />
+              <button onClick={handleThumbnailClick} className="relative group">
+                <img
+                  src={item.thumbnailUrl || item.images![0].directUrl}
+                  alt={item.name}
+                  className="w-14 h-14 object-cover rounded-lg border border-gray-200 group-hover:border-blue-400 transition-colors"
+                  loading="lazy"
+                />
+                {/* 이미지 개수 뱃지 */}
+                {item.images && item.images.length > 1 && (
+                  <div className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-medium">
+                    {item.images.length}
+                  </div>
+                )}
+              </button>
             ) : (
               <div className="w-12 h-12 flex items-center justify-center bg-gray-100 rounded border border-gray-200">
                 <Image className="w-6 h-6 text-gray-400" />
               </div>
             )
           ) : (
-            <div>
+            <div
+              onClick={handleThumbnailClick}
+              className="cursor-pointer relative group w-14"
+            >
               {item.thumbnailUrl ? (
-                <img
-                  src={item.thumbnailUrl}
-                  alt={item.name}
-                  className="w-12 h-12 object-cover rounded border border-gray-200"
-                  loading="lazy"
-                />
+                <>
+                  <img
+                    src={item.thumbnailUrl}
+                    alt={item.name}
+                    className="w-14 h-14 object-cover rounded-lg border-2 border-gray-200 group-hover:border-blue-400 transition-all"
+                    loading="lazy"
+                  />
+                  {/* 이미지 개수 뱃지 */}
+                  {item.images && item.images.length > 1 && (
+                    <div className="z-10 absolute -top-1 -right-1 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full font-semibold">
+                      {item.images.length}
+                    </div>
+                  )}
+                  {/* 호버 오버레이 */}
+                  <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-40 rounded-lg transition-all flex items-center justify-center">
+                    <ZoomIn className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </>
               ) : (
-                <div className="w-12 h-12 flex items-center justify-center bg-gray-100 rounded border border-gray-200">
+                <div className="w-14 h-14 flex items-center justify-center bg-gray-100 rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-300 transition-colors">
                   <Image className="w-6 h-6 text-gray-400" />
                 </div>
               )}
             </div>
+          )}
+
+          {/* 모달 갤러리 (편집 가능 버전) */}
+          {isGalleryOpen && (
+            <ImageGalleryModal
+              isOpen={isGalleryOpen}
+              onClose={() => setIsGalleryOpen(false)}
+              images={item.images || []}
+              itemId={item.id}
+              readOnly={!editing}
+              onImageUploaded={handleImageUploaded}
+              onImageDeleted={handleImageDeleted}
+              onSetPrimary={handleSetPrimaryImage}
+            />
           )}
         </td>
 

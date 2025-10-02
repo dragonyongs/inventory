@@ -81,7 +81,7 @@ class DropboxService {
     }
 
     const fileName = `${Date.now()}_${file.name}`;
-    const path = `/inventory/${itemId}/${fileName}`;
+    const path = `/${itemId}/${fileName}`;
 
     try {
       // 파일 업로드 (Dropbox API v2)
