@@ -14,6 +14,8 @@ import { CategorySelector } from "@/components/inventory/CategorySelector";
 import { HeaderActions } from "@/components/inventory/HeaderActions";
 import { getExpiryStatus } from "@/utils/expiryUtils";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { useCategoriesStore } from "@/stores/categoriesStore";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 export default function Inventory() {
   const navigate = useNavigate();
@@ -22,10 +24,20 @@ export default function Inventory() {
   const q = useQuery();
   const updateItem = useItemsStore((s) => s.updateItem);
   const removeItem = useItemsStore((s) => s.removeItem);
+  const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
+  const { currentCategoryId, getCategoriesByWorkspace } = useCategoriesStore();
+  const shareContext = useMemo(() => {
+    if (!currentWorkspaceId) return "전체";
+
+    const categories = getCategoriesByWorkspace(currentWorkspaceId);
+    const currentCategory = currentCategoryId
+      ? categories.find((c) => c.id === currentCategoryId)
+      : null;
+
+    return currentCategory ? currentCategory.name : "전체";
+  }, [currentWorkspaceId, currentCategoryId, getCategoriesByWorkspace]);
 
   const [addedId, setAddedId] = useState<string | null>(null);
-
-  // 📌 추가 필터 상태들
   const [statusFilter, setStatusFilter] = useState("");
   const [stockFilter, setStockFilter] = useState("");
   const [expiryFilter, setExpiryFilter] = useState("");
@@ -189,7 +201,12 @@ export default function Inventory() {
           <PageHeader
             title="인벤토리"
             description="상품을 등록하고 재고를 효율적으로 관리하세요"
-            actions={<HeaderActions onNewItem={handleNewItem} />}
+            actions={
+              <HeaderActions
+                onNewItem={handleNewItem}
+                shareContext={shareContext}
+              />
+            }
           />
 
           <CategorySelector />

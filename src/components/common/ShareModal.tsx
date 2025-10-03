@@ -126,7 +126,7 @@ export const ShareModal: React.FC<ShareModalProps> = React.memo(
         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
         onClick={handleBackdropClick}
       >
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md border border-gray-100 transform transition-all">
+        <div className="bg-white rounded-2xl shadow-xl max-h-[calc(100vh-4rem)] w-full max-w-md border border-gray-100 transform transition-all">
           {/* 헤더 */}
           <div className="p-6 border-b border-gray-100">
             <div className="flex items-center justify-between">
@@ -147,13 +147,13 @@ export const ShareModal: React.FC<ShareModalProps> = React.memo(
                 </span>
               </p>
             </div>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-xs text-gray-600 mt-1">
               현재 카테고리의 재고를 외부에 공유할 수 있습니다
             </p>
           </div>
 
           {/* 본문 */}
-          <div className="overflow-y-auto p-6 space-y-4 max-h-[calc(100vh-260px)]">
+          <div className="overflow-y-auto p-6 space-y-4 max-h-[calc(100vh-280px)]">
             {/* 권한 선택 */}
             <div>
               <label className="text-sm font-medium text-gray-700 mb-3 block">
@@ -306,7 +306,7 @@ export const ShareModal: React.FC<ShareModalProps> = React.memo(
           </div>
 
           {/* 푸터 */}
-          <div className="p-6 border-t border-gray-100 flex justify-end space-x-3">
+          <div className="p-3 border-t border-gray-100 flex justify-end space-x-3">
             <button
               onClick={onClose}
               className="px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition-colors"

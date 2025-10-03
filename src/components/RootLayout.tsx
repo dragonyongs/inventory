@@ -1,6 +1,6 @@
 // src/components/RootLayout.tsx
 import { Outlet, NavLink } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   BarChart3,
   Package,
@@ -19,9 +19,29 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const scrollDirection = useScrollDirection({
-    threshold: 10,
-    scrollContainerSelector: "main", // 또는 ".main-content", "#app-container" 등
+    threshold: 50, // 50px 이상 스크롤 시 반응
+    topOffset: 100, // 상단 100px 영역은 항상 헤더 표시
+    scrollContainerSelector: "main",
   });
+
+  // ✅ iOS Safari viewport 높이 보정
+  useEffect(() => {
+    const setVh = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty("--vh", `${vh}px`);
+    };
+
+    setVh();
+
+    // resize와 orientationchange 모두 감지
+    window.addEventListener("resize", setVh);
+    window.addEventListener("orientationchange", setVh);
+
+    return () => {
+      window.removeEventListener("resize", setVh);
+      window.removeEventListener("orientationchange", setVh);
+    };
+  }, []);
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     `group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
@@ -75,9 +95,9 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
           </div>
 
           {/* App Title */}
-          {/* <div className="border-b border-gray-100 px-4 py-3">
+          <div className="border-b border-gray-100 px-4 py-3">
             <h1 className="text-base font-semibold text-gray-800">재고관리</h1>
-          </div> */}
+          </div>
 
           {/* Navigation */}
           <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
@@ -150,11 +170,11 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
                 </div>
 
                 {/* App Title */}
-                {/* <div className="border-b border-gray-100 px-4 py-3">
+                <div className="border-b border-gray-100 px-4 py-3">
                   <h1 className="text-base font-semibold text-gray-800">
                     재고관리
                   </h1>
-                </div> */}
+                </div>
 
                 {/* Navigation */}
                 <nav className="flex-1 space-y-2 overflow-y-auto px-4 pb-4 pt-6">
@@ -190,7 +210,17 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
         )}
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto">{children || <Outlet />}</main>
+        <main
+          className="flex-1 overflow-y-auto"
+          style={{
+            // ✅ iOS safe area + 동적 뷰포트 대응
+            minHeight:
+              "calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
+            paddingBottom: "calc(env(safe-area-inset-bottom) + 4rem)",
+          }}
+        >
+          {children || <Outlet />}
+        </main>
       </div>
 
       <DevTools />

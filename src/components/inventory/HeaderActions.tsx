@@ -11,13 +11,13 @@ import {
 
 interface HeaderActionsProps {
   onNewItem?: () => void;
+  shareContext?: string;
 }
 
 export const HeaderActions: React.FC<HeaderActionsProps> = React.memo(
-  ({ onNewItem }) => {
+  ({ onNewItem, shareContext = "현재 페이지" }) => {
     const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
-    const currentCategoryId = useCategoriesStore((s) => s.currentCategoryId);
-    const { generateShareToken } = useCategoriesStore();
+    const { currentCategoryId, generateShareToken } = useCategoriesStore();
 
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [shareUrl, setShareUrl] = useState<string>();
@@ -97,9 +97,7 @@ export const HeaderActions: React.FC<HeaderActionsProps> = React.memo(
           onGenerate={handleGenerateShare}
           shareUrl={shareUrl}
           currentPermission={currentPermission}
-          shareContext={
-            currentCategoryId === null ? "워크스페이스 전체" : "현재 카테고리"
-          }
+          shareContext={shareContext}
         />
       </>
     );
