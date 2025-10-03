@@ -9,6 +9,7 @@ import {
   validateImageType,
 } from "@/utils/imageOptimization";
 import type { ItemImage } from "@/types/image";
+import { useIsMobile } from "@/hooks/useMediaQuery";
 
 interface ImageUploaderProps {
   itemId: string;
@@ -24,7 +25,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = React.memo(
     const [uploading, setUploading] = useState(false);
     const [progress, setProgress] = useState(0);
     const [error, setError] = useState<string | null>(null);
-
+    const isMobile = useIsMobile();
     const { addToUploadQueue, setIsUploading } = useImageStore();
 
     // 파일 업로드 처리
@@ -118,7 +119,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = React.memo(
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
           >
             <Camera className="w-5 h-5" />
-            <span>사진 촬영</span>
+            <span>{!isMobile && "사진 "}촬영</span>
           </button>
 
           {/* 파일 선택 버튼 */}
@@ -129,7 +130,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = React.memo(
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
           >
             <Upload className="w-5 h-5" />
-            <span>갤러리에서 선택</span>
+            <span>갤러리{!isMobile && "에서 선택"}</span>
           </button>
         </div>
 

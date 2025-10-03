@@ -117,7 +117,7 @@ const ActivityItem: React.FC<ActivityItemProps> = React.memo(
     };
 
     return (
-      <div className="group flex items-start gap-3 rounded-lg border border-transparent p-3 transition-all hover:border-slate-200 hover:bg-slate-50/50">
+      <div className="group flex items-start gap-3 rounded-lg border border-transparent md:p-3 transition-all hover:border-slate-200 hover:bg-slate-50/50">
         {/* 타입 배지 */}
         <div
           className={`

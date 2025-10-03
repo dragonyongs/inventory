@@ -73,7 +73,9 @@ const StepRow: React.FC<{
       <div className="flex items-center">
         {status === "active" ? (
           <div className="flex items-center space-x-2">
-            <span className="text-xs text-gray-500">시작하기</span>
+            <span className="hidden md:block text-xs text-gray-500">
+              시작하기
+            </span>
             <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
           </div>
         ) : status === "completed" ? (

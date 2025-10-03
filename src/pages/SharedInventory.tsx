@@ -1,6 +1,7 @@
 // src/pages/SharedInventory.tsx
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useIsMobile } from "@/hooks/useMediaQuery";
 import { useParams, useSearchParams } from "react-router-dom";
 import {
   Package,
@@ -60,17 +61,8 @@ const SharedInventory: React.FC = () => {
   const [useModalOpen, setUseModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
 
-  // 모바일 감지
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
+  const isMobile = useIsMobile();
 
   // 공유 링크 검증 및 데이터 로딩
   useEffect(() => {

@@ -1,5 +1,6 @@
 // src/components/inventory/CategorySelector.tsx
 import React, { useState, useCallback, useEffect, useRef } from "react";
+import { useIsMobile } from "@/hooks/useMediaQuery";
 import { Plus, MoreHorizontal, Edit, Trash2 } from "lucide-react";
 import { useCategoriesStore } from "@/stores/categoriesStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -123,17 +124,12 @@ export function CategorySelector() {
   }, [checkScrollButtons]);
 
   // 화면 크기 변경 감지 (SSR 안전)
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
-    // 클라이언트에서만 실행
-    setIsMobile(window.innerWidth < 768);
-
     const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
       checkScrollButtons();
     };
-
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, [checkScrollButtons]);

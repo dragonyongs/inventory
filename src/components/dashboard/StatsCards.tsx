@@ -20,7 +20,7 @@ export const StatsCards: React.FC<StatsCardsProps> = React.memo(({ stats }) => {
   const navigate = useNavigate();
 
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <StatsCard
         title="전체 상품"
         value={stats.totalItems}
