@@ -163,7 +163,7 @@ export const NewItemPage: React.FC = () => {
   return (
     <div className="relative min-h-screen bg-white pb-24">
       {/* 헤더 - 우버 스타일 초미니멀 */}
-      <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
+      <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
         <div className="flex items-center h-14 px-4 max-w-2xl mx-auto">
           <Link
             to="/inventory"

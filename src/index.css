@@ -17,6 +17,7 @@ body {
   /* ✅ iOS 스크롤 개선 */
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: none; /* 바운스 효과 제거 */
+  touch-action: pan-y pan-x;
 }
 
 body {

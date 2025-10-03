@@ -18,17 +18,22 @@ class DropboxService {
   constructor() {
     this.loadTokens();
 
-    // ✅ 환경변수에서 리프레시 토큰 로드
-    if (
-      !this.tokens?.refreshToken &&
-      import.meta.env.VITE_DROPBOX_REFRESH_TOKEN
-    ) {
-      console.log("환경변수에서 Dropbox 리프레시 토큰을 로드합니다...");
-      this.saveTokens({
-        accessToken: "", // 빈 값으로 초기화
-        refreshToken: import.meta.env.VITE_DROPBOX_REFRESH_TOKEN,
-        expiresAt: 0,
-      });
+    // ✅ 수정: 환경변수 리프레시 토큰이 있고, 현재 저장된 토큰과 다르면 업데이트
+    const envRefreshToken = import.meta.env.VITE_DROPBOX_REFRESH_TOKEN;
+
+    if (envRefreshToken) {
+      // 환경변수 토큰이 로컬 토큰과 다르거나, 로컬에 토큰이 없으면 환경변수 사용
+      if (
+        !this.tokens?.refreshToken ||
+        this.tokens.refreshToken !== envRefreshToken
+      ) {
+        console.log("환경변수에서 Dropbox 리프레시 토큰을 로드합니다...");
+        this.saveTokens({
+          accessToken: "",
+          refreshToken: envRefreshToken,
+          expiresAt: 0,
+        });
+      }
     }
   }
 
