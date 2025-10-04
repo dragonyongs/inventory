@@ -32,8 +32,6 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
     };
 
     setVh();
-
-    // resize와 orientationchange 모두 감지
     window.addEventListener("resize", setVh);
     window.addEventListener("orientationchange", setVh);
 
@@ -129,6 +127,9 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
             scrollDirection === "down" &&
             "fixed -translate-y-full top-0 left-0 right-0 z-30 "
           }`}
+          style={{
+            paddingTop: "env(safe-area-inset-top)",
+          }}
         >
           <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center space-x-3">
@@ -161,6 +162,10 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
             {/* Sidebar 레이어 */}
             <aside
               className="fixed inset-y-0 left-0 z-50 w-80 transform bg-white shadow-xl transition-transform duration-300 ease-in-out md:hidden"
+              style={{
+                paddingTop: "env(safe-area-inset-top)",
+                paddingBottom: "env(safe-area-inset-bottom)",
+              }}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex h-full flex-col">
@@ -213,10 +218,7 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
         <main
           className="flex-1 overflow-y-auto"
           style={{
-            // ✅ iOS safe area + 동적 뷰포트 대응
-            minHeight:
-              "calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
-            paddingBottom: "calc(env(safe-area-inset-bottom) + 4rem)",
+            paddingBottom: "env(safe-area-inset-bottom)",
           }}
         >
           {children || <Outlet />}
