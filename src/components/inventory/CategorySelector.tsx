@@ -1,13 +1,21 @@
 // src/components/inventory/CategorySelector.tsx
+
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useIsMobile } from "@/hooks/useMediaQuery";
-import { Plus, MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import {
+  Plus,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { useCategoriesStore } from "@/stores/categoriesStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { AddCategoryModal } from "./AddCategoryModal";
 import type { Category } from "@/stores/categoriesStore";
 
-export function CategorySelector() {
+export const CategorySelector = React.memo(function CategorySelector() {
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
   const {
     currentCategoryId,
@@ -26,7 +34,6 @@ export function CategorySelector() {
 
   const workspaceCategories = getCategoriesByWorkspace(currentWorkspaceId!);
 
-  // useRef 타입 수정 및 import 확인
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -58,36 +65,33 @@ export function CategorySelector() {
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    setCanScrollLeft(container.scrollLeft > 0);
+    setCanScrollLeft(container.scrollLeft > 5); // 여유값 추가
     setCanScrollRight(
-      container.scrollLeft < container.scrollWidth - container.clientWidth
+      container.scrollLeft < container.scrollWidth - container.clientWidth - 5
     );
   }, []);
 
   // 스크롤 버튼 핸들러
   const scrollLeft = useCallback(() => {
-    scrollContainerRef.current?.scrollBy({ left: -120, behavior: "smooth" });
+    scrollContainerRef.current?.scrollBy({ left: -200, behavior: "smooth" });
   }, []);
 
   const scrollRight = useCallback(() => {
-    scrollContainerRef.current?.scrollBy({ left: 120, behavior: "smooth" });
+    scrollContainerRef.current?.scrollBy({ left: 200, behavior: "smooth" });
   }, []);
 
   // 활성 카테고리로 자동 스크롤
   useEffect(() => {
-    // setTimeout으로 DOM 업데이트 후 실행
     const timer = setTimeout(() => {
       if (!scrollContainerRef.current) return;
 
       let targetElement: Element | null = null;
 
       if (currentCategoryId === null) {
-        // "전체" 버튼으로 스크롤
         targetElement = scrollContainerRef.current.querySelector(
           '[data-category-id="all"]'
         );
       } else {
-        // 특정 카테고리 버튼으로 스크롤
         targetElement = scrollContainerRef.current.querySelector(
           `[data-category-id="${currentCategoryId}"]`
         );
@@ -99,12 +103,8 @@ export function CategorySelector() {
           block: "nearest",
           inline: "center",
         });
-
-        console.log("Scrolled to:", currentCategoryId || "all"); // 디버깅용
-      } else {
-        console.warn("Target element not found:", currentCategoryId || "all"); // 디버깅용
       }
-    }, 0); // 0ms로 다음 틱에 실행
+    }, 100);
 
     return () => clearTimeout(timer);
   }, [currentCategoryId]);
@@ -117,169 +117,166 @@ export function CategorySelector() {
     const handleScroll = () => checkScrollButtons();
     container.addEventListener("scroll", handleScroll);
 
-    // 초기 상태 확인
-    checkScrollButtons();
+    // 초기 상태 확인 (약간의 지연 추가)
+    const initialCheck = setTimeout(checkScrollButtons, 100);
 
-    return () => container.removeEventListener("scroll", handleScroll);
-  }, [checkScrollButtons]);
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      clearTimeout(initialCheck);
+    };
+  }, [checkScrollButtons, workspaceCategories.length]);
 
-  // 화면 크기 변경 감지 (SSR 안전)
+  // 화면 크기 변경 감지
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    const handleResize = () => {
-      checkScrollButtons();
-    };
+    const handleResize = () => checkScrollButtons();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, [checkScrollButtons]);
 
   return (
-    <div className="relative px-3 md:px-6">
-      {/* 메인 카테고리 네비게이션 */}
-      <div className="flex items-center gap-1 p-1 bg-white rounded-xl border border-gray-100 overflow-x-auto scrollbar-hide">
-        {/* 좌측 스크롤 버튼 */}
-        {canScrollLeft && (
-          <div className="z-20 absolute -left-2">
-            <button
-              onClick={scrollLeft}
-              className="flex-shrink-0 p-1 rounded-full bg-white shadow-md hover:shadow-lg transition-shadow z-10"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
-          </div>
-        )}
+    <div className="relative flex items-center gap-2 mb-6">
+      {/* 좌측 스크롤 버튼 - 항상 보이도록 개선 */}
+      {canScrollLeft && (
+        <button
+          onClick={scrollLeft}
+          className="
+            absolute left-0 z-20 flex-shrink-0
+            w-8 h-8 rounded-full 
+            bg-white/95 shadow-lg border border-gray-200
+            flex items-center justify-center
+            text-gray-700 hover:text-gray-900 hover:bg-white
+            transition-all duration-200
+            backdrop-blur-sm
+            active:scale-95
+          "
+          aria-label="이전 카테고리"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+      )}
 
-        {/* 전체 버튼 - 항상 첫 번째 */}
+      {/* 메인 카테고리 네비게이션 - 스크롤 영역 */}
+      <div
+        ref={scrollContainerRef}
+        className="
+          flex items-center gap-2 overflow-x-auto 
+          scrollbar-hide scroll-smooth
+          px-1 py-2
+          -webkit-overflow-scrolling-touch
+        "
+        style={{
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          WebkitOverflowScrolling: "touch",
+        }}
+      >
+        {/* 전체 버튼 - 스크롤 영역 내부로 이동 */}
         <button
           data-category-id="all"
           onClick={() => setCurrentCategory(null)}
           className={`
-             flex-shrink-0 px-4 py-2.5 rounded-lg text-sm font-medium 
-            whitespace-nowrap transition-all duration-200 min-w-[60px]
+            flex-shrink-0 px-4 py-2.5 rounded-lg text-sm font-medium
+            whitespace-nowrap transition-all duration-200 min-w-[64px]
             ${
               !currentCategoryId
-                ? "bg-gray-900 text-white shadow-sm"
-                : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                ? "bg-gray-900 text-white shadow-md"
+                : "bg-gray-50 text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200"
             }
           `}
         >
-          <div className="flex items-center gap-2">
-            <span>전체</span>
-          </div>
+          전체
         </button>
 
-        {/* 스크롤 가능한 카테고리 영역 */}
-        <div
-          ref={scrollContainerRef}
-          className="flex items-center gap-1 overflow-x-auto scrollbar-hide max-w-[calc(100vw-160px)] md:max-w-[calc(100vw-180px)] lg:max-w-[calc(100vw-320px)]"
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-        >
-          {workspaceCategories.map((category) => (
-            <button
-              data-category-id={category.id}
-              key={category.id}
-              onClick={() => setCurrentCategory(category.id)}
-              onContextMenu={(e) => handleCategoryRightClick(e, category)}
-              className={`
-                group flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium 
-              whitespace-nowrap transition-all duration-200 relative flex-shrink-0
-              min-w-fit max-w-[120px]
-                ${
-                  currentCategoryId === category.id
-                    ? "bg-gray-900 text-white shadow-sm"
-                    : "bg-gray-50 text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-100"
-                }
-              `}
-            >
-              {category.icon && (
-                <span className="flex-shrink-0 text-sm">{category.icon}</span>
-              )}
-              <span className="truncate">{category.name}</span>
-
-              {/* 호버 시 점 3개 메뉴 */}
-              {!isMobile && (
-                <div
-                  className={`
-                opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity ml-1 
-                ${
-                  currentCategoryId === category.id
-                    ? "text-white"
-                    : "text-gray-400"
-                }
-                  `}
-                >
-                  <MoreHorizontal className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                </div>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* 고정된 추가 버튼 */}
-        <div className="flex-shrink-0 ml-1">
+        {/* 카테고리 버튼들 */}
+        {workspaceCategories.map((category) => (
           <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="
-              group p-2.5 rounded-lg text-gray-500 hover:text-gray-900 
-              hover:bg-white/60 transition-all duration-200
-              border border-dashed border-gray-300 hover:border-gray-400
-              hover:shadow-sm
-            "
-            title="새 카테고리 추가"
+            key={category.id}
+            data-category-id={category.id}
+            onClick={() => setCurrentCategory(category.id)}
+            onContextMenu={(e) => handleCategoryRightClick(e, category)}
+            className={`
+              group flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
+              whitespace-nowrap transition-all duration-200 relative flex-shrink-0
+              min-w-fit max-w-[140px]
+              ${
+                currentCategoryId === category.id
+                  ? "bg-gray-900 text-white shadow-md"
+                  : "bg-gray-50 text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200"
+              }
+            `}
           >
-            <Plus
-              size={16}
-              className="group-hover:scale-110 transition-transform duration-200"
-            />
-          </button>
-        </div>
+            {category.icon && (
+              <span className="text-base">{category.icon}</span>
+            )}
+            <span className="truncate">{category.name}</span>
 
-        {/* 우측 스크롤 버튼 */}
-        {canScrollRight && (
-          <>
-            <div className="z-20 absolute -right-2">
-              <button
-                onClick={scrollRight}
-                className="flex-shrink-0 p-1 rounded-full bg-white shadow-md hover:shadow-lg transition-shadow z-10"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
-            </div>
-            <div className="absolute right-0 top-0 w-8 h-full bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none" />
-          </>
-        )}
+            {/* 호버 시 점 3개 메뉴 */}
+            {!isMobile && (
+              <MoreHorizontal
+                className={`
+                  w-4 h-4 opacity-0 group-hover:opacity-100 
+                  transition-opacity absolute -right-1 -top-1
+                  ${
+                    currentCategoryId === category.id
+                      ? "text-white"
+                      : "text-gray-400"
+                  }
+                `}
+              />
+            )}
+          </button>
+        ))}
       </div>
+
+      {/* 우측 스크롤 버튼 - 항상 보이도록 개선 */}
+      {canScrollRight && (
+        <button
+          onClick={scrollRight}
+          className="
+            absolute right-14 z-20 flex-shrink-0
+            w-8 h-8 rounded-full 
+            bg-white/95 shadow-lg border border-gray-200
+            flex items-center justify-center
+            text-gray-700 hover:text-gray-900 hover:bg-white
+            transition-all duration-200
+            backdrop-blur-sm
+            active:scale-95
+          "
+          aria-label="다음 카테고리"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      )}
+
+      {/* 고정된 추가 버튼 - 우측 끝에 고정 */}
+      <button
+        onClick={() => setIsAddModalOpen(true)}
+        className="
+          absolute right-0 z-20 flex-shrink-0
+          w-10 h-10 rounded-lg
+          bg-white text-gray-500 hover:text-gray-900
+          hover:bg-gray-50 transition-all duration-200
+          border-2 border-dashed border-gray-300 hover:border-gray-400
+          shadow-sm hover:shadow-md
+          flex items-center justify-center
+          backdrop-blur-sm
+        "
+        title="새 카테고리 추가"
+        aria-label="새 카테고리 추가"
+      >
+        <Plus className="w-5 h-5" />
+      </button>
 
       {/* 컨텍스트 메뉴 */}
       {contextMenu && (
         <div
-          className="fixed bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 min-w-32"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[140px]"
+          style={{
+            top: `${contextMenu.y}px`,
+            left: `${contextMenu.x}px`,
+          }}
         >
           <button
             onClick={() => {
@@ -288,7 +285,7 @@ export function CategorySelector() {
             }}
             className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
           >
-            <Edit size={14} />
+            <Edit className="w-4 h-4" />
             편집
           </button>
           <button
@@ -304,7 +301,7 @@ export function CategorySelector() {
             }}
             className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
           >
-            <Trash2 size={14} />
+            <Trash2 className="w-4 h-4" />
             삭제
           </button>
         </div>
@@ -320,9 +317,9 @@ export function CategorySelector() {
         <AddCategoryModal
           isOpen={true}
           onClose={() => setEditingCategory(null)}
-          editingCategory={editingCategory} // 편집 모드
+          editingCategory={editingCategory}
         />
       )}
     </div>
   );
-}
+});

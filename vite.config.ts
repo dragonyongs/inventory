@@ -13,25 +13,26 @@ export default defineConfig({
       registerType: "prompt",
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2,ttf}"],
-        runtimeCaching: [
-          {
-            urlPattern: /^\/src\/.*\.(ts|tsx|js|jsx)$/,
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "dev-source-cache",
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24,
-              },
-            },
-          },
-        ],
+        // runtimeCaching: [
+        //   {
+        //     urlPattern: /^\/src\/.*\.(ts|tsx|js|jsx)$/,
+        //     handler: "NetworkFirst",
+        //     options: {
+        //       cacheName: "dev-source-cache",
+        //       expiration: {
+        //         maxEntries: 100,
+        //         maxAgeSeconds: 60 * 60 * 24,
+        //       },
+        //     },
+        //   },
+        // ],
         skipWaiting: false,
         clientsClaim: false,
       },
       devOptions: {
         enabled: true,
         type: "module",
+        navigateFallbackAllowlist: [/^\/$/],
       },
       manifest: {
         name: "재고관리 - Smart Inventory",
@@ -47,11 +48,13 @@ export default defineConfig({
             src: "/icon-192x192.png",
             sizes: "192x192",
             type: "image/png",
+            purpose: "any maskable",
           },
           {
             src: "/icon-512x512.png",
             sizes: "512x512",
             type: "image/png",
+            purpose: "any maskable",
           },
         ],
       },
