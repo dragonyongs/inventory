@@ -1,22 +1,22 @@
-// src/components/AuthGuard.tsx
+// src/components/auth/AuthGuard.tsx
+
 import React from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
 
-type Props = { children?: React.ReactNode };
+interface AuthGuardProps {
+  children?: React.ReactNode;
+}
 
-export const AuthGuard: React.FC<Props> = ({ children }) => {
-  const { isAuthenticated, user } = useAuthStore();
+export const AuthGuard = ({ children }: AuthGuardProps) => {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const location = useLocation();
 
-  if (!isAuthenticated || !user) {
-    return (
-      <Navigate
-        to="/login"
-        replace
-        state={{ from: location.pathname + location.search }}
-      />
-    );
+  if (!isAuthenticated) {
+    // ✅ URL 파라미터를 /login에 그대로 전달
+    const redirectTo = `/login${location.search}`;
+    return <Navigate to={redirectTo} state={{ from: location }} replace />;
   }
+
   return <>{children ?? <Outlet />}</>;
 };

@@ -14,17 +14,20 @@ import { DevTools } from "./DevTools";
 import WorkspaceSelector from "./WorkspaceSelector";
 import { UserProfile } from "./profile/UserProfile";
 import { useScrollDirection } from "@/hooks/useScrollDirection";
+import { useWorkspaceInit } from "@/hooks/useWorkspaceInit"; // ✅ 추가
 
 export function RootLayout({ children }: { children?: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
   const scrollDirection = useScrollDirection({
-    threshold: 50, // 50px 이상 스크롤 시 반응
-    topOffset: 100, // 상단 100px 영역은 항상 헤더 표시
+    threshold: 50,
+    topOffset: 100,
     scrollContainerSelector: "main",
   });
 
-  // ✅ iOS Safari viewport 높이 보정
+  // ✅ 초대 처리 및 워크스페이스 초기화
+  const { isLoading, currentWorkspace, error } = useWorkspaceInit();
+
+  // iOS Safari viewport 높이 보정
   useEffect(() => {
     const setVh = () => {
       const vh = window.innerHeight * 0.01;
@@ -40,6 +43,46 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
       window.removeEventListener("orientationchange", setVh);
     };
   }, []);
+
+  // ✅ 로딩 중 표시
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">워크스페이스 초기화 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ 에러 표시
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center max-w-md p-6 bg-white rounded-lg shadow">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            다시 시도
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ 워크스페이스 없음
+  if (!currentWorkspace) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-gray-600">워크스페이스를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     `group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
@@ -74,153 +117,109 @@ export function RootLayout({ children }: { children?: React.ReactNode }) {
       label: "이동내역",
       description: "입출고 기록",
     },
-    {
-      to: "/settings",
-      icon: Settings,
-      label: "설정",
-      description: "앱 설정",
-    },
+    { to: "/settings", icon: Settings, label: "설정", description: "앱 설정" },
   ];
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
-      {/* Desktop Sidebar */}
-      <aside className="hidden w-64 flex-col border-r border-gray-200 bg-white md:flex">
-        <div className="flex h-full flex-col">
-          {/* Workspace Selector - 최상단 */}
-          <div className="border-b border-gray-100 px-4 pb-3 pt-6">
-            <WorkspaceSelector variant="compact" />
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
+      {/* 데스크톱 사이드바 */}
+      <aside className="hidden md:flex md:flex-shrink-0 w-64 bg-white border-r border-gray-200">
+        <div className="flex flex-col w-full">
+          {/* 헤더 */}
+          <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200">
+            <WorkspaceSelector />
           </div>
 
-          {/* App Title */}
-          <div className="border-b border-gray-100 px-4 py-3">
-            <h1 className="text-base font-semibold text-gray-800">재고관리</h1>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+          {/* 네비게이션 */}
+          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
             {navigationItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={navLinkClass}
-                end={item.to === "/"}
-              >
-                <item.icon className="mr-3 h-5 w-5" />
-                {item.label}
+              <NavLink key={item.to} to={item.to} className={navLinkClass}>
+                <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
+                <span>{item.label}</span>
               </NavLink>
             ))}
           </nav>
 
-          {/* User Profile - 데스크톱 하단 */}
-          <div className="border-t border-gray-100 px-4 py-4">
+          {/* 사용자 프로필 */}
+          <div className="flex-shrink-0 border-t border-gray-200 p-4">
             <UserProfile />
           </div>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* 모바일 헤더 - 스크롤 시 숨김 */}
-        <div
-          className={`border-b border-gray-200 bg-white transition-transform duration-300 ease-in-out md:hidden ${
-            scrollDirection === "down" &&
-            "fixed -translate-y-full top-0 left-0 right-0 z-30 "
+      {/* 메인 콘텐츠 */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* 모바일 헤더 */}
+        <header
+          className={`md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between transition-transform duration-300 ${
+            scrollDirection === "down" ? "-translate-y-full" : "translate-y-0"
           }`}
-          style={{
-            paddingTop: "env(safe-area-inset-top)",
-          }}
         >
-          <div className="flex items-center justify-between px-4 py-3">
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="rounded-lg p-2 text-gray-600 transition-colors hover:bg-gray-100"
-                aria-label="메뉴"
-              >
-                {isMobileMenuOpen ? (
-                  <X className="h-6 w-6" />
-                ) : (
-                  <Menu className="h-6 w-6" />
-                )}
-              </button>
-              <h1 className="text-lg font-semibold text-gray-900">물품관리</h1>
-            </div>
-          </div>
-        </div>
+          <WorkspaceSelector />
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+          >
+            {isMobileMenuOpen ? (
+              <X className="h-6 w-6" />
+            ) : (
+              <Menu className="h-6 w-6" />
+            )}
+          </button>
+        </header>
 
-        {/* Mobile Menu */}
+        {/* 모바일 메뉴 */}
         {isMobileMenuOpen && (
-          <>
-            {/* 배경 Backdrop 레이어 */}
-            <div
-              className="fixed inset-0 z-40 bg-black/50 md:hidden"
-              onClick={() => setIsMobileMenuOpen(false)}
-              aria-hidden="true"
-            />
-
-            {/* Sidebar 레이어 */}
-            <aside
-              className="fixed inset-y-0 left-0 z-50 w-80 transform bg-white shadow-xl transition-transform duration-300 ease-in-out md:hidden"
-              style={{
-                paddingTop: "env(safe-area-inset-top)",
-                paddingBottom: "env(safe-area-inset-bottom)",
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex h-full flex-col">
-                {/* Workspace Selector - 모바일도 최상단 */}
-                <div className="px-4 py-6 border-b border-gray-100 ">
-                  <WorkspaceSelector variant="compact" />
+          <div className="md:hidden fixed inset-0 z-50 bg-black bg-opacity-50">
+            <div className="absolute inset-y-0 right-0 w-full max-w-sm bg-white shadow-xl">
+              <div className="flex flex-col h-full">
+                {/* 모바일 헤더 */}
+                <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 flex items-center justify-between">
+                  <span className="text-lg font-semibold text-gray-900">
+                    메뉴
+                  </span>
+                  <button
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
                 </div>
 
-                {/* App Title */}
-                <div className="border-b border-gray-100 px-4 py-3">
-                  <h1 className="text-base font-semibold text-gray-800">
-                    재고관리
-                  </h1>
-                </div>
-
-                {/* Navigation */}
-                <nav className="flex-1 space-y-2 overflow-y-auto px-4 pb-4 pt-6">
+                {/* 네비게이션 */}
+                <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
                   {navigationItems.map((item) => (
                     <NavLink
                       key={item.to}
                       to={item.to}
                       className={mobileNavLinkClass}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      end={item.to === "/"}
                     >
-                      <div className="flex items-center space-x-3">
-                        <item.icon className="h-5 w-5 flex-shrink-0" />
+                      <div className="flex items-center">
+                        <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
                         <div>
                           <div className="font-medium">{item.label}</div>
-                          <div className="mt-0.5 text-xs text-gray-500">
+                          <div className="text-xs text-gray-500">
                             {item.description}
                           </div>
                         </div>
                       </div>
-                      <ChevronRight className="h-5 w-5 text-gray-400" />
+                      <ChevronRight className="h-5 w-5 flex-shrink-0 text-gray-400" />
                     </NavLink>
                   ))}
                 </nav>
 
-                {/* User Profile - 모바일 하단 */}
-                <div className="border-t border-gray-100 px-4 py-4">
+                {/* 사용자 프로필 */}
+                <div className="flex-shrink-0 border-t border-gray-200 p-4">
                   <UserProfile />
                 </div>
               </div>
-            </aside>
-          </>
+            </div>
+          </div>
         )}
 
-        {/* Main Content Area */}
-        <main
-          className="flex-1 overflow-y-auto"
-          style={{
-            paddingBottom: "env(safe-area-inset-bottom)",
-          }}
-        >
+        {/* 메인 콘텐츠 영역 */}
+        <main className="flex-1 overflow-y-auto bg-gray-50">
           {children || <Outlet />}
         </main>
       </div>

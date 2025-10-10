@@ -1,5 +1,4 @@
 // src/stores/workspaceStore.ts
-
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -20,14 +19,30 @@ export interface Workspace {
   type: WorkspaceType;
   createdAt: string;
   updatedAt: string;
+  ownerId: string;
 }
 
-// 권한/멤버십
 export type WorkspaceRole = "owner" | "admin" | "member" | "viewer";
 
+export interface WorkspacePermissions {
+  canEditWorkspace: boolean;
+  canDeleteWorkspace: boolean;
+  canInviteMembers: boolean;
+  canRemoveMembers: boolean;
+  canChangePermissions: boolean;
+  canManageItems: boolean;
+  canViewItems: boolean;
+  canEditItems: boolean;
+  canDeleteItems: boolean;
+}
+
 interface WorkspaceMembersState {
-  // workspaceId -> { userId -> role }
+  // ✅ 수정: Record 타입 인자 2개로 변경
   memberships: Record<string, Record<string, WorkspaceRole>>;
+  customPermissions: Record<
+    string,
+    Record<string, Partial<WorkspacePermissions>>
+  >;
 }
 
 interface WorkspaceState {
@@ -47,19 +62,34 @@ interface WorkspaceActions {
   switchWorkspace: (id: string) => void;
   setCurrentWorkspaceId: (id: string | null) => void;
   getCurrentWorkspace: () => Workspace | null;
-  // ✅ 추가: ID로 워크스페이스 조회
   getWorkspaceById: (id: string) => Workspace | undefined;
   ensureDefaultWorkspace: () => void;
   initialize: () => void;
-  // 멤버십 관련
+
   getUserRole: (workspaceId: string, userId: string) => WorkspaceRole | null;
   setUserRole: (
     workspaceId: string,
     userId: string,
     role: WorkspaceRole
   ) => void;
+  removeUserFromWorkspace: (workspaceId: string, userId: string) => void;
   claimOwnerIfMissing: (workspaceId: string, userId: string) => void;
   ensureMembershipForCurrentUser: (workspaceId: string) => void;
+
+  getWorkspaceMembers: (
+    workspaceId: string
+  ) => Array<{ userId: string; role: WorkspaceRole }>;
+  getUserPermissions: (
+    workspaceId: string,
+    userId: string
+  ) => WorkspacePermissions;
+  setCustomPermissions: (
+    workspaceId: string,
+    userId: string,
+    permissions: Partial<WorkspacePermissions>
+  ) => void;
+  getOwnedWorkspaces: (userId: string) => Workspace[];
+  getSharedWorkspaces: (userId: string) => Workspace[];
 }
 
 export type WorkspaceStore = WorkspaceState &
@@ -74,7 +104,6 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-// auth-store persist에서 userId를 가져오는 임시 유틸 (DB 도입 전까지만 사용)
 function tryGetAuthUserId(): string | null {
   try {
     const raw = localStorage.getItem("auth-storage");
@@ -86,20 +115,74 @@ function tryGetAuthUserId(): string | null {
   }
 }
 
+function getDefaultPermissions(role: WorkspaceRole): WorkspacePermissions {
+  switch (role) {
+    case "owner":
+      return {
+        canEditWorkspace: true,
+        canDeleteWorkspace: true,
+        canInviteMembers: true,
+        canRemoveMembers: true,
+        canChangePermissions: true,
+        canManageItems: true,
+        canViewItems: true,
+        canEditItems: true,
+        canDeleteItems: true,
+      };
+    case "admin":
+      return {
+        canEditWorkspace: false,
+        canDeleteWorkspace: false,
+        canInviteMembers: true,
+        canRemoveMembers: true,
+        canChangePermissions: false,
+        canManageItems: true,
+        canViewItems: true,
+        canEditItems: true,
+        canDeleteItems: true,
+      };
+    case "member":
+      return {
+        canEditWorkspace: false,
+        canDeleteWorkspace: false,
+        canInviteMembers: false,
+        canRemoveMembers: false,
+        canChangePermissions: false,
+        canManageItems: true,
+        canViewItems: true,
+        canEditItems: true,
+        canDeleteItems: false,
+      };
+    case "viewer":
+      return {
+        canEditWorkspace: false,
+        canDeleteWorkspace: false,
+        canInviteMembers: false,
+        canRemoveMembers: false,
+        canChangePermissions: false,
+        canManageItems: false,
+        canViewItems: true,
+        canEditItems: false,
+        canDeleteItems: false,
+      };
+  }
+}
+
 export const useWorkspaceStore = create<WorkspaceStore>()(
   persist(
     (set, get) => ({
-      // 초기 상태
       workspaces: [],
       currentWorkspaceId: null,
       isInitialized: false,
       memberships: {},
+      customPermissions: {},
 
       claimOwnerIfMissing: (workspaceId: string, userId: string) => {
         const s = get();
         const wsMembers = s.memberships[workspaceId] ?? {};
         const hasAny = Object.keys(wsMembers).length > 0;
         const already = wsMembers[userId];
+
         if (!hasAny || !already) {
           set((st) => ({
             memberships: {
@@ -114,15 +197,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       },
 
       ensureMembershipForCurrentUser: (workspaceId: string) => {
-        const userId = (() => {
-          try {
-            const raw = localStorage.getItem("auth-storage");
-            return raw ? JSON.parse(raw).state?.user?.id ?? null : null;
-          } catch {
-            return null;
-          }
-        })();
+        const userId = tryGetAuthUserId();
         if (!userId) return;
+
         const role = get().memberships[workspaceId]?.[userId];
         if (!role) {
           set((s) => ({
@@ -137,8 +214,13 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         }
       },
 
-      // 워크스페이스 생성
       createWorkspace: (data) => {
+        const userId = tryGetAuthUserId();
+        if (!userId) {
+          console.error("❌ 사용자 ID를 찾을 수 없습니다.");
+          throw new Error("로그인이 필요합니다.");
+        }
+
         const w: Workspace = {
           id: newId(),
           name: data.name,
@@ -146,8 +228,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           type: data.type,
           createdAt: nowIso(),
           updatedAt: nowIso(),
+          ownerId: userId,
         };
-        const userId = tryGetAuthUserId();
+
         set((s) => ({
           workspaces: [...s.workspaces, w],
           currentWorkspaceId: w.id,
@@ -155,12 +238,12 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             ...s.memberships,
             [w.id]: {
               ...(s.memberships[w.id] ?? {}),
-              ...(userId ? { [userId]: "owner" as const } : {}),
+              [userId]: "owner",
             },
           },
         }));
 
-        queueMicrotask(() => get().ensureMembershipForCurrentUser(w.id));
+        console.log("✅ 워크스페이스 생성 완료:", w);
         return w;
       },
 
@@ -176,18 +259,28 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         set((s) => {
           const filtered = s.workspaces.filter((w) => w.id !== id);
           const memberships = { ...s.memberships };
+          const customPermissions = { ...s.customPermissions };
           delete memberships[id];
+          delete customPermissions[id];
+
           const currentWorkspaceId =
             s.currentWorkspaceId === id
               ? filtered[0]?.id ?? null
               : s.currentWorkspaceId;
-          return { workspaces: filtered, currentWorkspaceId, memberships };
+
+          return {
+            workspaces: filtered,
+            currentWorkspaceId,
+            memberships,
+            customPermissions,
+          };
         });
       },
 
       switchWorkspace: (id) => {
         const exists = get().workspaces.some((w) => w.id === id);
         if (!exists) return;
+
         set({ currentWorkspaceId: id });
         queueMicrotask(() =>
           window.dispatchEvent(
@@ -205,7 +298,6 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         return s.workspaces.find((w) => w.id === s.currentWorkspaceId) ?? null;
       },
 
-      // ✅ 추가: ID로 워크스페이스 조회
       getWorkspaceById: (id: string) => {
         return get().workspaces.find((w) => w.id === id);
       },
@@ -220,7 +312,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             type: "DEFAULT",
             createdAt: nowIso(),
             updatedAt: nowIso(),
+            ownerId: userId || "unknown",
           };
+
           set({
             workspaces: [w],
             currentWorkspaceId: w.id,
@@ -228,7 +322,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               ...(s.memberships ?? {}),
               [w.id]: {
                 ...(s.memberships?.[w.id] ?? {}),
-                ...(userId ? { [userId]: "owner" as const } : {}),
+                ...(userId ? { [userId]: "owner" } : {}),
               },
             },
           });
@@ -244,7 +338,6 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         set({ isInitialized: true });
       },
 
-      // 멤버십
       getUserRole: (workspaceId, userId) => {
         const { memberships } = get();
         return memberships[workspaceId]?.[userId] ?? null;
@@ -261,10 +354,78 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           },
         }));
       },
+
+      removeUserFromWorkspace: (workspaceId, userId) => {
+        set((s) => {
+          const wsMembers = { ...(s.memberships[workspaceId] ?? {}) };
+          delete wsMembers[userId];
+
+          const wsPermissions = { ...(s.customPermissions[workspaceId] ?? {}) };
+          delete wsPermissions[userId];
+
+          return {
+            memberships: {
+              ...s.memberships,
+              [workspaceId]: wsMembers,
+            },
+            customPermissions: {
+              ...s.customPermissions,
+              [workspaceId]: wsPermissions,
+            },
+          };
+        });
+      },
+
+      // ✅ 수정: role을 WorkspaceRole로 명시적 타입 캐스팅
+      getWorkspaceMembers: (workspaceId) => {
+        const members = get().memberships[workspaceId] ?? {};
+        return Object.entries(members).map(([userId, role]) => ({
+          userId,
+          role: role as WorkspaceRole,
+        }));
+      },
+
+      getUserPermissions: (workspaceId, userId) => {
+        const role = get().getUserRole(workspaceId, userId);
+        if (!role) return getDefaultPermissions("viewer");
+
+        const defaultPerms = getDefaultPermissions(role);
+        const customPerms =
+          get().customPermissions[workspaceId]?.[userId] ?? {};
+
+        return { ...defaultPerms, ...customPerms };
+      },
+
+      setCustomPermissions: (workspaceId, userId, permissions) => {
+        set((s) => ({
+          customPermissions: {
+            ...s.customPermissions,
+            [workspaceId]: {
+              ...(s.customPermissions[workspaceId] ?? {}),
+              [userId]: {
+                ...(s.customPermissions[workspaceId]?.[userId] ?? {}),
+                ...permissions,
+              },
+            },
+          },
+        }));
+      },
+
+      getOwnedWorkspaces: (userId) => {
+        return get().workspaces.filter((ws) => ws.ownerId === userId);
+      },
+
+      getSharedWorkspaces: (userId) => {
+        const { workspaces, memberships } = get();
+        return workspaces.filter((ws) => {
+          const role = memberships[ws.id]?.[userId];
+          return role && ws.ownerId !== userId;
+        });
+      },
     }),
     {
       name: "inventory-workspaces",
-      version: 1,
+      version: 2,
       onRehydrateStorage: () => (state) => {
         if (state && !state.isInitialized) {
           setTimeout(() => {

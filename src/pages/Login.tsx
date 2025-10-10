@@ -1,21 +1,42 @@
 // src/pages/Login.tsx
-
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
 import { useGoogleAuth } from "../hooks/useGoogleAuth";
 import { Package, Sparkles } from "lucide-react";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const user = useAuthStore((s) => s.user);
   const { isAuthenticated } = useAuthStore();
   const { signInWithGoogle, isLoading } = useGoogleAuth();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/dashboard");
+    if (user && isAuthenticated) {
+      // ✅ 1순위: URL에서 초대 파라미터 확인
+      const inviteParam = searchParams.get("invite");
+
+      if (inviteParam) {
+        console.log("🔗 URL에서 초대 파라미터 발견:", inviteParam);
+        navigate(`/?invite=${inviteParam}`, { replace: true });
+        return;
+      }
+
+      // ✅ 2순위: state에서 경로 복원
+      const from = location.state?.from;
+
+      if (from?.search) {
+        console.log("🔗 state에서 복원:", from.pathname + from.search);
+        navigate(`${from.pathname}${from.search}`, { replace: true });
+        return;
+      }
+
+      // ✅ 3순위: 기본 경로
+      navigate("/", { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [user, isAuthenticated, navigate, location, searchParams]);
 
   const handleGoogleLogin = async () => {
     try {
@@ -27,35 +48,38 @@ export default function Login() {
 
   return (
     <div className="max-w-md w-full">
-      {/* 로고 & 브랜딩 */}
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
-          <Package className="w-8 h-8 text-white" />
+      <div className="bg-white rounded-2xl shadow-xl p-8 space-y-8">
+        {/* 헤더 */}
+        <div className="text-center space-y-3">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-800 rounded-2xl mb-4">
+            <Package className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900">재고관리</h1>
+          <p className="text-gray-600">간편하고 효율적인 재고 관리 솔루션</p>
         </div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          재고관리 마스터
-        </h1>
-        <p className="text-gray-600">간편하고 효율적인 재고 관리 솔루션</p>
-      </div>
 
-      {/* 로그인 카드 */}
-      <div className="bg-white rounded-lg shadow-lg p-8">
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">시작하기</h2>
-          <p className="text-gray-600 text-sm">
+        {/* ✅ 초대 안내 메시지 */}
+        {searchParams.get("invite") && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-sm text-blue-800 text-center">
+              🎉 워크스페이스에 초대되었습니다!
+              <br />
+              로그인하면 자동으로 참여됩니다.
+            </p>
+          </div>
+        )}
+
+        {/* 로그인 버튼 */}
+        <div className="space-y-4">
+          <p className="text-sm text-center text-gray-600">
             구글 계정으로 간편하게 로그인하세요
           </p>
-        </div>
-
-        <button
-          onClick={handleGoogleLogin}
-          disabled={isLoading}
-          className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isLoading ? (
-            <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin mr-3" />
-          ) : (
-            <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
+          <button
+            onClick={handleGoogleLogin}
+            disabled={isLoading}
+            className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-white border-2 border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
                 fill="#4285F4"
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -73,28 +97,17 @@ export default function Login() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-          )}
-          구글로 로그인
-        </button>
+            <span className="font-medium text-gray-700 group-hover:text-gray-900">
+              {isLoading ? "로그인 중..." : "Google로 로그인"}
+            </span>
+          </button>
+        </div>
 
-        {/* 기능 미리보기 */}
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <h3 className="text-sm font-medium text-gray-900 mb-3">주요 기능</h3>
-          <div className="space-y-2">
-            {[
-              "실시간 재고 추적",
-              "입출고 이력 관리",
-              "만료일 알림",
-              "다중 워크스페이스",
-            ].map((feature, index) => (
-              <div
-                key={index}
-                className="flex items-center text-sm text-gray-600"
-              >
-                <Sparkles className="w-4 h-4 text-blue-500 mr-2" />
-                {feature}
-              </div>
-            ))}
+        {/* 푸터 */}
+        <div className="pt-6 border-t border-gray-100">
+          <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+            <Sparkles className="w-4 h-4" />
+            <span>간편한 재고 관리를 시작하세요</span>
           </div>
         </div>
       </div>
